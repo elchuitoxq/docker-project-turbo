@@ -1,0 +1,42 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "stream",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**/*", "tsconfig.json", "next.config.js"],
+      "outputs": [".next/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:generate": {
+      "inputs": ["src/**/*", "drizzle.config.ts"],
+      "cache": true
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:seed:test": {
+      "cache": false
+    },
+    "test:db:prepare": {
+      "cache": false
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "lint:fix": {
+      "cache": false
+    },
+    "test": {
+      "cache": false,
+      "outputs": []
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

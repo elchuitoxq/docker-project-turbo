@@ -1,0 +1,2 @@
+C:\Users\elchu\Documents\Proyectos\docker-project-turbo\.agents\skills\shadcn\assets\shadcn-small.png
+C:\Users\elchu\Documents\Proyectos\docker-project-turbo\.agents\skills\shadcn\assets\shadcn.png

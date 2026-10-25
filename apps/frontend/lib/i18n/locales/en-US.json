@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "ERP"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "invalidCredentials": "Invalid credentials",
+    "sessionExpired": "Your session has expired"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "operations": "Operations",
+    "inventory": "Inventory",
+    "finance": "Finance",
+    "hr": "Human Resources",
+    "settings": "Settings",
+    "bi": "Business Intelligence"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "search": "Search",
+    "loading": "Loading...",
+    "noResults": "No results",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  },
+  "company": {
+    "select": "Select company",
+    "branch": "Branch"
+  },
+  "forbidden": {
+    "noCompany": "You have no company assigned",
+    "noBranch": "You have no branch assigned",
+    "noPermission": "You don't have permission to access this section",
+    "backToDashboard": "Back to dashboard"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "command": {
+    "placeholder": "Search modules, pages or actions...",
+    "noResults": "No results",
+    "navigation": "Navigation",
+    "actions": "Actions"
+  }
+}

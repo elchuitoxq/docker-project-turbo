@@ -1,0 +1,51 @@
+
+# =============================================
+# Monorrepo Turborepo + pnpm + Docker
+# =============================================
+
+# --- Dependencias ---
+node_modules/
+.pnpm-store/
+
+# --- Builds y cache de herramientas ---
+.turbo/
+.next/
+dist/
+build/
+
+# --- Variables de entorno (NUNCA subirlas) ---
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+!.env.example
+
+# --- Docker ---
+docker-compose.override.yml
+
+# --- Logs ---
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- Testing ---
+coverage/
+*.lcov
+
+# --- Misc ---
+*.tsbuildinfo
+.vercel
+</contents>

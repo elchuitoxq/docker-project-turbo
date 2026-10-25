@@ -1,0 +1,142 @@
+services:
+  postgres:
+    image: postgres:18.4-alpine3.23
+    container_name: mono-postgres
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydb
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U myuser -d mydb']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mono-backend
+    working_dir: /app
+    ports:
+      - '4000:4000'
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://myuser:mypassword@postgres:5432/mydb
+      - DATABASE_HOST=postgres
+      - JWT_SECRET=tu_clave_secreta_super_segura
+      - GENERATE_OPENAPI=true
+      - WAIT_FOR_POSTGRES=true
+      - RUN_DATABASE_SETUP=true
+      - SEED_ENV=development
+    volumes:
+      - ./apps/backend/src:/app/apps/backend/src
+      - ./apps/backend/test:/app/apps/backend/test
+      - ./apps/backend/scripts:/app/apps/backend/scripts
+      - ./apps/backend/docs:/app/apps/backend/docs
+      - ./apps/backend/nest-cli.json:/app/apps/backend/nest-cli.json
+      - ./packages/database/src:/app/packages/database/src
+      - ./packages/database/drizzle:/app/packages/database/drizzle
+      - ./packages/database/drizzle.config.ts:/app/packages/database/drizzle.config.ts
+      - ./apps/backend/tsconfig.json:/app/apps/backend/tsconfig.json
+      - ./apps/backend/eslint.config.js:/app/apps/backend/eslint.config.js
+    command: ['./scripts/dev-entrypoint.sh', 'pnpm', '--filter', 'backend', 'dev:tools']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mono-frontend
+    working_dir: /app
+    ports:
+      - '3000:3000'
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:4000
+      - HOSTNAME=0.0.0.0
+    volumes:
+      - ./apps/frontend/app:/app/apps/frontend/app
+      - ./apps/frontend/components:/app/apps/frontend/components
+      - ./apps/frontend/modules:/app/apps/frontend/modules
+      - ./apps/frontend/hooks:/app/apps/frontend/hooks
+      - ./apps/frontend/lib:/app/apps/frontend/lib
+      - ./apps/frontend/stores:/app/apps/frontend/stores
+      - ./apps/frontend/styles:/app/apps/frontend/styles
+      - ./apps/frontend/types:/app/apps/frontend/types
+      - ./apps/frontend/public:/app/apps/frontend/public
+      - ./apps/frontend/src:/app/apps/frontend/src
+      - ./apps/frontend/eslint.config.mjs:/app/apps/frontend/eslint.config.mjs
+      - ./apps/frontend/next-env.d.ts:/app/apps/frontend/next-env.d.ts
+      - ./apps/frontend/postcss.config.mjs:/app/apps/frontend/postcss.config.mjs
+      - ./apps/frontend/tsconfig.json:/app/apps/frontend/tsconfig.json
+      - ./apps/frontend/vitest.config.ts:/app/apps/frontend/vitest.config.ts
+      - ./apps/frontend/components.json:/app/apps/frontend/components.json
+      - ./apps/frontend/package.json:/app/apps/frontend/package.json
+    command: ['pnpm', '--filter', 'frontend', 'dev']
+    depends_on:
+      - backend
+
+  mock:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mono-mock
+    working_dir: /app
+    ports:
+      - '4010:4010'
+    command:
+      [
+        'sh',
+        '-c',
+        '/app/apps/backend/node_modules/.bin/prism mock -p 4010 -d /app/apps/backend/docs/openapi.json',
+      ]
+    volumes:
+      - ./apps/backend/docs:/app/apps/backend/docs:ro
+    depends_on:
+      backend:
+        condition: service_started
+
+  drizzle-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mono-drizzle
+    working_dir: /app
+    ports:
+      - '4983:4983'
+    environment:
+      - DATABASE_URL=postgresql://myuser:mypassword@postgres:5432/mydb
+    volumes:
+      - ./packages/database/src:/app/packages/database/src
+      - ./packages/database/drizzle:/app/packages/database/drizzle
+      - ./packages/database/drizzle.config.js:/app/packages/database/drizzle.config.js
+      - ./packages/database/package.json:/app/packages/database/package.json
+      - ./packages/database/tsconfig.json:/app/packages/database/tsconfig.json
+    command: ['pnpm', '--filter', 'database', 'db:studio:docker']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mono-pgadmin
+    ports:
+      - '5050:80'
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  pgadmin_data:

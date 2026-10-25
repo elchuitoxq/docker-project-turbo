@@ -1,0 +1,25 @@
+FROM node:26-alpine3.23
+
+ENV NODE_ENV=development
+
+RUN apk add --no-cache libc6-compat openssl libpq-dev python3 make g++ netcat-openbsd
+
+RUN npm install -g pnpm@10.0.0
+
+WORKDIR /app
+
+COPY package.json pnpm-workspace.yaml turbo.json ./
+COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/backend/package.json ./apps/backend/
+COPY packages/database/package.json ./packages/database/
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY pnpm-lock.yaml ./
+
+RUN pnpm install
+
+COPY scripts/dev-entrypoint.sh ./scripts/dev-entrypoint.sh
+RUN chmod +x ./scripts/dev-entrypoint.sh
+
+EXPOSE 3000 4000 4010 4983
+
+CMD ["sh"]

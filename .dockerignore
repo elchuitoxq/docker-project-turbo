@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/.turbo
+**/.cache
+**/.vite
+**/*.tsbuildinfo
+.git
+.gitignore
+.husky
+*.log
+.env.local
+.env.*.local
+docs/openapi.json
+audit-report

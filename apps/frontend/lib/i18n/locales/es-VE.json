@@ -1,0 +1,57 @@
+{
+  "app": {
+    "name": "ERP"
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "invalidCredentials": "Credenciales inválidas",
+    "sessionExpired": "Tu sesión ha expirado"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "operations": "Operaciones",
+    "inventory": "Inventario",
+    "finance": "Finanzas",
+    "hr": "Recursos Humanos",
+    "settings": "Configuración",
+    "bi": "Inteligencia de Negocios"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "create": "Crear",
+    "search": "Buscar",
+    "loading": "Cargando...",
+    "noResults": "Sin resultados",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior"
+  },
+  "company": {
+    "select": "Seleccionar empresa",
+    "branch": "Sucursal"
+  },
+  "forbidden": {
+    "noCompany": "No tienes una empresa asignada",
+    "noBranch": "No tienes una sucursal asignada",
+    "noPermission": "No tienes permiso para acceder a esta sección",
+    "backToDashboard": "Volver al panel"
+  },
+  "theme": {
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "command": {
+    "placeholder": "Buscar módulos, páginas o acciones...",
+    "noResults": "Sin resultados",
+    "navigation": "Navegación",
+    "actions": "Acciones"
+  }
+}

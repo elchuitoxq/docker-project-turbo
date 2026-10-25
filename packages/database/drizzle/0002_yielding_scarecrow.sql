@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "stock_warehouse_product_batch_unq" ON "stock" USING btree ("warehouse_id","product_id","batch_id");

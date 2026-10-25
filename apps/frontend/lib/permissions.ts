@@ -1,0 +1,107 @@
+export const PERMISSIONS = {
+  DASHBOARD: { VIEW: 'dashboard:view' },
+  OPERATIONS: {
+    VIEW: 'operations:view',
+    PARTNERS: {
+      VIEW: 'operations:partners:view',
+      CREATE: 'operations:partners:create',
+      EDIT: 'operations:partners:edit',
+      DELETE: 'operations:partners:delete',
+      STATEMENT: 'operations:partners:statement',
+    },
+    SALES: {
+      VIEW: 'operations:sales:view',
+      CREATE: 'operations:sales:create',
+      EDIT: 'operations:sales:edit',
+    },
+    PURCHASES: {
+      VIEW: 'operations:purchases:view',
+      CREATE: 'operations:purchases:create',
+      EDIT: 'operations:purchases:edit',
+    },
+    ORDERS: {
+      VIEW: 'operations:orders:view',
+      CREATE: 'operations:orders:create',
+      EDIT: 'operations:orders:edit',
+      APPROVE: 'operations:orders:approve',
+    },
+  },
+  INVENTORY: {
+    VIEW: 'inventory:view',
+    PRODUCTS: {
+      VIEW: 'inventory:products:view',
+      CREATE: 'inventory:products:create',
+      EDIT: 'inventory:products:edit',
+      DELETE: 'inventory:products:delete',
+    },
+    WAREHOUSES: {
+      VIEW: 'inventory:warehouses:view',
+      CREATE: 'inventory:warehouses:create',
+      EDIT: 'inventory:warehouses:edit',
+    },
+    MOVES: {
+      VIEW: 'inventory:moves:view',
+      CREATE: 'inventory:moves:create',
+      APPROVE: 'inventory:moves:approve',
+    },
+  },
+  FINANCE: {
+    VIEW: 'finance:view',
+    INVOICES: {
+      VIEW: 'finance:invoices:view',
+      CREATE: 'finance:invoices:create',
+      EDIT: 'finance:invoices:edit',
+      POST: 'finance:invoices:post',
+      VOID: 'finance:invoices:void',
+    },
+    TREASURY: {
+      VIEW: 'finance:treasury:view',
+      CREATE_ACCOUNT: 'finance:treasury:create_account',
+    },
+    PAYMENTS: {
+      VIEW: 'finance:payments:view',
+      CREATE: 'finance:payments:create',
+      VOID: 'finance:payments:void',
+    },
+    RETENTIONS: { VIEW: 'finance:retentions:view' },
+    REPORTS: { VIEW: 'finance:reports:view' },
+  },
+  HR: {
+    VIEW: 'hr:view',
+    EMPLOYEES: {
+      VIEW: 'hr:employees:view',
+      CREATE: 'hr:employees:create',
+      EDIT: 'hr:employees:edit',
+      DELETE: 'hr:employees:delete',
+    },
+    PAYROLL: {
+      VIEW: 'hr:payroll:view',
+      PROCESS: 'hr:payroll:process',
+    },
+    INCIDENTS: {
+      VIEW: 'hr:incidents:view',
+      CREATE: 'hr:incidents:create',
+    },
+    SETTINGS: { VIEW: 'hr:settings:view' },
+  },
+  SETTINGS: {
+    VIEW: 'settings:view',
+    USERS: {
+      VIEW: 'settings:users:view',
+      CREATE: 'settings:users:create',
+      EDIT: 'settings:users:edit',
+      MANAGE: 'settings:users:manage',
+    },
+    ROLES: { VIEW: 'settings:roles:view', MANAGE: 'settings:roles:manage' },
+    COMPANIES: { VIEW: 'settings:companies:view', MANAGE: 'settings:companies:manage' },
+    BRANCHES: {
+      VIEW: 'settings:branches:view',
+      MANAGE: 'settings:branches:manage',
+    },
+    BANKS: { VIEW: 'settings:banks:view', MANAGE: 'settings:banks:manage' },
+    CURRENCIES: { VIEW: 'settings:currencies:view', MANAGE: 'settings:currencies:manage' },
+    TAXES: { VIEW: 'settings:taxes:view', MANAGE: 'settings:taxes:manage' },
+  },
+} as const;
+
+export type PermissionCode = string;

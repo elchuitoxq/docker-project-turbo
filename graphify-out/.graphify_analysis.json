@@ -1,0 +1,1083 @@
+{
+  "communities": {
+    "0": [
+      "after_function",
+      "content_visibility_auto",
+      "delete_user",
+      "loading_skeleton",
+      "message_list",
+      "rules_after_function",
+      "rules_analytics",
+      "rules_authentication",
+      "rules_authorization",
+      "rules_input_validation",
+      "rules_logging",
+      "rules_nextjs",
+      "rules_non_blocking_operations",
+      "rules_rendering_content_visibility",
+      "rules_rendering_hoist_jsx",
+      "rules_rendering_hydration_no_flicker",
+      "rules_route_handlers",
+      "rules_server_actions",
+      "rules_server_after_nonblocking",
+      "rules_server_auth_actions",
+      "rules_server_components",
+      "rules_verify_session",
+      "rules_zod",
+      "server_actions",
+      "theme_wrapper",
+      "update_profile",
+      "vercel_react_best_practices",
+      "verify_session"
+    ],
+    "1": [
+      "agents_ag",
+      "best_practices_rule",
+      "bundle_preload",
+      "client_event_listeners",
+      "rerender_use_ref_transient_values",
+      "rule_advanced_patterns",
+      "rule_apps_deployables",
+      "rule_avoid_barrel_files",
+      "rule_avoid_nested_packages",
+      "rule_bundle_size",
+      "rule_calculate_derived_state",
+      "rule_client_data_fetching",
+      "rule_conditional_module_loading",
+      "rule_dynamic_imports",
+      "rule_eliminate_waterfalls",
+      "rule_exports_field",
+      "rule_javascript_performance",
+      "rule_namespace_packages",
+      "rule_one_purpose_per_package",
+      "rule_packages_libraries",
+      "rule_passive_listeners",
+      "rule_rendering_performance",
+      "rule_rerender_optimization",
+      "rule_server_performance",
+      "rule_statically_analyzable_paths",
+      "rule_swr_deduplication",
+      "rule_use_swr_subscription",
+      "rule_useref_transient"
+    ],
+    "2": [
+      "analysis_json_schema",
+      "analyzer_agent",
+      "assertion_evaluation",
+      "benchmark_analysis",
+      "benchmark_json_schema",
+      "blind_comparison",
+      "comparator_agent",
+      "comparison_json_schema",
+      "description_optimization",
+      "eval_trigger_optimization",
+      "eval_viewer",
+      "evals_json_schema",
+      "generate_review_py",
+      "grader_agent",
+      "grading_json_schema",
+      "history_json_schema",
+      "metrics_json_schema",
+      "package_skill_py",
+      "post_hoc_analysis",
+      "progressive_disclosure",
+      "run_loop_py",
+      "schemas_doc",
+      "skill_creator_license",
+      "skill_creator_skill",
+      "skill_iteration_loop",
+      "skill_packaging",
+      "timing_json_schema",
+      "viewer_html"
+    ],
+    "3": [
+      "branches_branchescontroller",
+      "branches_branchesmodule",
+      "branches_branchesservice",
+      "common_guards_jwtauthguard",
+      "orders_cancelorderresponsedto",
+      "orders_confirmorderresponsedto",
+      "orders_createorderdto",
+      "orders_createorderitemdto",
+      "orders_orderitemresponsedto",
+      "orders_orderresponsedto",
+      "orders_orderscontroller",
+      "orders_ordersmodule",
+      "orders_ordersservice",
+      "orders_orderstatsresponsedto",
+      "orders_orderstatus",
+      "orders_ordertype",
+      "orders_updateorderdto",
+      "partners_createpartnerdto",
+      "partners_partnerresponsedto",
+      "partners_partnerscontroller",
+      "partners_partnersmodule",
+      "partners_partnersservice",
+      "partners_partnerstatsresponsedto",
+      "partners_updatepartnerdto"
+    ],
+    "4": [
+      "frontend_frontend",
+      "frontend_nextjs",
+      "frontend_zustand",
+      "stores_stores_zustand",
+      "stores_stores_zustand_persist",
+      "stores_use_auth_store_authuser",
+      "stores_use_auth_store_login",
+      "stores_use_auth_store_logout",
+      "stores_use_auth_store_setuser",
+      "stores_use_auth_store_useauthstore",
+      "stores_use_branch_store_branch",
+      "stores_use_branch_store_usebranchstore",
+      "stores_use_company_store_company",
+      "stores_use_company_store_usecompanystore",
+      "stores_use_company_store_usecompanytore",
+      "stores_use_favorites_store_favorite",
+      "stores_use_favorites_store_usefavoritesstore",
+      "stores_use_ui_store_language",
+      "stores_use_ui_store_uistate",
+      "stores_use_ui_store_useuistore"
+    ],
+    "5": [
+      "test_database_closeTestConnection",
+      "test_database_testdb",
+      "test_factories_createTestBranch",
+      "test_factories_createTestCurrency",
+      "test_factories_createTestInventoryMove",
+      "test_factories_createTestInventoryMoveLine",
+      "test_factories_createTestInvoice",
+      "test_factories_createTestInvoiceItem",
+      "test_factories_createTestOrder",
+      "test_factories_createTestOrderItem",
+      "test_factories_createTestPartner",
+      "test_factories_createTestProduct",
+      "test_factories_createTestProductBatch",
+      "test_factories_createTestStock",
+      "test_factories_createTestUser",
+      "test_factories_createTestWarehouse",
+      "test_integration_invoice_integration_tests",
+      "test_integration_partners_integration_tests",
+      "test_integration_products_integration_tests"
+    ],
+    "6": [
+      "lib_utils",
+      "ui_popover",
+      "ui_popover_popovercontent",
+      "ui_scroll_area",
+      "ui_select",
+      "ui_select_selectcontent",
+      "ui_sheet",
+      "ui_sheet_sheetcontent",
+      "ui_sheet_sheetvariants",
+      "ui_skeleton",
+      "ui_switch",
+      "ui_table",
+      "ui_table_tableheader",
+      "ui_tabs",
+      "ui_tabs_tabslist",
+      "ui_tooltip",
+      "ui_tooltip_tooltipcontent"
+    ],
+    "7": [
+      "command_palette_pattern",
+      "favorites_system",
+      "global_search",
+      "hooks_use_permission",
+      "layout_app_sidebar_appsidebar",
+      "layout_command_palette_commandpalette",
+      "lib_api_client",
+      "lib_navigation_nav_items",
+      "lib_permissions",
+      "modules_branches_hooks_use_company_context_sync",
+      "navigation_sidebar_pattern",
+      "permission_based_filtering",
+      "search_result_types",
+      "stores_use_auth_store",
+      "stores_use_favorites_store",
+      "stores_use_ui_store"
+    ],
+    "8": [
+      "auth_authcontroller",
+      "auth_authcontroller_forgotpassword",
+      "auth_authcontroller_login",
+      "auth_authcontroller_resetpassword",
+      "auth_authmodule",
+      "auth_authresponsedto",
+      "auth_authservice",
+      "auth_authservice_forgotpassword",
+      "auth_authservice_login",
+      "auth_authservice_resetpassword",
+      "auth_forgotpassworddto",
+      "auth_forgotpasswordresponsedto",
+      "auth_jwtstrategy",
+      "auth_logindto",
+      "auth_resetpassworddto"
+    ],
+    "9": [
+      "banks_bank_response_dto",
+      "banks_banks_module",
+      "banks_banks_service",
+      "banks_create_bank_dto",
+      "banks_update_bank_dto",
+      "currencies_create_currency_dto",
+      "currencies_create_exchange_rate_dto",
+      "currencies_currencies_module",
+      "currencies_currencies_service",
+      "currencies_currency_response_dto",
+      "currencies_exchange_rate_response_dto",
+      "currencies_latest_rates_response_dto",
+      "settings_crud_pattern",
+      "settings_exchange_rate_management"
+    ],
+    "10": [
+      "opencode_graphify_plugin",
+      "scripts_call_claude",
+      "scripts_find_project_root",
+      "scripts_generate_html",
+      "scripts_generate_report",
+      "scripts_improve_description",
+      "scripts_improve_description_func",
+      "scripts_parse_skill_md",
+      "scripts_run_eval",
+      "scripts_run_loop",
+      "scripts_run_loop_func",
+      "scripts_run_single_query",
+      "scripts_split_eval_set",
+      "scripts_utils"
+    ],
+    "11": [
+      "12_seed_data_estrategia_faker",
+      "12_seed_data_estrategia_l1_6_hr",
+      "12_seed_data_estrategia_l1_infrastructure",
+      "12_seed_data_estrategia_l2_finance",
+      "12_seed_data_estrategia_l3_masters",
+      "12_seed_data_estrategia_l4_inventory",
+      "12_seed_data_estrategia_l5_transactions",
+      "12_seed_data_estrategia_l6_treasury",
+      "12_seed_data_estrategia_l7_balance_updates",
+      "12_seed_data_estrategia_recalculate_balances",
+      "12_seed_data_estrategia_seed_test",
+      "12_seed_data_estrategia_six_level_hierarchy"
+    ],
+    "12": [
+      "bcv_api_url",
+      "cron_croncontroller_croncontroller",
+      "cron_cronservice_fetchfrombcv",
+      "cron_cronservice_fetchfromfallback",
+      "cron_cronservice_parsebcvhtml",
+      "cron_cronservice_parsebcvjsondata",
+      "cron_cronservice_scrapebcvrate",
+      "cron_cronservice_storeexchangerate",
+      "cron_cronservice_triggerbcvratefetch",
+      "fallback_api_url",
+      "schema_currencies",
+      "schema_exchangerates"
+    ],
+    "13": [
+      "rules_bundle_size",
+      "rules_dom_adjacent_values",
+      "rules_performance_optimization",
+      "rules_re_renders",
+      "rules_react",
+      "rules_rerender_use_ref_transient_values",
+      "rules_transient_values",
+      "rules_useref",
+      "rules_usestate",
+      "rules_waterfalls",
+      "tracker"
+    ],
+    "14": [
+      "common_jwt_auth_guard",
+      "products_create_product_category_dto",
+      "products_create_product_dto",
+      "products_product_category_response_dto",
+      "products_product_response_dto",
+      "products_products_controller",
+      "products_products_module",
+      "products_products_service",
+      "products_update_product_category_dto",
+      "products_update_product_dto"
+    ],
+    "15": [
+      "server_auth_actions_authentication",
+      "server_auth_actions_authorization",
+      "server_auth_actions_deleteuser",
+      "server_auth_actions_input_validation",
+      "server_auth_actions_server_actions",
+      "server_auth_actions_unauthorized",
+      "server_auth_actions_updateprofile",
+      "server_auth_actions_use_server",
+      "server_auth_actions_verifysession",
+      "server_auth_actions_zod"
+    ],
+    "16": [
+      "module_stub",
+      "settings_banks_module_stub",
+      "settings_banks_page",
+      "settings_branches_module_stub",
+      "settings_branches_page",
+      "settings_currencies_module_stub",
+      "settings_currencies_page",
+      "settings_users_module_stub",
+      "settings_users_page"
+    ],
+    "17": [
+      "company_context_switching",
+      "hooks_use_is_mobile",
+      "layout_company_context_switcher_companycontextswitcher",
+      "modules_branches_hooks_use_branches",
+      "modules_branches_hooks_use_companies",
+      "multi_tenancy",
+      "stores_use_branch_store",
+      "stores_use_company_store"
+    ],
+    "18": [
+      "finance_invoices_page",
+      "finance_invoices_view",
+      "finance_reports_page",
+      "finance_reports_view",
+      "finance_retentions_page",
+      "finance_retentions_view",
+      "finance_treasury_page",
+      "finance_treasury_view"
+    ],
+    "19": [
+      "hr_api_department",
+      "hr_api_employee",
+      "hr_api_employeestatus",
+      "hr_api_hrapi",
+      "hr_api_incident",
+      "hr_api_incidenttype",
+      "hr_api_payrollrun",
+      "hr_api_position"
+    ],
+    "20": [
+      "server_after_nonblocking_after",
+      "server_after_nonblocking_analytics",
+      "server_after_nonblocking_audit_logging",
+      "server_after_nonblocking_cache_invalidation",
+      "server_after_nonblocking_cleanup_tasks",
+      "server_after_nonblocking_next_server",
+      "server_after_nonblocking_notifications",
+      "server_after_nonblocking_response"
+    ],
+    "21": [
+      "test_cestaticket",
+      "test_employee_deductions",
+      "test_employer_contributions",
+      "test_hr_service_lottt",
+      "test_integral_salary",
+      "test_net_salary_calculation",
+      "test_utilidades",
+      "test_vacation_days_lottt"
+    ],
+    "22": [
+      "best_practices_packages",
+      "best_practices_structure",
+      "filtering_patterns",
+      "rule_compiled_packages",
+      "rule_jit_compilation",
+      "rule_package_tasks",
+      "rule_turborepo_caching"
+    ],
+    "23": [
+      "partners_api_partnersapi",
+      "partners_types_partner",
+      "partners_types_partnerfilters",
+      "partners_types_partnerstatement",
+      "partners_types_partnertype",
+      "partners_types_statementline",
+      "partners_types_taxpayertype"
+    ],
+    "24": [
+      "products_createproductcategorydto",
+      "products_createproductdto",
+      "products_productcategoryresponsedto",
+      "products_productresponsedto",
+      "products_productsservice",
+      "products_updateproductcategorydto",
+      "products_updateproductdto"
+    ],
+    "25": [
+      "inventory_product_enforcement",
+      "inventory_schemas_productformvalues",
+      "inventory_schemas_productschema",
+      "inventory_types_product",
+      "inventory_types_productfilters",
+      "inventory_types_producttype"
+    ],
+    "26": [
+      "scripts_aggregate_benchmark",
+      "scripts_aggregate_results",
+      "scripts_calculate_stats",
+      "scripts_generate_benchmark",
+      "scripts_generate_markdown",
+      "scripts_load_run_results"
+    ],
+    "27": [
+      "10_permisos_rbac_all_permissions",
+      "10_permisos_rbac_default_roles",
+      "10_permisos_rbac_nav_items",
+      "10_permisos_rbac_permissions",
+      "10_permisos_rbac_permissions_table"
+    ],
+    "28": [
+      "best_practices_dependencies",
+      "rule_install_where_used",
+      "rule_lockfile_required",
+      "rule_root_dev_dependencies",
+      "rule_workspace_protocol"
+    ],
+    "29": [
+      "eval_viewer_ReviewHandler",
+      "eval_viewer_embed_file",
+      "eval_viewer_find_runs",
+      "eval_viewer_generate_review",
+      "eval_viewer_get_mime_type"
+    ],
+    "30": [
+      "rerender_use_ref_transient_values_dome_adjacent_values",
+      "rerender_use_ref_transient_values_rerenders",
+      "rerender_use_ref_transient_values_tracker",
+      "rerender_use_ref_transient_values_useref",
+      "rerender_use_ref_transient_values_usestate"
+    ],
+    "31": [
+      "scripts_package_skill",
+      "scripts_package_skill_func",
+      "scripts_quick_validate",
+      "scripts_should_exclude",
+      "scripts_validate_skill"
+    ],
+    "32": [
+      "decorators_current_user",
+      "decorators_current_user_data",
+      "test_auth_service_logic",
+      "test_jwt_payload"
+    ],
+    "33": [
+      "design_thinking",
+      "frontend_aesthetics",
+      "frontend_design_license",
+      "frontend_design_skill"
+    ],
+    "34": [
+      "evals_shadcn",
+      "evals_shadcn_eval_1",
+      "evals_shadcn_eval_2",
+      "evals_shadcn_eval_3"
+    ],
+    "35": [
+      "frontend_msw",
+      "frontend_vitest",
+      "mocks_server_server",
+      "test_setup_setup"
+    ],
+    "36": [
+      "operations_partners_page",
+      "operations_partners_statement_page",
+      "operations_partners_statement_view",
+      "operations_partners_view"
+    ],
+    "37": [
+      "rule_interruptible_tasks",
+      "rule_persistent_tasks",
+      "rule_turbo_watch",
+      "watch_rule"
+    ],
+    "38": [
+      "test_8_step_void_process",
+      "test_daily_close_calculation",
+      "test_payment_allocation",
+      "test_treasury_service_logic"
+    ],
+    "39": [
+      "test_billing_service_logic",
+      "test_fiscal_json_generation",
+      "test_invoice_status_transitions",
+      "test_invoice_total_calculation"
+    ],
+    "40": [
+      "test_common_validations",
+      "test_currency_amount_precision",
+      "test_email_validation",
+      "test_uuid_validation"
+    ],
+    "41": [
+      "10_permisos_rbac_auth_guard",
+      "10_permisos_rbac_permissions_gate",
+      "10_permisos_rbac_use_permission"
+    ],
+    "42": [
+      "11_patrones_desarrollo_currency_display",
+      "11_patrones_desarrollo_dual_currency_display",
+      "11_patrones_desarrollo_format_currency"
+    ],
+    "43": [
+      "11_patrones_desarrollo_decimal_js",
+      "11_patrones_desarrollo_decimal_math",
+      "11_patrones_desarrollo_fiscal_data"
+    ],
+    "44": [
+      "app_shell",
+      "auth_guard",
+      "dashboard_layout"
+    ],
+    "45": [
+      "client_localstorage_schema",
+      "rule_localstorage_minimize",
+      "rule_localstorage_versioning"
+    ],
+    "46": [
+      "cron_cronmodule_cronmodule",
+      "cron_cronservice_cronservice",
+      "cron_cronservicetest_cronservicetest"
+    ],
+    "47": [
+      "finance_components_retention",
+      "finance_components_retentionsview",
+      "finance_retention_concept"
+    ],
+    "48": [
+      "layout_company_context_switcher_branchcombobox",
+      "layout_company_context_switcher_companycombobox",
+      "ui_combobox"
+    ],
+    "49": [
+      "shadcn_cli",
+      "shadcn_components",
+      "shadcn_skill"
+    ],
+    "50": [
+      "10_permisos_rbac_branch_interceptor",
+      "10_permisos_rbac_users_branches"
+    ],
+    "51": [
+      "10_permisos_rbac_permissions_guard",
+      "10_permisos_rbac_require_permission"
+    ],
+    "52": [
+      "10_permisos_rbac_roles_table",
+      "10_permisos_rbac_usersroles"
+    ],
+    "53": [
+      "11_patrones_desarrollo_blob_downloads",
+      "11_patrones_desarrollo_heavy_generation"
+    ],
+    "54": [
+      "11_patrones_desarrollo_loading_states",
+      "11_patrones_desarrollo_tables_pattern"
+    ],
+    "55": [
+      "11_patrones_desarrollo_nullable_uuids",
+      "11_patrones_desarrollo_uuid_v7"
+    ],
+    "56": [
+      "11_patrones_desarrollo_optimistic_updates",
+      "11_patrones_desarrollo_query_invalidation"
+    ],
+    "57": [
+      "auth_authservice_validateuser",
+      "auth_jwtstrategy_validate"
+    ],
+    "58": [
+      "branches_branchescontroller_create",
+      "branches_branchesservice_create"
+    ],
+    "59": [
+      "branches_branchescontroller_findall",
+      "branches_branchesservice_findall"
+    ],
+    "60": [
+      "branches_branchescontroller_findcompanies",
+      "branches_branchesservice_findcompaniesgroupedbytaxid"
+    ],
+    "61": [
+      "branches_branchescontroller_findone",
+      "branches_branchesservice_findone"
+    ],
+    "62": [
+      "branches_branchescontroller_remove",
+      "branches_branchesservice_remove"
+    ],
+    "63": [
+      "branches_branchescontroller_update",
+      "branches_branchesservice_update"
+    ],
+    "64": [
+      "eval_review_html",
+      "eval_set_review"
+    ],
+    "65": [
+      "finance_components_payment",
+      "finance_components_treasuryview"
+    ],
+    "66": [
+      "finance_components_reportcard",
+      "finance_components_reportsview"
+    ],
+    "67": [
+      "hr_employees_page",
+      "hr_employees_view"
+    ],
+    "68": [
+      "hr_payroll_page",
+      "hr_payroll_view"
+    ],
+    "69": [
+      "inventory_warehouses_page",
+      "inventory_warehouses_view"
+    ],
+    "70": [
+      "layout_app_sidebar_icon_map",
+      "layout_command_palette_icon_map"
+    ],
+    "71": [
+      "operations_orders_page",
+      "operations_orders_view"
+    ],
+    "72": [
+      "orders_api_invoice",
+      "orders_api_invoicesapi"
+    ],
+    "73": [
+      "partners_schemas_partnerformvalues",
+      "partners_schemas_partnerschema"
+    ],
+    "74": [
+      "src_app_module",
+      "src_main"
+    ],
+    "75": [
+      "10_permisos_rbac_forbidden_page"
+    ],
+    "76": [
+      "11_patrones_desarrollo_bcv_scraper"
+    ],
+    "77": [
+      "11_patrones_desarrollo_dto_sanitization"
+    ],
+    "78": [
+      "11_patrones_desarrollo_error_handling"
+    ],
+    "79": [
+      "11_patrones_desarrollo_import_organization"
+    ],
+    "80": [
+      "11_patrones_desarrollo_nextjs_15_params"
+    ],
+    "81": [
+      "11_patrones_desarrollo_return_drizzle"
+    ],
+    "82": [
+      "11_patrones_desarrollo_seed_consistency"
+    ],
+    "83": [
+      "11_patrones_desarrollo_sequential_codes"
+    ],
+    "84": [
+      "11_patrones_desarrollo_structured_logging"
+    ],
+    "85": [
+      "11_patrones_desarrollo_transactions"
+    ],
+    "86": [
+      "backend_nestjs_config"
+    ],
+    "87": [
+      "backend_typescript_config"
+    ],
+    "88": [
+      "cron_croncontroller_triggerbcv"
+    ],
+    "89": [
+      "eslint_config"
+    ],
+    "90": [
+      "frontend_typescript"
+    ],
+    "91": [
+      "husky_git_hooks"
+    ],
+    "92": [
+      "inventory_types_productcategory"
+    ],
+    "93": [
+      "layout_command_palette_searchresult"
+    ],
+    "94": [
+      "layout_company_context_switcher_branchcomboboxprops"
+    ],
+    "95": [
+      "layout_company_context_switcher_companycomboboxprops"
+    ],
+    "96": [
+      "lib_navigation_navgroup"
+    ],
+    "97": [
+      "scripts_run_eval_func"
+    ],
+    "98": [
+      "src_backend_test"
+    ],
+    "99": [
+      "stores_use_auth_store_authstate"
+    ],
+    "100": [
+      "stores_use_branch_store_branchstate"
+    ],
+    "101": [
+      "stores_use_company_store_companystate"
+    ],
+    "102": [
+      "stores_use_favorites_store_favoritesstate"
+    ],
+    "103": [
+      "test_database_cleanDatabase"
+    ],
+    "104": [
+      "test_database_testQueryClient"
+    ],
+    "105": [
+      "test_users_service_logic"
+    ],
+    "106": [
+      "ui_command"
+    ],
+    "107": [
+      "ui_popover_popoveranchor"
+    ],
+    "108": [
+      "ui_popover_popovertrigger"
+    ],
+    "109": [
+      "ui_scroll_area_scrollbar"
+    ],
+    "110": [
+      "ui_select_selectitem"
+    ],
+    "111": [
+      "ui_select_selecttrigger"
+    ],
+    "112": [
+      "ui_sheet_sheetdescription"
+    ],
+    "113": [
+      "ui_sheet_sheetfooter"
+    ],
+    "114": [
+      "ui_sheet_sheetheader"
+    ],
+    "115": [
+      "ui_sheet_sheetoverlay"
+    ],
+    "116": [
+      "ui_sheet_sheettitle"
+    ],
+    "117": [
+      "ui_sidebar"
+    ],
+    "118": [
+      "ui_table_tablebody"
+    ],
+    "119": [
+      "ui_table_tablecaption"
+    ],
+    "120": [
+      "ui_table_tablecell"
+    ],
+    "121": [
+      "ui_table_tablefooter"
+    ],
+    "122": [
+      "ui_table_tablehead"
+    ],
+    "123": [
+      "ui_table_tablerow"
+    ],
+    "124": [
+      "ui_tabs_tabscontent"
+    ],
+    "125": [
+      "ui_tabs_tabstrigger"
+    ],
+    "126": [
+      "ui_tooltip_tooltiptrigger"
+    ]
+  },
+  "cohesion": {
+    "0": 0.10317460317460317,
+    "1": 0.07936507936507936,
+    "2": 0.082010582010582,
+    "3": 0.15579710144927536,
+    "4": 0.12631578947368421,
+    "5": 0.22807017543859648,
+    "6": 0.13970588235294118,
+    "7": 0.15,
+    "8": 0.1619047619047619,
+    "9": 0.14285714285714285,
+    "10": 0.16483516483516483,
+    "11": 0.18181818181818182,
+    "12": 0.18181818181818182,
+    "13": 0.2545454545454545,
+    "14": 0.2222222222222222,
+    "15": 0.28888888888888886,
+    "16": 0.2222222222222222,
+    "17": 0.32142857142857145,
+    "18": 0.25,
+    "19": 0.35714285714285715,
+    "20": 0.25,
+    "21": 0.25,
+    "22": 0.2857142857142857,
+    "23": 0.2857142857142857,
+    "24": 0.42857142857142855,
+    "25": 0.3333333333333333,
+    "26": 0.3333333333333333,
+    "27": 0.5,
+    "28": 0.4,
+    "29": 0.4,
+    "30": 0.6,
+    "31": 0.4,
+    "32": 0.5,
+    "33": 0.5,
+    "34": 0.5,
+    "35": 0.5,
+    "36": 0.5,
+    "37": 0.5,
+    "38": 0.5,
+    "39": 0.5,
+    "40": 0.5,
+    "41": 0.6666666666666666,
+    "42": 0.6666666666666666,
+    "43": 0.6666666666666666,
+    "44": 0.6666666666666666,
+    "45": 0.6666666666666666,
+    "46": 0.6666666666666666,
+    "47": 0.6666666666666666,
+    "48": 0.6666666666666666,
+    "49": 0.6666666666666666,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0,
+    "58": 1.0,
+    "59": 1.0,
+    "60": 1.0,
+    "61": 1.0,
+    "62": 1.0,
+    "63": 1.0,
+    "64": 1.0,
+    "65": 1.0,
+    "66": 1.0,
+    "67": 1.0,
+    "68": 1.0,
+    "69": 1.0,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
+    "79": 1.0,
+    "80": 1.0,
+    "81": 1.0,
+    "82": 1.0,
+    "83": 1.0,
+    "84": 1.0,
+    "85": 1.0,
+    "86": 1.0,
+    "87": 1.0,
+    "88": 1.0,
+    "89": 1.0,
+    "90": 1.0,
+    "91": 1.0,
+    "92": 1.0,
+    "93": 1.0,
+    "94": 1.0,
+    "95": 1.0,
+    "96": 1.0,
+    "97": 1.0,
+    "98": 1.0,
+    "99": 1.0,
+    "100": 1.0,
+    "101": 1.0,
+    "102": 1.0,
+    "103": 1.0,
+    "104": 1.0,
+    "105": 1.0,
+    "106": 1.0,
+    "107": 1.0,
+    "108": 1.0,
+    "109": 1.0,
+    "110": 1.0,
+    "111": 1.0,
+    "112": 1.0,
+    "113": 1.0,
+    "114": 1.0,
+    "115": 1.0,
+    "116": 1.0,
+    "117": 1.0,
+    "118": 1.0,
+    "119": 1.0,
+    "120": 1.0,
+    "121": 1.0,
+    "122": 1.0,
+    "123": 1.0,
+    "124": 1.0,
+    "125": 1.0,
+    "126": 1.0
+  },
+  "gods": [
+    {
+      "id": "test_database_testdb",
+      "label": "Test Database",
+      "degree": 15
+    },
+    {
+      "id": "orders_ordersservice",
+      "label": "OrdersService",
+      "degree": 13
+    },
+    {
+      "id": "rules_server_auth_actions",
+      "label": "Authenticate Server Actions Like API Routes",
+      "degree": 13
+    },
+    {
+      "id": "orders_orderscontroller",
+      "label": "OrdersController",
+      "degree": 10
+    },
+    {
+      "id": "skill_creator_skill",
+      "label": "skill-creator Skill",
+      "degree": 10
+    },
+    {
+      "id": "rules_server_after_nonblocking",
+      "label": "Use after() for Non-Blocking Operations",
+      "degree": 10
+    },
+    {
+      "id": "products_products_controller",
+      "label": "Products Controller",
+      "degree": 9
+    },
+    {
+      "id": "lib_utils",
+      "label": "cn utility",
+      "degree": 9
+    },
+    {
+      "id": "12_seed_data_estrategia_six_level_hierarchy",
+      "label": "6 Level Hierarchy",
+      "degree": 9
+    },
+    {
+      "id": "currencies_currencies_service",
+      "label": "CurrenciesService",
+      "degree": 8
+    }
+  ],
+  "surprises": [
+    {
+      "source": "GraphifyPlugin concept",
+      "target": "run_loop module",
+      "source_files": [
+        ".opencode/plugins/graphify.js",
+        ".agents/skills/skill-creator/scripts/run_loop.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; peripheral node `GraphifyPlugin concept` unexpectedly reaches hub `run_loop module`"
+    },
+    {
+      "source": "OrdersService",
+      "target": "ProductsService",
+      "source_files": [
+        "apps/backend/src/modules/orders/orders.service.ts",
+        "apps/backend/src/modules/products/products.service.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "conceptually_related_to",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "ICON_MAP",
+      "target": "ICON_MAP",
+      "source_files": [
+        "apps/frontend/components/layout/app-sidebar.tsx",
+        "apps/frontend/components/layout/command-palette.tsx"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; semantically similar concepts with no structural link"
+    },
+    {
+      "source": "Frontend App Package",
+      "target": "useAuthStore",
+      "source_files": [
+        "apps/frontend/package.json",
+        "apps/frontend/stores/use-auth-store.ts"
+      ],
+      "confidence": "INFERRED",
+      "relation": "shares_data_with",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `Frontend App Package` unexpectedly reaches hub `useAuthStore`"
+    },
+    {
+      "source": "run_loop module",
+      "target": "generate_report module",
+      "source_files": [
+        ".agents/skills/skill-creator/scripts/run_loop.py",
+        ".agents/skills/skill-creator/scripts/generate_report.py"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "peripheral node `generate_report module` unexpectedly reaches hub `run_loop module`"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `Vercel React Best Practices` connect `Community 0` to `Community 13`?",
+      "why": "High betweenness centrality (0.003) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Use useRef for Transient Values` connect `Community 13` to `Community 0`?",
+      "why": "High betweenness centrality (0.002) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `OrdersService` (e.g. with `PartnersService` and `ProductsService`) actually correct?",
+      "why": "`OrdersService` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 2 inferred relationships involving `Authenticate Server Actions Like API Routes` (e.g. with `Prevent Hydration Mismatch Without Flickering` and `Use after() for Non-Blocking Operations`) actually correct?",
+      "why": "`Authenticate Server Actions Like API Routes` has 2 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `shadcn eval 1 - settings form component`, `shadcn eval 2 - user profile dialog`, `shadcn eval 3 - dashboard stat cards` to the rest of the system?",
+      "why": "320 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.10317460317460317 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 1` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07936507936507936 - nodes in this community are weakly interconnected."
+    }
+  ]
+}
