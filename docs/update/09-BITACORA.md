@@ -422,3 +422,37 @@ verdes**.
 
 **Decisión:** no se implementaron módulos en este paso. El SDD es el artefacto de planificación
 pedido; la implementación arranca por `S-00` (cimiento de sucursal) y `S-01` (contratos).
+
+---
+
+### BT-029 · 2026-10-26 · WBS de las 8 épicas
+
+**Alcance acordado con el usuario:** plan detallado de todas las épicas (E0→E7) **sin escribir
+código funcional** en esta tanda.
+
+**Qué se hizo**
+
+1. Se midió el estado real de sucursal en el schema (no se asumió):
+   `packages/database/src/schema.ts` → **50 tablas, 18 con `branch_id`, 32 sin**.
+2. Se clasificaron las 32 tablas en tres grupos: heredan del padre (10), requieren columna + backfill
+   (12), compartidas por diseño (10). Queda una decisión de negocio abierta sobre `partners` y
+   `products`.
+3. Se desglosaron las 8 specs en **87 tareas** con dependencias, archivos objetivo, verificación y
+   talla: [docs/sdd/04-plan-de-tareas.md](../sdd/04-plan-de-tareas.md).
+4. Se añadió el registro de avance (9 olas / 12 semanas) y los riesgos con su mitigación.
+
+**Hallazgo nuevo durante la planificación**
+
+- `audit_logs` **no** tiene `branch_id` (está en el grupo B): la auditoría actual no permite saber
+  desde qué sucursal se hizo un cambio. Se agrega como T-00-05.
+- `inventory_moves`, `loans` y `payroll_incidents` tampoco tienen `branch_id` pese a ser documentos
+  de negocio: hoy su sucursal sólo se deduce por el usuario o el almacén.
+
+**Verificación**
+
+- Conteo reproducible por script sobre el schema (sin tocar la base ni el código).
+- `pnpm format:check` verde y enlaces relativos del `docs/sdd/` validados.
+- `git status` sin cambios fuera de `docs/`.
+
+**Pendiente para la próxima tanda:** aprobar T-00-02 (alcance de `partners`/`products`) y arrancar
+la ola 1 (T-00-01 … T-00-07).

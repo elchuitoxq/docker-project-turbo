@@ -1,0 +1,260 @@
+# 04 — Plan de tareas (WBS)
+
+> **Estado:** plan aprobado, **sin código escrito todavía** (alcance acordado: solo planificación).
+> **Fecha:** 2026-10-26 · **Base:** [`01-gap-analysis.md`](./01-gap-analysis.md) y specs `S-00`…`S-07`.
+> **Regla de este documento:** cada tarea que se complete se marca aquí con su evidencia. Si una tarea
+> se parte o cambia de alcance, se anota en la columna de notas; no se borra la fila.
+
+## Leyenda
+
+| Símbolo | Estado                |
+| ------- | --------------------- |
+| ⬜      | Pendiente             |
+| 🟡      | En curso / parcial    |
+| ✅      | Completada            |
+| 🔵      | Bloqueada por externo |
+
+**Tallas:** `S` ≤ 4 h · `M` ≈ 1 día · `L` = 2-3 días · `XL` > 3 días (se debe partir).
+
+---
+
+## 1. Épica E0 · Aislamiento por sucursal + auditoría — [`S-00`](./specs/S-00-aislamiento-sucursal.md)
+
+### 1.1 Tareas
+
+| ID      | Tarea                                                                                                                                                                                 | Artefactos principales                                                                                 | Depende          | Verificación                                                  | Talla | Estado |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------- | ----- | ------ |
+| T-00-01 | Inventario de `branch_id` en las 50 tablas del schema                                                                                                                                 | `packages/database/src/schema.ts` (lectura)                                                            | —                | conteo reproducible (ver §1.2)                                | S     | ✅     |
+| T-00-02 | Clasificar las 32 tablas sin `branch_id`: heredan del padre / requieren columna / compartidas por diseño                                                                              | este documento §1.2                                                                                    | T-00-01          | revisión con negocio sobre `partners`, `products`, `banks`    | S     | 🟡     |
+| T-00-03 | `BranchContextGuard` + `@CurrentBranch()` + `@SkipBranch()`; valida `x-branch-id` contra `users_branches`; `403` sin asignación, `404` recurso ajeno; fallback query/body con warning | `apps/backend/src/common/branch/*` (nuevo), registro en `app.module.ts`                                | T-00-02          | unit: sin cabecera→400, sucursal ajena→403, recurso ajeno→404 | M     | ⬜     |
+| T-00-04 | Permiso `core:branch:all` para modo consolidado                                                                                                                                       | `packages/database/src/scripts/seed-rbac.ts`, `apps/frontend/lib/permissions.ts`                       | —                | seed idempotente; UI muestra etiqueta "Consolidado"           | S     | ⬜     |
+| T-00-05 | Migración `audit_logs.branch_id` + índice                                                                                                                                             | `packages/database/drizzle/*`                                                                          | —                | `pnpm --filter database db:generate` revisado + migrate       | S     | ⬜     |
+| T-00-06 | `AuditService.record()` + interceptor en escrituras de dinero/stock                                                                                                                   | `apps/backend/src/modules/audit/*`                                                                     | T-00-05          | integración: factura y pago dejan fila en `audit_logs`        | M     | ⬜     |
+| T-00-07 | Migraciones de `branch_id` con backfill desde el padre                                                                                                                                | tablas de §1.2 grupo B                                                                                 | T-00-02          | migración corre 2 veces sin error; conteos cuadran            | L     | ⬜     |
+| T-00-08 | Filtrado por sucursal en los 8 servicios de negocio                                                                                                                                   | `modules/{billing,treasury,inventory,orders,hr,accounting,credit-notes,loans}`                         | T-00-03, T-00-07 | integración: usuario de A no ve filas de B en cada módulo     | XL    | ⬜     |
+| T-00-09 | `GET /v1/auth/me` devuelve `defaultBranchId`                                                                                                                                          | `modules/auth/auth.service.ts`, `shared-types`                                                         | T-00-03          | contrato OpenAPI regenerado                                   | S     | ⬜     |
+| T-00-10 | Frontend: validar la sucursal contra el backend antes de pintar el dashboard; pantalla "sin acceso a esta sucursal"                                                                   | `apps/frontend/app/(dashboard)/layout.tsx`, `stores/use-auth-store.ts`                                 | T-00-09          | E2E: usuario sin sucursal ve la pantalla de bloqueo           | M     | ⬜     |
+| T-00-11 | `queryClient.clear()` al cambiar de sucursal                                                                                                                                          | `apps/frontend/lib/api/query-client.ts`, selector de sucursal                                          | T-00-10          | no quedan datos de la sucursal anterior en caché              | S     | ⬜     |
+| T-00-12 | Pruebas de aislamiento cruzado                                                                                                                                                        | `*.service.test.ts` + `apps/backend/test/*` + `e2e/*`                                                  | T-00-08          | 3 capas verdes; E2E "B no ve A"                               | M     | ⬜     |
+| T-00-13 | Documentar el contrato de la cabecera                                                                                                                                                 | `docs/API-CONTRACTS.md`, [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md) §3 | T-00-03          | `@ApiHeader` visible en Swagger                               | S     | ⬜     |
+
+**Gate de salida E0:** los 8 módulos responden `403`/`404` correctamente ante sucursal ajena, no baja
+ningún umbral de cobertura, y `pnpm audit` sigue en 0.
+
+### 1.2 Inventario de `branch_id` (resultado de T-00-01)
+
+Medición sobre `packages/database/src/schema.ts`: **50 tablas**, **18 con `branch_id`**, **32 sin**.
+
+**Grupo A — heredan del padre (no requieren columna):** `invoice_items`, `credit_note_items`,
+`order_items`, `payment_allocations`, `accounting_entry_lines`, `tax_retention_lines`,
+`inventory_move_lines`, `payroll_item_lines`, `loan_items`, `document_links`.
+
+**Grupo B — requieren `branch_id` + backfill (T-00-07):** `inventory_moves`, `loans`,
+`payroll_incidents`, `payroll_items`, `product_batches`, `job_positions`, `employee_benefits`,
+`employee_contracts`, `employee_salary_history`, `employee_vacations`, `employee_profit_sharing`,
+`audit_logs`.
+
+**Grupo C — compartidas por diseño (documentar, no migrar):** `partners`, `products`,
+`product_categories`, `banks`, `branches`, `roles`, `permissions`, `tax_concepts`, `exchange_rates`,
+`user_app_settings`.
+
+> 🟡 **Decisión pendiente de negocio (T-00-02):** si `partners` y `products` deben poder compartirse
+> entre sucursales (hoy es la lectura del código) o si cada sucursal exige su propio maestro. De esto
+> depende el alcance real de T-00-08.
+
+---
+
+## 2. Épica E1 · Reparar contratos — [`S-01`](./specs/S-01-contratos-p0.md)
+
+Tres frentes independientes = tres PR. **No se crean alias** (`/calculate`, `/approve`): se corrige el
+cliente.
+
+### 2.1 Frente A · HR (8 contratos)
+
+| ID      | Tarea                                                        | Artefactos                                             | Depende      | Verificación                                  | Talla | Estado |
+| ------- | ------------------------------------------------------------ | ------------------------------------------------------ | ------------ | --------------------------------------------- | ----- | ------ |
+| T-01-01 | `POST /v1/hr/employees/:id/terminate`                        | `modules/hr/hr.controller.ts`, `hr.service.ts`, `dto/` | E0           | integración: status `TERMINATED` + auditoría  | S     | ⬜     |
+| T-01-02 | `PATCH /v1/hr/departments/:id`                               | ídem                                                   | E0           | unit + contrato                               | S     | ⬜     |
+| T-01-03 | `PATCH /v1/hr/positions/:id`                                 | ídem                                                   | E0           | unit + contrato                               | S     | ⬜     |
+| T-01-04 | `POST /v1/hr/incidents/:id/{approve,reject}`                 | ídem                                                   | E0           | `409` si no está `PENDING`                    | S     | ⬜     |
+| T-01-05 | Cliente HR usa `payroll/generate` y `payroll/:id/process`    | `apps/frontend/modules/hr/api.ts:140-141`              | —            | sin 404 en las 5 pantallas de HR              | S     | ⬜     |
+| T-01-06 | `POST /v1/hr/payroll/:id/pay` (crea `payments`, idempotente) | `modules/hr/*` + `modules/treasury/*`                  | E2 (parcial) | integración: pago único por run; monto = neto | M     | ⬜     |
+| T-01-07 | `GET`/`PATCH /v1/hr/settings`                                | `modules/hr/*`, `payroll_settings`                     | T-02-01      | unit + contrato                               | S     | ⬜     |
+
+### 2.2 Frente B · Inventario
+
+| ID      | Tarea                                                                | Artefactos                                                   | Depende | Verificación                            | Talla | Estado |
+| ------- | -------------------------------------------------------------------- | ------------------------------------------------------------ | ------- | --------------------------------------- | ----- | ------ |
+| T-01-08 | Cliente usa el prefijo `/inventory/warehouses`                       | `modules/inventory/api/warehouses.ts:13-18`                  | —       | listado carga en `inventory/warehouses` | S     | ⬜     |
+| T-01-09 | `GET /v1/inventory/warehouses/:id`                                   | `modules/inventory/*`                                        | E0      | contrato + test                         | S     | ⬜     |
+| T-01-10 | `DELETE /v1/inventory/warehouses/:id` (lógico; rechaza si hay stock) | ídem                                                         | T-01-09 | `409` con stock, `200` sin stock        | S     | ⬜     |
+| T-01-11 | Decidir `moves/:id/cancel`: alias o `reject`; documentar y alinear   | `modules/inventory/api/moves.ts:52`, `docs/API-CONTRACTS.md` | —       | una sola ruta vigente en el contrato    | S     | ⬜     |
+| T-01-12 | Cliente usa `/products/categories`                                   | `modules/inventory/api/products.ts:24`                       | —       | selector de categorías carga            | S     | ⬜     |
+
+### 2.3 Frente C · Facturación, partners y reportes
+
+| ID      | Tarea                                                                            | Artefactos                                              | Depende | Verificación                                          | Talla | Estado |
+| ------- | -------------------------------------------------------------------------------- | ------------------------------------------------------- | ------- | ----------------------------------------------------- | ----- | ------ |
+| T-01-13 | Cliente usa `PATCH` para actualizar factura                                      | `modules/finance/api/invoices.ts:73`                    | —       | edición persiste                                      | S     | ⬜     |
+| T-01-14 | `GET /v1/billing/invoices` con `type` + `page`/`limit` + envoltura + índice      | `modules/billing/*`, migración de índice                | —       | paginación server-side; `API-CONTRACTS.md` versionado | M     | ⬜     |
+| T-01-15 | `modules/orders/api.ts` deja de usar `/billing/invoices`                         | `modules/orders/api.ts:33-36`                           | —       | órdenes cargan datos de órdenes                       | S     | ⬜     |
+| T-01-16 | Reportes muestran "no disponible" mientras no exista el endpoint                 | `modules/finance/api/reports.ts:5-7`, `finance/reports` | —       | sin 404 en pantalla                                   | S     | ⬜     |
+| T-01-17 | `DELETE /v1/partners/:id` real (lógico o bloqueo con `409` si tiene movimientos) | `modules/partners/*`                                    | —       | `409` con facturas; `204` sin movimientos             | S     | ⬜     |
+| T-01-18 | `GET /v1/partners` paginado en servidor                                          | `modules/partners/*` + índice                           | —       | tabla pagina sin cargar todo                          | S     | ⬜     |
+
+**Gate de salida E1:** `grep` de `apiClient` contra OpenAPI sin rutas inexistentes; 0 respuestas 404
+en las pantallas de HR, inventario y finanzas.
+
+---
+
+## 3. Épica E2 · Nómina Venezuela — [`S-02`](./specs/S-02-nomina-ve.md)
+
+| ID      | Tarea                                                                        | Artefactos                                    | Depende | Verificación                        | Talla | Estado |
+| ------- | ---------------------------------------------------------------------------- | --------------------------------------------- | ------- | ----------------------------------- | ----- | ------ |
+| T-02-01 | `payroll_settings`: `companyId`, `effectiveFrom`, unicidad, snapshot por run | `packages/database/schema.ts`, `modules/hr/*` | —       | migración + run histórico inmutable | M     | ⬜     |
+| T-02-02 | Conceptos: `code`, `kind`, `expression`, `affectsIntegralSalary` + CRUD      | `payroll_concept_types`, `modules/hr/*`       | T-02-01 | CRUD + validación de expresión      | M     | ⬜     |
+| T-02-03 | Motor de cálculo por concepto con `decimal.js`                               | `modules/hr/payroll.calculator.ts` (nuevo)    | T-02-02 | unit con casos dorados (LOTTT)      | L     | ⬜     |
+| T-02-04 | Prestaciones, utilidades, vacaciones y bono vacacional                       | ídem + `employee_profit_sharing`              | T-02-03 | integración con períodos completos  | L     | ⬜     |
+| T-02-05 | Liquidación de egreso (`employee_settlements`)                               | tabla nueva + `POST /hr/employees/:id/settle` | T-02-04 | cálculo por causa de egreso         | M     | ⬜     |
+| T-02-06 | Pago de nómina integrado a tesorería (idempotente)                           | `modules/hr` + `modules/treasury`             | T-02-03 | 2 llamadas → 1 solo `payment`       | M     | ⬜     |
+| T-02-07 | UI parámetros de nómina                                                      | `app/(dashboard)/settings/payroll-settings/`  | T-02-01 | alta de nueva vigencia              | M     | ⬜     |
+| T-02-08 | UI conceptos de nómina                                                       | `app/(dashboard)/settings/payroll-concepts/`  | T-02-02 | CRUD completo                       | M     | ⬜     |
+| T-02-09 | UI ficha de empleado y detalle de recibo                                     | `hr/employees/[id]`, `hr/payroll/[id]`        | T-02-03 | desglose por concepto visible       | L     | ⬜     |
+| T-02-10 | Casos de prueba legales y documentación                                      | `docs/09-HR-NOMINA-VENEZUELA.md`, tests       | T-02-04 | tabla de casos cubiertos            | M     | ⬜     |
+
+**Gate de salida E2:** un run generado hoy y recalculado tras cambiar parámetros da el mismo total
+(inmutabilidad); cobertura backend no baja.
+
+---
+
+## 4. Épica E3 · Compras y cuentas por pagar — [`S-03`](./specs/S-03-compras-cxp.md)
+
+| ID      | Tarea                                                                               | Artefactos                              | Depende | Verificación                            | Talla | Estado |
+| ------- | ----------------------------------------------------------------------------------- | --------------------------------------- | ------- | --------------------------------------- | ----- | ------ |
+| T-03-01 | `invoices`: `supplierInvoiceNumber`, `supplierInvoiceDate`, `dueDate`, `paidAmount` | migración + `modules/billing/*`         | E1      | alta de compra con vencimiento          | M     | ⬜     |
+| T-03-02 | `partners.creditDays` y cálculo de vencimiento                                      | migración + `modules/partners/*`        | T-03-01 | vencimiento = emisión + días de crédito | S     | ⬜     |
+| T-03-03 | `supplier_retention_settings` por empresa                                           | tabla nueva + UI                        | T-03-01 | parámetros persistidos                  | M     | ⬜     |
+| T-03-04 | Retenciones IVA/ISLR al publicar factura de compra                                  | `modules/billing/*`, `tax_retentions`   | T-03-03 | comprobante con número correlativo      | L     | ⬜     |
+| T-03-05 | `GET /v1/billing/payables` y `/payables/aging`                                      | `modules/billing/*` + índices           | T-03-01 | buckets 0-30/31-60/61-90/+90 correctos  | M     | ⬜     |
+| T-03-06 | `payments.direction` (`IN`/`OUT`) + `retentionAmount` + allocations                 | migración + `modules/treasury/*`        | T-03-04 | pago cancela total o parcial            | L     | ⬜     |
+| T-03-07 | `credit_notes.type` y devolución a proveedor                                        | migración + `modules/credit-notes/*`    | T-03-01 | NC de compra descuenta saldo            | M     | ⬜     |
+| T-03-08 | UI `operations/purchases` + detalle con retenciones y pagos                         | `app/(dashboard)/operations/purchases/` | T-03-05 | saldo y estado por fila                 | L     | ⬜     |
+| T-03-09 | UI pantalla de CxP con antigüedad                                                   | `app/(dashboard)/finance/payables/`     | T-03-05 | filtros por proveedor y vencimiento     | M     | ⬜     |
+
+**Gate de salida E3:** ciclo completo compra → retención → pago → asiento, con E2E.
+
+---
+
+## 5. Épica E4 · Contabilidad y cierre — [`S-04`](./specs/S-04-contabilidad.md)
+
+| ID      | Tarea                                                                 | Artefactos                            | Depende          | Verificación                           | Talla | Estado |
+| ------- | --------------------------------------------------------------------- | ------------------------------------- | ---------------- | -------------------------------------- | ----- | ------ |
+| T-04-01 | Validación jerárquica del plan de cuentas (no borrar con movimientos) | `modules/accounting/*`                | —                | `409` al borrar cuenta usada           | S     | ⬜     |
+| T-04-02 | `POST /v1/accounting/entries/:id/post` (DRAFT → POSTED)               | ídem                                  | —                | no se puede editar un POSTED           | S     | ⬜     |
+| T-04-03 | Filtros `?from&to&sourceType` en asientos                             | ídem + índice                         | —                | consulta por origen                    | S     | ⬜     |
+| T-04-04 | `accounting_periods` + `close` / `reopen` auditado                    | tabla nueva + `modules/accounting/*`  | T-04-02          | asiento en período cerrado → `409`     | M     | ⬜     |
+| T-04-05 | `GET /reports/trial-balance`                                          | `modules/reports/*`                   | T-04-03          | suma debe = haber                      | M     | ⬜     |
+| T-04-06 | `GET /reports/balance-sheet` (habilita T-01-16)                       | ídem                                  | T-04-04          | cuadra con el balance de comprobación  | M     | ⬜     |
+| T-04-07 | `GET /reports/income-statement`                                       | ídem                                  | T-04-04          | resultado = ingresos − costos − gastos | M     | ⬜     |
+| T-04-08 | UI árbol de cuentas y grilla de asientos (debe/haber en vivo)         | `app/(dashboard)/finance/accounting/` | T-04-01          | asiento descuadrado bloquea guardar    | L     | ⬜     |
+| T-04-09 | UI cierre de período y reportes                                       | ídem                                  | T-04-06, T-04-07 | reapertura pide motivo                 | M     | ⬜     |
+
+**Gate de salida E4:** cierre de mes bloquea escrituras y los estados financieros cuadran con los
+asientos; E2E de cierre.
+
+---
+
+## 6. Épica E5 · Tesorería y cobranzas — [`S-05`](./specs/S-05-tesoreria-cobranzas.md)
+
+| ID      | Tarea                                                                                    | Artefactos                                                  | Depende           | Verificación                              | Talla | Estado |
+| ------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------- | ----------------------------------------- | ----- | ------ |
+| T-05-01 | `payment_methods`: `appliesIgtf`, `requiresReference`, `isCash` + PATCH/desactivar       | migración + `modules/settings/*`                            | —                 | método desactivado no aparece en el cobro | S     | ⬜     |
+| T-05-02 | `bank_accounts` con `branchId` obligatorio, saldo inicial y PATCH                        | migración + `modules/treasury/*`                            | E0                | cuenta creada por sucursal                | M     | ⬜     |
+| T-05-03 | `daily_closes` + `GET/POST /treasury/daily-close/:date` y `:date/close` / `:date/reopen` | tabla nueva + `modules/treasury/*`                          | T-05-02           | pago en fecha cerrada → `409`             | L     | ⬜     |
+| T-05-04 | `bank_statement_lines` + `POST /treasury/reconciliation/import` (CSV)                    | tabla nueva                                                 | T-05-02           | import idempotente por hash de archivo    | L     | ⬜     |
+| T-05-05 | `POST /treasury/reconciliation/:lineId/match`                                            | ídem                                                        | T-05-04           | un pago no se concilia dos veces          | M     | ⬜     |
+| T-05-06 | `GET /treasury/statements/:partnerId?from&to` con saldos                                 | `modules/treasury/*`                                        | —                 | saldo inicial + movimientos = final       | M     | ⬜     |
+| T-05-07 | Caja chica (`petty_cash_funds`, `petty_cash_movements`)                                  | tablas nuevas                                               | T-05-03           | rendición cierra el fondo                 | L     | ⬜     |
+| T-05-08 | UI `settings/methods`, `treasury/accounts`, `treasury/reconciliation`                    | `app/(dashboard)/...`                                       | T-05-01 … T-05-05 | CRUD y conciliación operables             | L     | ⬜     |
+| T-05-09 | UI cierre diario extendido y estado de cuenta con rango                                  | `finance/daily-close`, `operations/partners/[id]/statement` | T-05-03, T-05-06  | diferencia esperado vs contado            | M     | ⬜     |
+
+**Gate de salida E5:** cierre diario bloquea pagos y el estado de cuenta cuadra con los pagos.
+
+---
+
+## 7. Épica E6 · Reportes fiscales — [`S-06`](./specs/S-06-reportes-fiscales.md)
+
+| ID      | Tarea                                                      | Artefactos                    | Depende | Verificación                         | Talla | Estado |
+| ------- | ---------------------------------------------------------- | ----------------------------- | ------- | ------------------------------------ | ----- | ------ |
+| T-06-01 | `fiscal_sequences` (correlativo por sucursal y año)        | tabla nueva                   | E3      | dos comprobantes seguidos sin huecos | M     | ⬜     |
+| T-06-02 | Libro de ventas y de compras con totales por alícuota      | `modules/reports/*` + índices | E4      | cuadra con contabilidad              | L     | ⬜     |
+| T-06-03 | Retenciones TXT/XML con numeración correlativa             | `modules/reports/*`           | T-06-01 | archivo válido contra formato SENIAT | L     | ⬜     |
+| T-06-04 | `GET /reports/fiscal/validation` (RIF, secuencia, cierres) | ídem                          | T-06-02 | detecta hueco y RIF inválido         | M     | ⬜     |
+| T-06-05 | `fiscal_exports` + `POST /reports/fiscal/exports`          | tabla nueva                   | T-06-03 | archivo con hash y usuario           | S     | ⬜     |
+| T-06-06 | UI `finance/reports` y `finance/retentions` con descarga   | `app/(dashboard)/finance/*`   | T-06-03 | descarga TXT/XML/CSV                 | M     | ⬜     |
+
+**Gate de salida E6:** libro de ventas del mes cuadra con la contabilidad y la exportación queda
+trazada.
+
+---
+
+## 8. Épica E7 · Frontend restante — [`S-07`](./specs/S-07-frontend-restante.md)
+
+| ID      | Tarea                                                   | Artefactos                                       | Depende | Verificación                         | Talla | Estado |
+| ------- | ------------------------------------------------------- | ------------------------------------------------ | ------- | ------------------------------------ | ----- | ------ |
+| T-07-01 | `GET /v1/audit` paginado con filtros + índice           | `modules/audit/*` + índice                       | E0      | filtros por entidad, usuario y fecha | M     | ⬜     |
+| T-07-02 | Módulo y pantalla de notas de crédito                   | `modules/credit-notes/*`, `finance/credit-notes` | E4      | NC aplicada descuenta saldo          | L     | ⬜     |
+| T-07-03 | Módulo y pantalla de préstamos                          | `modules/loans/*`, `finance/loans`               | E5      | approve → pay genera movimiento      | L     | ⬜     |
+| T-07-04 | Visor de auditoría con diff legible                     | `settings/audit`                                 | T-07-01 | "campo: antes → después"             | M     | ⬜     |
+| T-07-05 | Home del dashboard con KPIs, gráfico y actividad reales | `app/(dashboard)/dashboard/page.tsx`             | E0, BI  | 4 KPIs por sucursal                  | M     | ⬜     |
+| T-07-06 | Pantalla de stock por almacén con alertas de mínimo     | `inventory/stock`                                | E1      | lista bajo mínimo                    | M     | ⬜     |
+| T-07-07 | Navegación y permisos de UI sincronizados               | `lib/navigation.ts`, `lib/permissions.ts`        | todas   | cada módulo visible solo con permiso | S     | ⬜     |
+
+---
+
+## 9. Tareas transversales (aplican a toda épica)
+
+| ID    | Tarea                                                           | Cuándo            | Verificación                                      |
+| ----- | --------------------------------------------------------------- | ----------------- | ------------------------------------------------- |
+| TX-01 | Un PR por frente, con la spec enlazada y evidencia de ejecución | siempre           | revisión                                          |
+| TX-02 | `pnpm openapi:export` + `pnpm sync:types` tras cambiar un DTO   | siempre           | `shared-types` sin diff manual                    |
+| TX-03 | Permisos nuevos en `seed-rbac.ts` **y** `lib/permissions.ts`    | al crear permisos | seed idempotente                                  |
+| TX-04 | Actualizar `docs/API-CONTRACTS.md` y `09-BITACORA.md`           | al cerrar cada PR | bitácora con BT nuevo                             |
+| TX-05 | Gate completo antes de merge                                    | al cerrar cada PR | lint · typecheck · build · coverage · e2e · audit |
+| TX-06 | Rollback descrito (migración reversible o feature flag)         | en cada migración | sección de rollback en el PR                      |
+
+---
+
+## 10. Secuencia y registro de avance
+
+| Ola | Semanas | Épica / tareas                 | Tareas | Hechas |
+| --- | ------- | ------------------------------ | ------ | ------ |
+| 1   | 1       | E0 backend (T-00-01 … T-00-07) | 7      | 1      |
+| 2   | 2       | E0 cierre (T-00-08 … T-00-13)  | 6      | 0      |
+| 3   | 3       | E1 frentes A, B y C            | 18     | 0      |
+| 4   | 4-5     | E2 nómina                      | 10     | 0      |
+| 5   | 6-7     | E3 compras y CxP               | 9      | 0      |
+| 6   | 8-9     | E4 contabilidad                | 9      | 0      |
+| 7   | 10      | E5 tesorería                   | 9      | 0      |
+| 8   | 11      | E6 reportes fiscales           | 6      | 0      |
+| 9   | 12      | E7 frontend restante           | 7      | 0      |
+| —   | —       | Transversales                  | 6      | 0      |
+| —   | —       | **Total**                      | **87** | **1**  |
+
+**Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
+con el mismo defecto). E1 antes de E2-E7 porque desbloquea pantallas hoy rotas con esfuerzo bajo.
+
+## 11. Riesgos del plan
+
+| Riesgo                                                         | Mitigación                                                                         |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| T-00-08 es `XL` y toca 8 módulos                               | Partir por módulo (un PR cada uno) y cerrar con la suite de aislamiento            |
+| Backfill de `branch_id` en datos existentes sin sucursal clara | Asignar la sucursal por defecto de la empresa y registrar excepciones en auditoría |
+| Cambio de envoltura en `GET /billing/invoices` es breaking     | Versionar en `API-CONTRACTS.md` y actualizar el cliente en el mismo PR             |
+| Reglas LOTTT mal interpretadas                                 | Cerrar T-02-10 con revisión de nómina antes de conectar la UI                      |
+| Migraciones de 12 columnas en una sola tanda                   | Migración por tabla con su backfill y verificación de conteos                      |
+
+## 12. Fuera de alcance (no entra en estas 12 semanas)
+
+Activos fijos y depreciación · presupuestos · multi-empresa contable · app móvil de inventario ·
+transmisión automática al SENIAT · RLS de PostgreSQL · integración bancaria directa.

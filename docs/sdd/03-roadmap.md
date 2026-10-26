@@ -39,6 +39,9 @@ Semana 12  S-07  Notas de crédito, préstamos, auditoría, home BI
 
 > Las duraciones son orientativas para una persona. Cada bloque debe terminar con el
 > **Definition of Done** de [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md) §10.
+>
+> El desglose tarea por tarea de cada semana está en
+> [`04-plan-de-tareas.md`](./04-plan-de-tareas.md).
 
 ## Dependencias entre specs
 

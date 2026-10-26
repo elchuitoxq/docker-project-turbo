@@ -12,9 +12,11 @@
 
 1. **Leer** [`01-gap-analysis.md`](./01-gap-analysis.md): qué existe, qué falta y qué está roto.
 2. **Elegir** una épica de [`03-roadmap.md`](./03-roadmap.md) según prioridad.
-3. **Implementar** siguiendo la spec correspondiente en [`specs/`](./specs/). Ninguna spec se
-   considera "terminada" si no cumple su _Definition of Done_ (§ en `03-roadmap.md`).
-4. **Actualizar** la bitácora de [`docs/update/09-BITACORA.md`](../update/09-BITACORA.md) al cerrar.
+3. **Ejecutar** las tareas de esa épica desde [`04-plan-de-tareas.md`](./04-plan-de-tareas.md),
+   marcando cada una al completarla.
+4. **Implementar** siguiendo la spec correspondiente en [`specs/`](./specs/). Ninguna spec se
+   considera "terminada" si no cumple su _Definition of Done_ (§ en `02-arquitectura-y-convenciones.md`).
+5. **Actualizar** la bitácora de [`docs/update/09-BITACORA.md`](../update/09-BITACORA.md) al cerrar.
 
 ## Índice
 
@@ -24,6 +26,7 @@
 | [`01-gap-analysis.md`](./01-gap-analysis.md)                                 | Matriz completa backend ↔ frontend ↔ docs y defectos de contrato         |
 | [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md)   | Patrones obligatorios (módulos, RBAC, multi-sucursal, dinero, auditoría) |
 | [`03-roadmap.md`](./03-roadmap.md)                                           | Épicas, secuencia, criterios de salida y Definition of Done              |
+| [`04-plan-de-tareas.md`](./04-plan-de-tareas.md)                             | WBS: 87 tareas con dependencias, verificación y registro de avance       |
 | [`specs/S-00-aislamiento-sucursal.md`](./specs/S-00-aislamiento-sucursal.md) | Aislamiento por sucursal + auditoría (cimiento P0)                       |
 | [`specs/S-01-contratos-p0.md`](./specs/S-01-contratos-p0.md)                 | Arreglar contratos rotos (HR, inventario, billing/finance)               |
 | [`specs/S-02-nomina-ve.md`](./specs/S-02-nomina-ve.md)                       | Completar nómina Venezuela (settings, conceptos, liquidación)            |
