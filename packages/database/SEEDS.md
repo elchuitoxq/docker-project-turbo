@@ -31,15 +31,16 @@ Las seeds son scripts que populan la base de datos con datos iniciales necesario
 
 **Datos que crea**:
 
-| Categoría | Datos |
-|-----------|-------|
-| **RBAC** | 61 permisos organizados por módulo, 6 roles (SUPER_ADMIN, ADMIN, MANAGER, SELLER, WAREHOUSE, ACCOUNTANT) |
-| **Monedas** | USD (base), VES, EUR |
-| **Bancos** | 6 bancos venezolanos (Provincial, Banesco, Mercantil, Venezuela, Exterior, Fondo Común) |
-| **Métodos de Pago** | Efectivo USD/VES, POS, Zelle, Transferencia, Pago Móvil, Divisa, Cheque |
-| **Usuario Super Admin** | superadmin@empresa.local |
+| Categoría               | Datos                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| **RBAC**                | 61 permisos organizados por módulo, 6 roles (SUPER_ADMIN, ADMIN, MANAGER, SELLER, WAREHOUSE, ACCOUNTANT) |
+| **Monedas**             | USD (base), VES, EUR                                                                                     |
+| **Bancos**              | 6 bancos venezolanos (Provincial, Banesco, Mercantil, Venezuela, Exterior, Fondo Común)                  |
+| **Métodos de Pago**     | Efectivo USD/VES, POS, Zelle, Transferencia, Pago Móvil, Divisa, Cheque                                  |
+| **Usuario Super Admin** | superadmin@empresa.local                                                                                 |
 
 **Características**:
+
 - Idempotente: puede ejecutarse múltiples veces sin duplicar datos
 - No genera datos aleatorios (comportamiento determinista)
 - No incluye datos de prueba como partners, órdenes o facturas
@@ -52,28 +53,29 @@ Las seeds son scripts que populan la base de datos con datos iniciales necesario
 
 **Datos que crea**:
 
-| Categoría | Cantidad | Descripción |
-|-----------|----------|-------------|
-| **RBAC** | 61 permisos, 6 roles | Mismos que producción |
-| **Sucursales** | 2 | Caracas, Maracaibo |
-| **Almacenes** | 5 | Repartidos entre sucursales |
-| **Usuarios** | 5 | Uno por cada rol |
-| **Partners** | 5 | Mezcla de CUSTOMER y SUPPLIER |
-| **Categorías** | 3 | Electrónica, Alimentos, Hogar |
-| **Productos** | 10 | Con precios y costos variados |
-| **Stock** | 10 | Entradas de inventario |
-| **Empleados** | 5 | Con datos de nómina |
-| **Órdenes** | 5 | En diversos estados |
-| **Facturas** | 5 | Con items y estados variados |
-| **Pagos** | 3 | Distribuidos entre facturas |
-| **Departamentos** | 2 | Ventas, Operaciones |
-| **Cuentas Contables** | 2 | Gastos de Personal, Sueldos y Salarios |
-| **Bancos** | 3 | Provincial, Banesco, Mercantil |
-| **Métodos de Pago** | 5 | Efectivo USD/VES, POS, Transferencia, Zelle |
-| **Cuentas Bancarias** | 4 | USD y VES por sucursal |
-| **Tipos de Cambio** | 1 | VES/USD |
+| Categoría             | Cantidad             | Descripción                                 |
+| --------------------- | -------------------- | ------------------------------------------- |
+| **RBAC**              | 61 permisos, 6 roles | Mismos que producción                       |
+| **Sucursales**        | 2                    | Caracas, Maracaibo                          |
+| **Almacenes**         | 5                    | Repartidos entre sucursales                 |
+| **Usuarios**          | 5                    | Uno por cada rol                            |
+| **Partners**          | 5                    | Mezcla de CUSTOMER y SUPPLIER               |
+| **Categorías**        | 3                    | Electrónica, Alimentos, Hogar               |
+| **Productos**         | 10                   | Con precios y costos variados               |
+| **Stock**             | 10                   | Entradas de inventario                      |
+| **Empleados**         | 5                    | Con datos de nómina                         |
+| **Órdenes**           | 5                    | En diversos estados                         |
+| **Facturas**          | 5                    | Con items y estados variados                |
+| **Pagos**             | 3                    | Distribuidos entre facturas                 |
+| **Departamentos**     | 2                    | Ventas, Operaciones                         |
+| **Cuentas Contables** | 2                    | Gastos de Personal, Sueldos y Salarios      |
+| **Bancos**            | 3                    | Provincial, Banesco, Mercantil              |
+| **Métodos de Pago**   | 5                    | Efectivo USD/VES, POS, Transferencia, Zelle |
+| **Cuentas Bancarias** | 4                    | USD y VES por sucursal                      |
+| **Tipos de Cambio**   | 1                    | VES/USD                                     |
 
 **Características**:
+
 - Datos deterministas (misma ejecución = mismos datos)
 - IDs predecibles para facilitar debugging
 - Cada ejecución genera los mismos datos
@@ -151,20 +153,20 @@ pnpm --filter database db:seed:test
 
 ### Seed de Producción
 
-| Email | Password | Rol | Permisos |
-|-------|----------|-----|----------|
+| Email                    | Password       | Rol         | Permisos     |
+| ------------------------ | -------------- | ----------- | ------------ |
 | superadmin@empresa.local | SuperAdmin123! | SUPER_ADMIN | Acceso total |
 
 **Nota**: Cambiar la contraseña en el primer inicio de sesión.
 
 ### Seed de Testing
 
-| Email | Password | Rol |
-|-------|----------|-----|
-| test-admin@test.local | Test1234! | ADMIN |
-| test-seller@test.local | Test1234! | SELLER |
-| test-manager@test.local | Test1234! | MANAGER |
-| test-warehouse@test.local | Test1234! | WAREHOUSE |
+| Email                      | Password  | Rol        |
+| -------------------------- | --------- | ---------- |
+| test-admin@test.local      | Test1234! | ADMIN      |
+| test-seller@test.local     | Test1234! | SELLER     |
+| test-manager@test.local    | Test1234! | MANAGER    |
+| test-warehouse@test.local  | Test1234! | WAREHOUSE  |
 | test-accountant@test.local | Test1234! | ACCOUNTANT |
 
 ---
@@ -252,6 +254,7 @@ Permisos (permissions)
 **Causa**: El seed de producción se ejecutó sin haber corrido migraciones.
 
 **Solución**:
+
 ```bash
 pnpm --filter database db:migrate
 pnpm --filter database db:seed:prod
@@ -268,6 +271,7 @@ pnpm --filter database db:seed:prod
 **Causa**: Versión de Node incompatible con top-level await.
 
 **Solución**: Usar `tsx` para ejecutar los scripts:
+
 ```bash
 pnpm --filter database db:seed:test
 ```
@@ -283,6 +287,7 @@ pnpm --filter database db:seed:test
 **Causa**: Los seeds son idempotentes pero algunas tablas junction pueden acumular registros.
 
 **Solución**: Ejecutar reset antes del seed:
+
 ```bash
 pnpm --filter database db:reset
 pnpm --filter database db:migrate
@@ -296,6 +301,7 @@ pnpm --filter database db:seed:test
 ### 1. Orden de Ejecución
 
 Siempre ejecutar migraciones antes de seeds:
+
 ```bash
 pnpm --filter database db:migrate && pnpm --filter database db:seed:test
 ```
@@ -303,6 +309,7 @@ pnpm --filter database db:migrate && pnpm --filter database db:seed:test
 ### 2. Reset antes de Seed en Desarrollo
 
 Para desarrollo limpio:
+
 ```bash
 pnpm --filter database db:reset && pnpm --filter database db:migrate && pnpm --filter database db:seed:test
 ```
@@ -313,10 +320,10 @@ Los seeds de test generan datos deterministas. No usar `seed-prod` para testing 
 
 ### 4. Verificar credenciales en ambiente
 
-| Ambiente | Seed | Usuario | Password |
-|----------|------|---------|----------|
+| Ambiente   | Seed      | Usuario                  | Password       |
+| ---------- | --------- | ------------------------ | -------------- |
 | Producción | seed-prod | superadmin@empresa.local | SuperAdmin123! |
-| Testing | seed-test | test-admin@test.local | Test1234! |
+| Testing    | seed-test | test-admin@test.local    | Test1234!      |
 
 ### 5. Cambiar passwords en producción
 
@@ -333,12 +340,14 @@ El seed-test está diseñado para mantener referencias válidas entre tablas. No
 ### Verificar integridad de datos
 
 El seed-test incluye validación automática:
+
 - Verifica que existan usuarios, partners y productos
 - Valida coherencia de relaciones
 
 ### Logs de ejecución
 
 Los seeds imprimen progreso en consola:
+
 ```
 Seeding test data (deterministic)...
 Seeding RBAC...

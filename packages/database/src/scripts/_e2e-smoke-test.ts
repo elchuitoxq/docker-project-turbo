@@ -128,10 +128,16 @@ async function runSmokeTests(): Promise<boolean> {
     failed++;
   } else {
     const employees = employeesResult.data || [];
-    const employeesWithBankAccounts = employees.filter((emp: any) => emp.bankAccounts && emp.bankAccounts.length > 0);
-    console.log(`✅ Employees found: ${employees.length}, with bank accounts: ${employeesWithBankAccounts.length}`);
+    const employeesWithBankAccounts = employees.filter(
+      (emp: any) => emp.bankAccounts && emp.bankAccounts.length > 0
+    );
+    console.log(
+      `✅ Employees found: ${employees.length}, with bank accounts: ${employeesWithBankAccounts.length}`
+    );
     if (employeesWithBankAccounts.length > 0) {
-      console.log(`   Sample employee bank account: ${JSON.stringify(employeesWithBankAccounts[0].bankAccounts[0])}`);
+      console.log(
+        `   Sample employee bank account: ${JSON.stringify(employeesWithBankAccounts[0].bankAccounts[0])}`
+      );
     }
     passed++;
   }
@@ -146,7 +152,9 @@ async function runSmokeTests(): Promise<boolean> {
     const maps = mapsResult.data || [];
     const invoiceMaps = maps.filter((m: any) => m.module === 'INVOICE');
     const paymentMaps = maps.filter((m: any) => m.module === 'PAYMENT');
-    console.log(`✅ Accounting maps: Total=${maps.length}, INVOICE=${invoiceMaps.length}, PAYMENT=${paymentMaps.length}`);
+    console.log(
+      `✅ Accounting maps: Total=${maps.length}, INVOICE=${invoiceMaps.length}, PAYMENT=${paymentMaps.length}`
+    );
     passed++;
   }
 
@@ -157,13 +165,19 @@ async function runSmokeTests(): Promise<boolean> {
     console.log('⚠️  No invoices available for entry creation test');
   } else {
     const firstInvoice = invoicesForEntry.data[0];
-    const entryResult = await apiRequest<any>(`/v1/accounting/entries/from-invoice/${firstInvoice.id}`, {
-      method: 'POST',
-      token: loginToken,
-    });
+    const entryResult = await apiRequest<any>(
+      `/v1/accounting/entries/from-invoice/${firstInvoice.id}`,
+      {
+        method: 'POST',
+        token: loginToken,
+      }
+    );
 
     if (entryResult.error) {
-      if (entryResult.error.includes('already exists') || entryResult.error.includes('No accounting map')) {
+      if (
+        entryResult.error.includes('already exists') ||
+        entryResult.error.includes('No accounting map')
+      ) {
         console.log(`⚠️  Entry creation skipped: ${entryResult.error}`);
         passed++;
       } else {
@@ -178,10 +192,14 @@ async function runSmokeTests(): Promise<boolean> {
       const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
       if (isBalanced) {
-        console.log(`✅ Entry created: ${entry.code}, Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)} (BALANCED)`);
+        console.log(
+          `✅ Entry created: ${entry.code}, Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)} (BALANCED)`
+        );
         passed++;
       } else {
-        console.error(`❌ Entry created but unbalanced: Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)}`);
+        console.error(
+          `❌ Entry created but unbalanced: Debit=${totalDebit.toFixed(2)}, Credit=${totalCredit.toFixed(2)}`
+        );
         failed++;
       }
     }
@@ -217,10 +235,10 @@ async function runSmokeTests(): Promise<boolean> {
 }
 
 runSmokeTests()
-  .then((success) => {
+  .then(success => {
     process.exit(success ? 0 : 1);
   })
-  .catch((err) => {
+  .catch(err => {
     console.error('Fatal error:', err);
     process.exit(1);
   });

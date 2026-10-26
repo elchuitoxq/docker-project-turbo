@@ -37,7 +37,9 @@ async function migrateEmployeeBankAccounts() {
 
     if (existingBankAccounts.length > 0) {
       alreadyHasAccount++;
-      console.log(`   Employee ${emp.firstName} ${emp.lastName} already has bank account, skipping`);
+      console.log(
+        `   Employee ${emp.firstName} ${emp.lastName} already has bank account, skipping`
+      );
       continue;
     }
 

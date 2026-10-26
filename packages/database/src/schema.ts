@@ -19,7 +19,9 @@ function uuidv7() {
 export { uuidv7 };
 
 export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   entityTable: text('entity_table').notNull(),
   entityId: uuid('entity_id').notNull(),
   action: text('action').notNull(),
@@ -34,21 +36,27 @@ export const auditLogs = pgTable('audit_logs', {
 });
 
 export const permissions = pgTable('permissions', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   description: text('description'),
   module: text('module').notNull(),
 });
 
 export const roles = pgTable('roles', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull().unique(),
   description: text('description'),
   isSystem: boolean('is_system').notNull().default(false),
 });
 
 export const users = pgTable('users', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
@@ -57,13 +65,41 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+/**
+ * Tokens de recuperación de contraseña.
+ * Se guarda solo el hash SHA-256 del token: el valor en claro viaja únicamente
+ * al usuario. `usedAt` lo vuelve de un solo uso y `expiresAt` acota la ventana.
+ */
+export const passwordResetTokens = pgTable(
+  'password_reset_tokens',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    usedAt: timestamp('used_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    tokenHashUnique: uniqueIndex('password_reset_tokens_token_hash_unique').on(t.tokenHash),
+  })
+);
+
 export const usersRoles = pgTable(
   'users_roles',
   {
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'restrict' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'restrict' }),
   },
-  (t) => ({
+  t => ({
     pk: primaryKey({ columns: [t.userId, t.roleId] }),
   })
 );
@@ -71,11 +107,15 @@ export const usersRoles = pgTable(
 export const usersBranches = pgTable(
   'users_branches',
   {
-    userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    branchId: uuid('branch_id').notNull().references(() => branches.id, { onDelete: 'restrict' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id, { onDelete: 'restrict' }),
     isDefault: boolean('is_default').notNull().default(false),
   },
-  (t) => ({
+  t => ({
     pk: primaryKey({ columns: [t.userId, t.branchId] }),
     oneDefaultPerUser: uniqueIndex('users_branches_one_default_per_user')
       .on(t.userId)
@@ -84,7 +124,9 @@ export const usersBranches = pgTable(
 );
 
 export const userAppSettings = pgTable('user_app_settings', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   userId: uuid('user_id').notNull(),
   settings: jsonb('settings').default({}),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -93,10 +135,14 @@ export const userAppSettings = pgTable('user_app_settings', {
 export const rolesPermissions = pgTable(
   'roles_permissions',
   {
-    roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
-    permissionId: uuid('permission_id').notNull().references(() => permissions.id, { onDelete: 'restrict' }),
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'cascade' }),
+    permissionId: uuid('permission_id')
+      .notNull()
+      .references(() => permissions.id, { onDelete: 'restrict' }),
   },
-  (t) => ({
+  t => ({
     pk: primaryKey({ columns: [t.roleId, t.permissionId] }),
   })
 );
@@ -104,7 +150,9 @@ export const rolesPermissions = pgTable(
 export const companies = pgTable(
   'companies',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
     name: text('name').notNull(),
     taxId: text('tax_id'),
     address: text('address'),
@@ -114,12 +162,16 @@ export const companies = pgTable(
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
-  (t) => ({ taxIdUnique: uniqueIndex('companies_tax_id_unq').on(t.taxId) })
+  t => ({ taxIdUnique: uniqueIndex('companies_tax_id_unq').on(t.taxId) })
 );
 
 export const branches = pgTable('branches', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
-  companyId: uuid('company_id').notNull().references(() => companies.id, { onDelete: 'restrict' }),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
+  companyId: uuid('company_id')
+    .notNull()
+    .references(() => companies.id, { onDelete: 'restrict' }),
   name: text('name').notNull(),
   address: text('address'),
   phone: text('phone'),
@@ -131,19 +183,23 @@ export const branches = pgTable('branches', {
 export const currencies = pgTable(
   'currencies',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
     code: text('code').notNull(),
     name: text('name').notNull(),
     symbol: text('symbol').notNull(),
     isBase: boolean('is_base').default(false),
   },
-  (t) => ({
+  t => ({
     unq: uniqueIndex('currencies_code_unq').on(t.code),
   })
 );
 
 export const exchangeRates = pgTable('exchange_rates', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   currencyId: uuid('currency_id').notNull(),
   rate: numeric('rate', { precision: 20, scale: 10 }).notNull(),
   date: timestamp('date').defaultNow(),
@@ -151,7 +207,9 @@ export const exchangeRates = pgTable('exchange_rates', {
 });
 
 export const taxConcepts = pgTable('tax_concepts', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
   retentionPercentage: numeric('retention_percentage', {
@@ -164,7 +222,9 @@ export const taxConcepts = pgTable('tax_concepts', {
 });
 
 export const partners = pgTable('partners', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   email: text('email'),
   taxId: text('tax_id').notNull().unique(),
@@ -181,14 +241,18 @@ export const partners = pgTable('partners', {
 });
 
 export const organizationModules = pgTable('organization_modules', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   moduleKey: text('module_key').notNull(),
   isEnabled: boolean('is_enabled').default(false),
   branchId: uuid('branch_id'),
 });
 
 export const warehouses = pgTable('warehouses', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   branchId: uuid('branch_id'),
   name: text('name').notNull(),
   address: text('address'),
@@ -196,14 +260,18 @@ export const warehouses = pgTable('warehouses', {
 });
 
 export const productCategories = pgTable('product_categories', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   description: text('description'),
   parentId: uuid('parent_id'),
 });
 
 export const products = pgTable('products', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   sku: text('sku').notNull().unique(),
   name: text('name').notNull(),
   description: text('description'),
@@ -221,7 +289,9 @@ export const products = pgTable('products', {
 });
 
 export const productBatches = pgTable('product_batches', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   productId: uuid('product_id').notNull(),
   batchNumber: text('batch_number').notNull(),
   expirationDate: timestamp('expiration_date'),
@@ -231,19 +301,31 @@ export const productBatches = pgTable('product_batches', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const stock = pgTable('stock', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
-  warehouseId: uuid('warehouse_id').notNull(),
-  productId: uuid('product_id').notNull(),
-  batchId: uuid('batch_id'),
-  quantity: numeric('quantity', { precision: 20, scale: 4 }).default('0'),
-  updatedAt: timestamp('updated_at').defaultNow(),
-}, (t) => ({
-  unqWarehouseProductBatch: uniqueIndex('stock_warehouse_product_batch_unq').on(t.warehouseId, t.productId, t.batchId),
-}));
+export const stock = pgTable(
+  'stock',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    warehouseId: uuid('warehouse_id').notNull(),
+    productId: uuid('product_id').notNull(),
+    batchId: uuid('batch_id'),
+    quantity: numeric('quantity', { precision: 20, scale: 4 }).default('0'),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  t => ({
+    unqWarehouseProductBatch: uniqueIndex('stock_warehouse_product_batch_unq').on(
+      t.warehouseId,
+      t.productId,
+      t.batchId
+    ),
+  })
+);
 
 export const inventoryMoves = pgTable('inventory_moves', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull(),
   type: text('type').notNull(),
   status: text('status').notNull().default('APPROVED'),
@@ -259,7 +341,9 @@ export const inventoryMoves = pgTable('inventory_moves', {
 });
 
 export const inventoryMoveLines = pgTable('inventory_move_lines', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   moveId: uuid('move_id').notNull(),
   productId: uuid('product_id').notNull(),
   batchId: uuid('batch_id'),
@@ -268,7 +352,9 @@ export const inventoryMoveLines = pgTable('inventory_move_lines', {
 });
 
 export const orders = pgTable('orders', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   partnerId: uuid('partner_id').notNull(),
   branchId: uuid('branch_id').notNull(),
@@ -285,7 +371,9 @@ export const orders = pgTable('orders', {
 });
 
 export const orderItems = pgTable('order_items', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   orderId: uuid('order_id').notNull(),
   productId: uuid('product_id').notNull(),
   batchId: uuid('batch_id'),
@@ -294,7 +382,9 @@ export const orderItems = pgTable('order_items', {
 });
 
 export const invoices = pgTable('invoices', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   partnerId: uuid('partner_id').notNull(),
   branchId: uuid('branch_id').notNull(),
@@ -318,7 +408,9 @@ export const invoices = pgTable('invoices', {
 });
 
 export const invoiceItems = pgTable('invoice_items', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   invoiceId: uuid('invoice_id').notNull(),
   productId: uuid('product_id').notNull(),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
@@ -329,7 +421,9 @@ export const invoiceItems = pgTable('invoice_items', {
 });
 
 export const creditNotes = pgTable('credit_notes', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   invoiceId: uuid('invoice_id'),
   partnerId: uuid('partner_id').notNull(),
@@ -350,7 +444,9 @@ export const creditNotes = pgTable('credit_notes', {
 });
 
 export const creditNoteItems = pgTable('credit_note_items', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   creditNoteId: uuid('credit_note_id').notNull(),
   productId: uuid('product_id').notNull(),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
@@ -359,7 +455,9 @@ export const creditNoteItems = pgTable('credit_note_items', {
 });
 
 export const creditNoteUsages = pgTable('credit_note_usages', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   creditNoteId: uuid('credit_note_id').notNull(),
   paymentId: uuid('payment_id').notNull(),
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
@@ -369,20 +467,24 @@ export const creditNoteUsages = pgTable('credit_note_usages', {
 export const paymentMethods = pgTable(
   'payment_methods',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
     name: text('name').notNull(),
     code: text('code').notNull(),
     isDigital: boolean('is_digital').default(false),
     currencyId: uuid('currency_id'),
     branchId: uuid('branch_id'),
   },
-  (t) => ({
+  t => ({
     unq: uniqueIndex('payment_methods_code_branch_unq').on(t.code, t.branchId),
   })
 );
 
 export const bankAccounts = pgTable('bank_accounts', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   accountNumber: text('account_number'),
   type: text('type').notNull(),
@@ -395,7 +497,9 @@ export const bankAccounts = pgTable('bank_accounts', {
 });
 
 export const payments = pgTable('payments', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   invoiceId: uuid('invoice_id'),
   partnerId: uuid('partner_id').notNull(),
@@ -416,7 +520,9 @@ export const payments = pgTable('payments', {
 });
 
 export const paymentAllocations = pgTable('payment_allocations', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   paymentId: uuid('payment_id').notNull(),
   invoiceId: uuid('invoice_id').notNull(),
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
@@ -429,13 +535,15 @@ export const paymentMethodAccounts = pgTable(
     methodId: uuid('method_id').notNull(),
     bankAccountId: uuid('bank_account_id').notNull(),
   },
-  (t) => ({
+  t => ({
     pk: primaryKey({ columns: [t.methodId, t.bankAccountId] }),
   })
 );
 
 export const taxRetentions = pgTable('tax_retentions', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   partnerId: uuid('partner_id').notNull(),
   branchId: uuid('branch_id').notNull(),
@@ -451,7 +559,9 @@ export const taxRetentions = pgTable('tax_retentions', {
 });
 
 export const taxRetentionLines = pgTable('tax_retention_lines', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   retentionId: uuid('retention_id').notNull(),
   invoiceId: uuid('invoice_id'),
   paymentId: uuid('payment_id'),
@@ -462,7 +572,9 @@ export const taxRetentionLines = pgTable('tax_retention_lines', {
 });
 
 export const documentLinks = pgTable('document_links', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   sourceId: uuid('source_id').notNull(),
   sourceTable: text('source_table').notNull(),
   targetId: uuid('target_id').notNull(),
@@ -473,7 +585,9 @@ export const documentLinks = pgTable('document_links', {
 });
 
 export const banks = pgTable('banks', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   code: text('code').notNull().unique(),
   isActive: boolean('is_active').default(true),
@@ -481,7 +595,9 @@ export const banks = pgTable('banks', {
 });
 
 export const departments = pgTable('departments', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   parentId: uuid('parent_id'),
   branchId: uuid('branch_id').notNull(),
@@ -489,7 +605,9 @@ export const departments = pgTable('departments', {
 });
 
 export const jobPositions = pgTable('job_positions', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   name: text('name').notNull().unique(),
   description: text('description'),
   currencyId: uuid('currency_id'),
@@ -499,7 +617,9 @@ export const jobPositions = pgTable('job_positions', {
 });
 
 export const employees = pgTable('employees', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   identityCard: text('identity_card').notNull().unique(),
@@ -524,7 +644,9 @@ export const employees = pgTable('employees', {
 });
 
 export const employeeContracts = pgTable('employee_contracts', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   type: text('type').notNull(),
   startDate: timestamp('start_date').notNull(),
@@ -538,7 +660,9 @@ export const employeeContracts = pgTable('employee_contracts', {
 });
 
 export const employeeBenefits = pgTable('employee_benefits', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
@@ -556,7 +680,9 @@ export const employeeBenefits = pgTable('employee_benefits', {
 });
 
 export const employeeVacations = pgTable('employee_vacations', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   year: integer('year').notNull(),
   totalDays: integer('total_days').notNull(),
@@ -574,7 +700,9 @@ export const employeeVacations = pgTable('employee_vacations', {
 });
 
 export const employeeProfitSharing = pgTable('employee_profit_sharing', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   year: integer('year').notNull(),
   daysToPay: integer('days_to_pay').notNull(),
@@ -586,7 +714,9 @@ export const employeeProfitSharing = pgTable('employee_profit_sharing', {
 });
 
 export const payrollRuns = pgTable('payroll_runs', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   branchId: uuid('branch_id').notNull(),
   frequency: text('frequency').notNull(),
@@ -599,7 +729,9 @@ export const payrollRuns = pgTable('payroll_runs', {
 });
 
 export const payrollItems = pgTable('payroll_items', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   runId: uuid('run_id').notNull(),
   employeeId: uuid('employee_id').notNull(),
   baseAmount: numeric('base_amount', { precision: 20, scale: 2 }).notNull(),
@@ -609,7 +741,9 @@ export const payrollItems = pgTable('payroll_items', {
 });
 
 export const payrollItemLines = pgTable('payroll_item_lines', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   itemId: uuid('item_id').notNull(),
   conceptCode: text('concept_code').notNull(),
   conceptName: text('concept_name').notNull(),
@@ -621,7 +755,9 @@ export const payrollItemLines = pgTable('payroll_item_lines', {
 });
 
 export const payrollSettings = pgTable('payroll_settings', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   key: text('key').notNull().unique(),
   label: text('label').notNull(),
   value: numeric('value', { precision: 20, scale: 4 }).notNull(),
@@ -632,7 +768,9 @@ export const payrollSettings = pgTable('payroll_settings', {
 });
 
 export const payrollConceptTypes = pgTable('payroll_concept_types', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   name: text('name').notNull(),
   category: text('category').notNull(),
@@ -642,7 +780,9 @@ export const payrollConceptTypes = pgTable('payroll_concept_types', {
 });
 
 export const payrollIncidents = pgTable('payroll_incidents', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   conceptId: uuid('concept_id').notNull(),
   date: timestamp('date').notNull(),
@@ -655,7 +795,9 @@ export const payrollIncidents = pgTable('payroll_incidents', {
 });
 
 export const employeeSalaryHistory = pgTable('employee_salary_history', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   previousSalary: numeric('previous_salary', { precision: 20, scale: 2 }).notNull(),
   newSalary: numeric('new_salary', { precision: 20, scale: 2 }).notNull(),
@@ -666,7 +808,9 @@ export const employeeSalaryHistory = pgTable('employee_salary_history', {
 });
 
 export const employeeBankAccounts = pgTable('employee_bank_accounts', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   employeeId: uuid('employee_id').notNull(),
   bankId: uuid('bank_id').notNull(),
   accountNumber: text('account_number').notNull(),
@@ -680,7 +824,9 @@ export const employeeBankAccounts = pgTable('employee_bank_accounts', {
 export const accountingAccounts = pgTable(
   'accounting_accounts',
   {
-    id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
     code: text('code').notNull(),
     name: text('name').notNull(),
     type: text('type').notNull(),
@@ -688,13 +834,13 @@ export const accountingAccounts = pgTable(
     parentId: uuid('parent_id'),
     isActive: boolean('is_active').default(true),
   },
-  (table) => [
-    uniqueIndex('accounting_accounts_code_branch_idx').on(table.code, table.branchId),
-  ]
+  table => [uniqueIndex('accounting_accounts_code_branch_idx').on(table.code, table.branchId)]
 );
 
 export const accountingEntries = pgTable('accounting_entries', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   date: timestamp('date').notNull(),
   description: text('description').notNull(),
   reference: text('reference'),
@@ -705,7 +851,9 @@ export const accountingEntries = pgTable('accounting_entries', {
 });
 
 export const accountingEntryLines = pgTable('accounting_entry_lines', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   entryId: uuid('entry_id').notNull(),
   accountId: uuid('account_id').notNull(),
   debit: numeric('debit', { precision: 20, scale: 2 }).default('0'),
@@ -714,7 +862,9 @@ export const accountingEntryLines = pgTable('accounting_entry_lines', {
 });
 
 export const accountingMaps = pgTable('accounting_maps', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   branchId: uuid('branch_id'),
   module: text('module').notNull(),
   transactionType: text('transaction_type'),
@@ -728,7 +878,9 @@ export const accountingMaps = pgTable('accounting_maps', {
 });
 
 export const loans = pgTable('loans', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
   partnerId: uuid('partner_id').notNull(),
   status: text('status').default('ACTIVE'),
@@ -740,7 +892,9 @@ export const loans = pgTable('loans', {
 });
 
 export const loanItems = pgTable('loan_items', {
-  id: uuid('id').primaryKey().$defaultFn(() => uuidv7()),
+  id: uuid('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv7()),
   loanId: uuid('loan_id').notNull(),
   productId: uuid('product_id').notNull(),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
@@ -784,7 +938,10 @@ export const userAppSettingsRelations = relations(userAppSettings, ({ one }) => 
 
 export const rolesPermissionsRelations = relations(rolesPermissions, ({ one }) => ({
   role: one(roles, { fields: [rolesPermissions.roleId], references: [roles.id] }),
-  permission: one(permissions, { fields: [rolesPermissions.permissionId], references: [permissions.id] }),
+  permission: one(permissions, {
+    fields: [rolesPermissions.permissionId],
+    references: [permissions.id],
+  }),
 }));
 
 export const branchesRelations = relations(branches, ({ many, one }) => ({
@@ -850,7 +1007,10 @@ export const productCategoriesRelations = relations(productCategories, ({ one, m
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
-  category: one(productCategories, { fields: [products.categoryId], references: [productCategories.id] }),
+  category: one(productCategories, {
+    fields: [products.categoryId],
+    references: [productCategories.id],
+  }),
   currency: one(currencies, { fields: [products.currencyId], references: [currencies.id] }),
   batches: many(productBatches),
   stock: many(stock),
@@ -890,9 +1050,15 @@ export const inventoryMovesRelations = relations(inventoryMoves, ({ one, many })
 }));
 
 export const inventoryMoveLinesRelations = relations(inventoryMoveLines, ({ one }) => ({
-  move: one(inventoryMoves, { fields: [inventoryMoveLines.moveId], references: [inventoryMoves.id] }),
+  move: one(inventoryMoves, {
+    fields: [inventoryMoveLines.moveId],
+    references: [inventoryMoves.id],
+  }),
   product: one(products, { fields: [inventoryMoveLines.productId], references: [products.id] }),
-  batch: one(productBatches, { fields: [inventoryMoveLines.batchId], references: [productBatches.id] }),
+  batch: one(productBatches, {
+    fields: [inventoryMoveLines.batchId],
+    references: [productBatches.id],
+  }),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -936,18 +1102,27 @@ export const creditNotesRelations = relations(creditNotes, ({ one, many }) => ({
   warehouse: one(warehouses, { fields: [creditNotes.warehouseId], references: [warehouses.id] }),
   currency: one(currencies, { fields: [creditNotes.currencyId], references: [currencies.id] }),
   user: one(users, { fields: [creditNotes.userId], references: [users.id] }),
-  parentPayment: one(payments, { fields: [creditNotes.parentPaymentId], references: [payments.id] }),
+  parentPayment: one(payments, {
+    fields: [creditNotes.parentPaymentId],
+    references: [payments.id],
+  }),
   items: many(creditNoteItems),
   usages: many(creditNoteUsages),
 }));
 
 export const creditNoteItemsRelations = relations(creditNoteItems, ({ one }) => ({
-  creditNote: one(creditNotes, { fields: [creditNoteItems.creditNoteId], references: [creditNotes.id] }),
+  creditNote: one(creditNotes, {
+    fields: [creditNoteItems.creditNoteId],
+    references: [creditNotes.id],
+  }),
   product: one(products, { fields: [creditNoteItems.productId], references: [products.id] }),
 }));
 
 export const creditNoteUsagesRelations = relations(creditNoteUsages, ({ one }) => ({
-  creditNote: one(creditNotes, { fields: [creditNoteUsages.creditNoteId], references: [creditNotes.id] }),
+  creditNote: one(creditNotes, {
+    fields: [creditNoteUsages.creditNoteId],
+    references: [creditNotes.id],
+  }),
   payment: one(payments, { fields: [creditNoteUsages.paymentId], references: [payments.id] }),
 }));
 
@@ -971,7 +1146,10 @@ export const paymentsRelations = relations(payments, ({ one, many }) => ({
   branch: one(branches, { fields: [payments.branchId], references: [branches.id] }),
   method: one(paymentMethods, { fields: [payments.methodId], references: [paymentMethods.id] }),
   currency: one(currencies, { fields: [payments.currencyId], references: [currencies.id] }),
-  bankAccount: one(bankAccounts, { fields: [payments.bankAccountId], references: [bankAccounts.id] }),
+  bankAccount: one(bankAccounts, {
+    fields: [payments.bankAccountId],
+    references: [bankAccounts.id],
+  }),
   payrollRun: one(payrollRuns, { fields: [payments.payrollRunId], references: [payrollRuns.id] }),
   user: one(users, { fields: [payments.userId], references: [users.id] }),
   allocations: many(paymentAllocations),
@@ -985,8 +1163,14 @@ export const paymentAllocationsRelations = relations(paymentAllocations, ({ one 
 }));
 
 export const paymentMethodAccountsRelations = relations(paymentMethodAccounts, ({ one }) => ({
-  method: one(paymentMethods, { fields: [paymentMethodAccounts.methodId], references: [paymentMethods.id] }),
-  bankAccount: one(bankAccounts, { fields: [paymentMethodAccounts.bankAccountId], references: [bankAccounts.id] }),
+  method: one(paymentMethods, {
+    fields: [paymentMethodAccounts.methodId],
+    references: [paymentMethods.id],
+  }),
+  bankAccount: one(bankAccounts, {
+    fields: [paymentMethodAccounts.bankAccountId],
+    references: [bankAccounts.id],
+  }),
 }));
 
 export const taxRetentionsRelations = relations(taxRetentions, ({ one, many }) => ({
@@ -997,10 +1181,16 @@ export const taxRetentionsRelations = relations(taxRetentions, ({ one, many }) =
 }));
 
 export const taxRetentionLinesRelations = relations(taxRetentionLines, ({ one }) => ({
-  retention: one(taxRetentions, { fields: [taxRetentionLines.retentionId], references: [taxRetentions.id] }),
+  retention: one(taxRetentions, {
+    fields: [taxRetentionLines.retentionId],
+    references: [taxRetentions.id],
+  }),
   invoice: one(invoices, { fields: [taxRetentionLines.invoiceId], references: [invoices.id] }),
   payment: one(payments, { fields: [taxRetentionLines.paymentId], references: [payments.id] }),
-  concept: one(taxConcepts, { fields: [taxRetentionLines.conceptId], references: [taxConcepts.id] }),
+  concept: one(taxConcepts, {
+    fields: [taxRetentionLines.conceptId],
+    references: [taxConcepts.id],
+  }),
 }));
 
 export const documentLinksRelations = relations(documentLinks, ({ one }) => ({
@@ -1033,7 +1223,10 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
   department: one(departments, { fields: [employees.departmentId], references: [departments.id] }),
   branch: one(branches, { fields: [employees.branchId], references: [branches.id] }),
   bank: one(banks, { fields: [employees.bankId], references: [banks.id] }),
-  salaryCurrency: one(currencies, { fields: [employees.salaryCurrencyId], references: [currencies.id] }),
+  salaryCurrency: one(currencies, {
+    fields: [employees.salaryCurrencyId],
+    references: [currencies.id],
+  }),
   contracts: many(employeeContracts),
   vacations: many(employeeVacations),
   benefits: many(employeeBenefits),
@@ -1056,7 +1249,10 @@ export const employeeVacationsRelations = relations(employeeVacations, ({ one })
 }));
 
 export const employeeProfitSharingRelations = relations(employeeProfitSharing, ({ one }) => ({
-  employee: one(employees, { fields: [employeeProfitSharing.employeeId], references: [employees.id] }),
+  employee: one(employees, {
+    fields: [employeeProfitSharing.employeeId],
+    references: [employees.id],
+  }),
 }));
 
 export const payrollRunsRelations = relations(payrollRuns, ({ one, many }) => ({
@@ -1086,19 +1282,37 @@ export const payrollConceptTypesRelations = relations(payrollConceptTypes, ({ on
 
 export const payrollIncidentsRelations = relations(payrollIncidents, ({ one }) => ({
   employee: one(employees, { fields: [payrollIncidents.employeeId], references: [employees.id] }),
-  concept: one(payrollConceptTypes, { fields: [payrollIncidents.conceptId], references: [payrollConceptTypes.id] }),
-  processedInRun: one(payrollRuns, { fields: [payrollIncidents.processedInRunId], references: [payrollRuns.id] }),
+  concept: one(payrollConceptTypes, {
+    fields: [payrollIncidents.conceptId],
+    references: [payrollConceptTypes.id],
+  }),
+  processedInRun: one(payrollRuns, {
+    fields: [payrollIncidents.processedInRunId],
+    references: [payrollRuns.id],
+  }),
 }));
 
 export const employeeSalaryHistoryRelations = relations(employeeSalaryHistory, ({ one }) => ({
-  employee: one(employees, { fields: [employeeSalaryHistory.employeeId], references: [employees.id] }),
-  currency: one(currencies, { fields: [employeeSalaryHistory.currencyId], references: [currencies.id] }),
+  employee: one(employees, {
+    fields: [employeeSalaryHistory.employeeId],
+    references: [employees.id],
+  }),
+  currency: one(currencies, {
+    fields: [employeeSalaryHistory.currencyId],
+    references: [currencies.id],
+  }),
 }));
 
 export const employeeBankAccountsRelations = relations(employeeBankAccounts, ({ one }) => ({
-  employee: one(employees, { fields: [employeeBankAccounts.employeeId], references: [employees.id] }),
+  employee: one(employees, {
+    fields: [employeeBankAccounts.employeeId],
+    references: [employees.id],
+  }),
   bank: one(banks, { fields: [employeeBankAccounts.bankId], references: [banks.id] }),
-  currency: one(currencies, { fields: [employeeBankAccounts.currencyId], references: [currencies.id] }),
+  currency: one(currencies, {
+    fields: [employeeBankAccounts.currencyId],
+    references: [currencies.id],
+  }),
 }));
 
 export const accountingAccountsRelations = relations(accountingAccounts, ({ one, many }) => ({
@@ -1122,7 +1336,10 @@ export const accountingEntriesRelations = relations(accountingEntries, ({ one, m
 }));
 
 export const accountingEntryLinesRelations = relations(accountingEntryLines, ({ one }) => ({
-  entry: one(accountingEntries, { fields: [accountingEntryLines.entryId], references: [accountingEntries.id] }),
+  entry: one(accountingEntries, {
+    fields: [accountingEntryLines.entryId],
+    references: [accountingEntries.id],
+  }),
   account: one(accountingAccounts, {
     fields: [accountingEntryLines.accountId],
     references: [accountingAccounts.id],
@@ -1132,9 +1349,15 @@ export const accountingEntryLinesRelations = relations(accountingEntryLines, ({ 
 
 export const accountingMapsRelations = relations(accountingMaps, ({ one }) => ({
   branch: one(branches, { fields: [accountingMaps.branchId], references: [branches.id] }),
-  category: one(productCategories, { fields: [accountingMaps.categoryId], references: [productCategories.id] }),
+  category: one(productCategories, {
+    fields: [accountingMaps.categoryId],
+    references: [productCategories.id],
+  }),
   product: one(products, { fields: [accountingMaps.productId], references: [products.id] }),
-  paymentMethod: one(paymentMethods, { fields: [accountingMaps.paymentMethodId], references: [paymentMethods.id] }),
+  paymentMethod: one(paymentMethods, {
+    fields: [accountingMaps.paymentMethodId],
+    references: [paymentMethods.id],
+  }),
   debitAccount: one(accountingAccounts, {
     fields: [accountingMaps.debitAccountId],
     references: [accountingAccounts.id],

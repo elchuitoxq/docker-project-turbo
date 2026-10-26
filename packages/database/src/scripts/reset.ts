@@ -5,7 +5,7 @@ async function resetDatabase() {
   console.log('Resetting database...');
   console.log('⚠️  This will drop all tables!');
 
-  await db.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+  await db.execute('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
   console.log('All tables dropped.');
 
   await seedRbac();
@@ -17,7 +17,7 @@ resetDatabase()
     console.log('Reset completed!');
     process.exit(0);
   })
-  .catch((err) => {
+  .catch(err => {
     console.error('Reset failed:', err);
     process.exit(1);
   });

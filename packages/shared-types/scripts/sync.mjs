@@ -19,7 +19,7 @@ mkdirSync(dirname(outTypes), { recursive: true });
 copyFileSync(backendOpenapi, localOpenapi);
 console.log(`[shared-types] Copied OpenAPI spec to ${localOpenapi}`);
 
-execSync(`npx --yes openapi-typescript "${localOpenapi}" -o "${outTypes}"`, {
+execSync(`pnpm exec openapi-typescript "${localOpenapi}" -o "${outTypes}"`, {
   stdio: 'inherit',
   cwd: root,
 });

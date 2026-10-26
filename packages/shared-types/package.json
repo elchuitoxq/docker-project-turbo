@@ -8,9 +8,10 @@
   "scripts": {
     "sync": "node ./scripts/sync.mjs",
     "generate": "openapi-typescript ../../apps/backend/docs/openapi.json -o src/api-types.ts",
-    "build": "tsc",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix"
+    "build": "pnpm run generate && tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

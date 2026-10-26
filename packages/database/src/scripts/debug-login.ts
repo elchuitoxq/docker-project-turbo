@@ -58,7 +58,9 @@ async function debugLogin() {
     console.log(`✅ User has ${companiesMap.size} company(ies):`);
     for (const [companyId, branches] of companiesMap) {
       const company = branches[0];
-      console.log(`   - ${company.companyName} (${company.taxId ?? 'no tax ID'}; ${companyId}) | branches: ${branches.map(b => b.branchName).join(', ')}`);
+      console.log(
+        `   - ${company.companyName} (${company.taxId ?? 'no tax ID'}; ${companyId}) | branches: ${branches.map(b => b.branchName).join(', ')}`
+      );
     }
   }
 
@@ -88,7 +90,7 @@ async function debugLogin() {
 
 debugLogin()
   .then(() => process.exit(0))
-  .catch((err) => {
+  .catch(err => {
     console.error('Error:', err);
     process.exit(1);
   });

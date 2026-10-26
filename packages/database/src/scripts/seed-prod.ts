@@ -34,42 +34,48 @@ export async function seedProdData() {
 async function seedCurrencies() {
   console.log('Seeding currencies...');
 
-  await db.insert(currencies).values([
-    {
-      id: uuidv7(),
-      code: 'USD',
-      name: 'US Dollar',
-      symbol: '$',
-      isBase: true,
-    },
-    {
-      id: uuidv7(),
-      code: 'VES',
-      name: 'Venezuelan Bolivar',
-      symbol: 'Bs',
-      isBase: false,
-    },
-    {
-      id: uuidv7(),
-      code: 'EUR',
-      name: 'Euro',
-      symbol: '€',
-      isBase: false,
-    },
-  ]).onConflictDoUpdate({
-    target: currencies.code,
-    set: { name: currencies.name, symbol: currencies.symbol },
-  });
+  await db
+    .insert(currencies)
+    .values([
+      {
+        id: uuidv7(),
+        code: 'USD',
+        name: 'US Dollar',
+        symbol: '$',
+        isBase: true,
+      },
+      {
+        id: uuidv7(),
+        code: 'VES',
+        name: 'Venezuelan Bolivar',
+        symbol: 'Bs',
+        isBase: false,
+      },
+      {
+        id: uuidv7(),
+        code: 'EUR',
+        name: 'Euro',
+        symbol: '€',
+        isBase: false,
+      },
+    ])
+    .onConflictDoUpdate({
+      target: currencies.code,
+      set: { name: currencies.name, symbol: currencies.symbol },
+    });
 
   const [usd] = await db.select().from(currencies).where(eq(currencies.code, 'USD')).limit(1);
   const [ves] = await db.select().from(currencies).where(eq(currencies.code, 'VES')).limit(1);
 
   if (usd && ves) {
-    await db.insert(exchangeRates).values({
-      currencyId: ves.id,
-      rate: '36.50',
-      source: 'MANUAL',
-    }).onConflictDoNothing();
+    await db
+      .insert(exchangeRates)
+      .values({
+        currencyId: ves.id,
+        rate: '36.50',
+        source: 'MANUAL',
+      })
+      .onConflictDoNothing();
   }
 
   console.log('Currencies seeded: USD, VES, EUR');
@@ -88,15 +94,18 @@ async function seedBanks() {
   ];
 
   for (const bank of bankData) {
-    await db.insert(banks).values({
-      id: uuidv7(),
-      name: bank.name,
-      code: bank.code,
-      isActive: true,
-    }).onConflictDoUpdate({
-      target: banks.code,
-      set: { name: bank.name, isActive: true },
-    });
+    await db
+      .insert(banks)
+      .values({
+        id: uuidv7(),
+        name: bank.name,
+        code: bank.code,
+        isActive: true,
+      })
+      .onConflictDoUpdate({
+        target: banks.code,
+        set: { name: bank.name, isActive: true },
+      });
   }
 
   console.log(`Seeded ${bankData.length} banks`);
@@ -122,17 +131,20 @@ async function seedPaymentMethods() {
   const [branch] = await db.select().from(branches).limit(1);
 
   for (const method of paymentMethodsData) {
-    await db.insert(paymentMethods).values({
-      id: uuidv7(),
-      name: method.name,
-      code: method.code,
-      isDigital: method.isDigital,
-      currencyId: method.currencyId,
-      branchId: branch?.id,
-    }).onConflictDoUpdate({
-      target: [paymentMethods.code, paymentMethods.branchId],
-      set: { name: method.name, isDigital: method.isDigital },
-    });
+    await db
+      .insert(paymentMethods)
+      .values({
+        id: uuidv7(),
+        name: method.name,
+        code: method.code,
+        isDigital: method.isDigital,
+        currencyId: method.currencyId,
+        branchId: branch?.id,
+      })
+      .onConflictDoUpdate({
+        target: [paymentMethods.code, paymentMethods.branchId],
+        set: { name: method.name, isDigital: method.isDigital },
+      });
   }
 
   console.log(`Seeded ${paymentMethodsData.length} payment methods`);
@@ -182,7 +194,11 @@ async function seedSuperAdmin() {
   console.log('Seeding super admin user...');
 
   const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'ADMIN')).limit(1);
-  const [superAdminRole] = await db.select().from(roles).where(eq(roles.name, 'SUPER_ADMIN')).limit(1);
+  const [superAdminRole] = await db
+    .select()
+    .from(roles)
+    .where(eq(roles.name, 'SUPER_ADMIN'))
+    .limit(1);
 
   if (!adminRole) {
     console.error('ADMIN role not found, cannot create super admin');
@@ -202,26 +218,35 @@ async function seedSuperAdmin() {
 
   const passwordHash = bcrypt.hashSync('SuperAdmin123!', 10);
 
-  const [superAdmin] = await db.insert(users).values({
-    id: uuidv7(),
-    name: 'Super Administrador',
-    email: 'superadmin@empresa.local',
-    password: passwordHash,
-    refreshToken: null,
-  }).returning();
+  const [superAdmin] = await db
+    .insert(users)
+    .values({
+      id: uuidv7(),
+      name: 'Super Administrador',
+      email: 'superadmin@empresa.local',
+      password: passwordHash,
+      refreshToken: null,
+    })
+    .returning();
 
-  await db.insert(usersRoles).values({
-    userId: superAdmin.id,
-    roleId: superAdminRole?.id || adminRole.id,
-  }).onConflictDoNothing();
+  await db
+    .insert(usersRoles)
+    .values({
+      userId: superAdmin.id,
+      roleId: superAdminRole?.id || adminRole.id,
+    })
+    .onConflictDoNothing();
 
   const [branch] = await db.select().from(branches).limit(1);
   if (branch) {
-    await db.insert(usersBranches).values({
-      userId: superAdmin.id,
-      branchId: branch.id,
-      isDefault: true,
-    }).onConflictDoNothing();
+    await db
+      .insert(usersBranches)
+      .values({
+        userId: superAdmin.id,
+        branchId: branch.id,
+        isDefault: true,
+      })
+      .onConflictDoNothing();
   }
 
   console.log('Super admin user created: superadmin@empresa.local / SuperAdmin123!');

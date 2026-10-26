@@ -1,6 +1,6 @@
 import postgres from 'postgres';
-declare const db: import("drizzle-orm/postgres-js").PostgresJsDatabase<Record<string, never>> & {
-    $client: postgres.Sql<{}>;
+declare const db: import('drizzle-orm/postgres-js').PostgresJsDatabase<Record<string, never>> & {
+  $client: postgres.Sql<{}>;
 };
 export { db };
 export { uuidv7 } from './schema';
