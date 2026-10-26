@@ -482,3 +482,36 @@ El usuario pidió **revisar el plan antes de escribir código**; no se tocó có
 
 - `pnpm exec prettier --check "docs/sdd/**/*.md" "docs/update/*.md"` verde.
 - Enlaces relativos de `docs/sdd/` y `docs/update/` validados (0 rotos).
+
+---
+
+### BT-031 · 2026-10-26 · Cuatro decisiones de revisión del plan
+
+**Decisiones del usuario**
+
+| Punto                            | Decisión                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------- |
+| T-00-08 (filtrado por sucursal)  | Se mantiene como **una sola tarea `XL` y un único PR**, no se parte en 8  |
+| T-01-14 (paginación de facturas) | **Aditiva**: `?paginated=true`; sin el flag sigue el arreglo plano        |
+| T-01-06 (pago de nómina)         | **Se mueve a E2** (T-02-06), porque necesita el neto del motor de cálculo |
+| Orden de ejecución               | **E6 (fiscal) antes de E3 (compras/CxP) y E5 (tesorería)**                |
+
+**Efectos en los documentos**
+
+- `04-plan-de-tareas.md`: nueva secuencia de **14 semanas** (antes 12), total **87 tareas**
+  (E1 baja a 17 y E2 sube a 11), riesgos actualizados y las tres consecuencias de adelantar E6.
+- `03-roadmap.md`: secuencia y grafo de dependencias reescritos; se aclara que el número de épica
+  identifica la spec y no el turno de ejecución.
+- Se corrigió el umbral de cobertura backend en el roadmap (**65 %**, no 70 %; verificado en
+  `apps/backend/vitest.config.ts`).
+
+**Limitación aceptada y documentada**
+
+Hasta la semana 10 el **libro de compras y las retenciones de compra** quedan incompletos
+(dependen de E3). La validación "período sin cierres pendientes" se activa con E5.
+
+**Verificación**
+
+- `pnpm format:check` verde · enlaces relativos validados · tablas markdown con el mismo número de
+  columnas por tabla (sin filas partidas por pipes dentro de code spans).
+- Sin cambios de código funcional; `git status` limpio tras el commit.

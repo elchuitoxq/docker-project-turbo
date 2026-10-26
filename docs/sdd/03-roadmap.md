@@ -22,19 +22,24 @@
 
 ## Secuencia recomendada (slices de ~1 semana)
 
+> **Orden vigente desde el 2026-10-26:** la obligación fiscal (E6) se adelanta a compras/CxP (E3) y
+> tesorería (E5). El número de épica identifica la spec, no el turno de ejecución.
+
 ```
-Semana 1   S-00  R1/R2 (guards de sucursal) + auditoría en escrituras
-Semana 2   S-01  HR: endpoints faltantes + nombres de payroll
-Semana 3   S-01  Inventario + billing/finance (PATCH, type, paginación)
-Semana 4   S-02  Nómina: settings + conceptos (API + pantallas)
-Semana 5   S-02  Nómina: liquidación + pago integrado a tesorería
-Semana 6   S-03  Compras: facturas de proveedor + CxP
-Semana 7   S-03  Retenciones de compra + pagos a proveedor
-Semana 8   S-04  Plan de cuentas + asientos manuales (UI)
-Semana 9   S-04  Cierre de período + balance/resultados
-Semana 10  S-05  Cierre diario, conciliación y estado de cuenta
-Semana 11  S-06  Libros de venta/compra + TXT/XML
-Semana 12  S-07  Notas de crédito, préstamos, auditoría, home BI
+Semana 1   S-00  Guard de sucursal, permisos y migraciones de branch_id
+Semana 2   S-00  Filtrado efectivo en los 8 servicios + auditoría + pruebas cruzadas
+Semana 3   S-01  Contratos: HR, inventario, billing y partners
+Semana 4   S-02  Nomina: parametros vigentes + conceptos
+Semana 5   S-02  Nomina: motor de calculo, liquidacion y pago a tesoreria
+Semana 6   S-04  Contabilidad: plan de cuentas + asientos (API + UI)
+Semana 7   S-04  Contabilidad: cierre de periodo + estados financieros
+Semana 8   S-06  Fiscal: libro de ventas, resumen IVA/IGTF y secuencias
+Semana 9   S-06  Fiscal: retenciones TXT/XML, validaciones y export trazado
+Semana 10  S-03  Compras: facturas de proveedor + CxP
+Semana 11  S-03  Compras: retenciones de compra + pagos a proveedor
+Semana 12  S-05  Tesoreria: metodos, cuentas y cierre diario
+Semana 13  S-05  Tesoreria: conciliacion, estado de cuenta y caja chica
+Semana 14  S-07  Notas de credito, prestamos, auditoria, home BI
 ```
 
 > Las duraciones son orientativas para una persona. Cada bloque debe terminar con el
@@ -47,9 +52,10 @@ Semana 12  S-07  Notas de crédito, préstamos, auditoría, home BI
 
 ```
 S-00 ──┬── S-01
-       ├── S-02 ── S-03
-       ├── S-04 ── S-06
-       └── S-05 ── S-06
+       ├── S-02
+       ├── S-04 ── S-06 (libro de ventas y estados)
+       └── S-05 ── S-06 (validacion de cierres)
+S-06 ── S-03 (libro de compras y retenciones de compra necesitan CxP)
 S-07 depende de S-01 (contratos) y S-04 (asientos para NC)
 ```
 
