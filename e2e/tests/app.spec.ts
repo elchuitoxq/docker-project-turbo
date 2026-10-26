@@ -1,1 +1,25 @@
-"import { test, expect } from '@playwright/test';\n\ntest.describe('Aplicación Frontend', () => {\n  test('debería cargar la página de inicio', async ({ page }) => {\n    await page.goto('/');\n    await expect(page).toHaveTitle(/Next\.js/i);\n  });\n\n  test('debería mostrar mensaje de bienvenida', async ({ page }) => {\n    await page.goto('/');\n    await expect(page.getByText('Bienvenido a la aplicación Frontend')).toBeVisible();\n  });\n});\n\ntest.describe('API Backend', () => {\n  test('debería retornar lista de usuarios', async ({ request }) => {\n    const response = await request.get(`${process.env.NEXT_PUBLIC_API_URL}/api/users`);\n    expect(response.ok()).toBeTruthy();\n    const users = await response.json();\n    expect(Array.isArray(users)).toBeTruthy();\n  });\n});\n"
+import { test, expect } from '@playwright/test';
+
+const API_URL = process.env.E2E_API_URL ?? 'http://localhost:4000';
+
+test.describe('Aplicación Frontend', () => {
+  test('debería cargar la página de login', async ({ page }) => {
+    await page.goto('/login');
+    await expect(page.locator('#email')).toBeVisible();
+    await expect(page.locator('#password')).toBeVisible();
+  });
+});
+
+test.describe('API Backend', () => {
+  test('los endpoints protegidos rechazan peticiones sin token', async ({ request }) => {
+    const response = await request.get(`${API_URL}/v1/users`);
+    expect(response.status()).toBe(401);
+  });
+
+  test('el healthcheck responde ok', async ({ request }) => {
+    const response = await request.get(`${API_URL}/health`);
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    expect(body.status).toBe('ok');
+  });
+});

@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '24'
+  PNPM_VERSION: '10.0.0'
+  JWT_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+  DATABASE_URL: postgres://testuser:testpassword@localhost:5433/testdb
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Tests · Build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.23
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d testdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Necesario para que `turbo --affected` pueda calcular el merge-base.
+          fetch-depth: 0
+
+      - name: Fetch base branch (PR)
+        if: github.event_name == 'pull_request'
+        run: git fetch --no-tags origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # Bloqueante: no se aceptan vulnerabilidades en dependencias de producción.
+      - name: Audit (production)
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm turbo run lint ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+
+      - name: Typecheck
+        run: pnpm turbo run typecheck ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+
+      - name: Build
+        run: pnpm turbo run build ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+
+      - name: Prepare test databases
+        run: pnpm turbo run test:db:prepare
+
+      - name: Test + coverage (bloqueante por umbrales)
+        run: pnpm turbo run test:coverage ${{ github.event_name == 'pull_request' && '--affected' || '' }}
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: quality
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.23
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d testdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      JWT_SECRET: ci-only-secret-0123456789abcdef0123456789abcdef
+      DATABASE_URL: postgres://testuser:testpassword@localhost:5433/testdb
+      DATABASE_HOST: localhost
+      SEED_ENV: development
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      E2E_NO_SERVER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build
+
+      - name: Migrate + seed
+        run: |
+          pnpm --filter database db:migrate
+          pnpm --filter database db:seed:dev
+
+      - name: Start API
+        run: node apps/backend/dist/main.js &
+        env:
+          PORT: '4000'
+
+      - name: Start Web (build de producción)
+        run: pnpm --filter frontend start &
+
+      - name: Wait for services
+        run: npx --yes wait-on http://localhost:4000/health http://localhost:3000/login
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E
+        run: pnpm exec playwright test
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

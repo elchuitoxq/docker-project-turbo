@@ -1,0 +1,52 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      nestjs:
+        patterns:
+          - '@nestjs/*'
+      next-react:
+        patterns:
+          - 'next'
+          - 'react'
+          - 'react-dom'
+          - 'eslint-config-next'
+          - '@types/react*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+          - '@playwright/*'
+          - '@testing-library/*'
+          - 'msw'
+      lint-format:
+        patterns:
+          - 'eslint*'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'husky'
+          - 'lint-staged'
+      types:
+        patterns:
+          - '@types/*'
+    ignore:
+      # El frontend se mantiene en TS 5.x por compatibilidad de openapi-typescript
+      - dependency-name: typescript
+        versions: ['>=6']
+
+  - package-ecosystem: docker
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
