@@ -2,20 +2,21 @@ FROM node:26-alpine3.23
 
 ENV NODE_ENV=development
 
-RUN apk add --no-cache libc6-compat openssl libpq-dev python3 make g++ netcat-openbsd
+# `postgres` (postgres.js) y `bcryptjs` son pure-JS: no hacen falta compiladores
+# ni cabeceras nativas. `netcat-openbsd` lo usa el entrypoint para esperar a Postgres.
+RUN apk add --no-cache libc6-compat openssl netcat-openbsd
 
 RUN npm install -g pnpm@10.0.0
 
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml turbo.json ./
-COPY apps/frontend/package.json ./apps/frontend/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
 COPY packages/database/package.json ./packages/database/
 COPY packages/shared-types/package.json ./packages/shared-types/
-COPY pnpm-lock.yaml ./
 
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
 COPY scripts/dev-entrypoint.sh ./scripts/dev-entrypoint.sh
 RUN chmod +x ./scripts/dev-entrypoint.sh

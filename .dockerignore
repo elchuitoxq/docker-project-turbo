@@ -8,9 +8,22 @@
 **/*.tsbuildinfo
 .git
 .gitignore
+.gitattributes
 .husky
+.github
 *.log
-.env.local
-.env.*.local
-docs/openapi.json
-audit-report
+
+# Nunca copiar secretos al contexto de build
+.env
+.env.*
+!.env.example
+
+# Artefactos y documentación que no afectan al build
+/docs
+/audit-report
+/graphify-out
+/test-results
+/playwright-report
+/.agents
+/.opencode
+/e2e
