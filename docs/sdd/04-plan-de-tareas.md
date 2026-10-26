@@ -122,18 +122,19 @@ en las pantallas de HR, inventario y finanzas.
 
 ## 3. Épica E2 · Nómina Venezuela — [`S-02`](./specs/S-02-nomina-ve.md)
 
-| ID      | Tarea                                                                        | Artefactos                                    | Depende | Verificación                        | Talla | Estado |
-| ------- | ---------------------------------------------------------------------------- | --------------------------------------------- | ------- | ----------------------------------- | ----- | ------ |
-| T-02-01 | `payroll_settings`: `companyId`, `effectiveFrom`, unicidad, snapshot por run | `packages/database/schema.ts`, `modules/hr/*` | —       | migración + run histórico inmutable | M     | ⬜     |
-| T-02-02 | Conceptos: `code`, `kind`, `expression`, `affectsIntegralSalary` + CRUD      | `payroll_concept_types`, `modules/hr/*`       | T-02-01 | CRUD + validación de expresión      | M     | ⬜     |
-| T-02-03 | Motor de cálculo por concepto con `decimal.js`                               | `modules/hr/payroll.calculator.ts` (nuevo)    | T-02-02 | unit con casos dorados (LOTTT)      | L     | ⬜     |
-| T-02-04 | Prestaciones, utilidades, vacaciones y bono vacacional                       | ídem + `employee_profit_sharing`              | T-02-03 | integración con períodos completos  | L     | ⬜     |
-| T-02-05 | Liquidación de egreso (`employee_settlements`)                               | tabla nueva + `POST /hr/employees/:id/settle` | T-02-04 | cálculo por causa de egreso         | M     | ⬜     |
-| T-02-06 | Pago de nómina integrado a tesorería (idempotente)                           | `modules/hr` + `modules/treasury`             | T-02-03 | 2 llamadas → 1 solo `payment`       | M     | ⬜     |
-| T-02-07 | UI parámetros de nómina                                                      | `app/(dashboard)/settings/payroll-settings/`  | T-02-01 | alta de nueva vigencia              | M     | ⬜     |
-| T-02-08 | UI conceptos de nómina                                                       | `app/(dashboard)/settings/payroll-concepts/`  | T-02-02 | CRUD completo                       | M     | ⬜     |
-| T-02-09 | UI ficha de empleado y detalle de recibo                                     | `hr/employees/[id]`, `hr/payroll/[id]`        | T-02-03 | desglose por concepto visible       | L     | ⬜     |
-| T-02-10 | Casos de prueba legales y documentación                                      | `docs/09-HR-NOMINA-VENEZUELA.md`, tests       | T-02-04 | tabla de casos cubiertos            | M     | ⬜     |
+| ID      | Tarea                                                                        | Artefactos                                                   | Depende | Verificación                                            | Talla | Estado |
+| ------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------ | ------- | ------------------------------------------------------- | ----- | ------ |
+| T-02-00 | Redactar las reglas LOTTT aplicables (el doc referenciado **no existe**)     | `docs/09-HR-NOMINA-VENEZUELA.md` (nuevo)                     | —       | revisión de contador/abogado laboral antes de codificar | M     | ⬜     |
+| T-02-01 | `payroll_settings`: `companyId`, `effectiveFrom`, unicidad, snapshot por run | `packages/database/schema.ts`, `modules/hr/*`                | T-02-00 | migración + run histórico inmutable                     | M     | ⬜     |
+| T-02-02 | Conceptos: `code`, `kind`, `expression`, `affectsIntegralSalary` + CRUD      | `payroll_concept_types`, `modules/hr/*`                      | T-02-01 | CRUD + validación de expresión                          | M     | ⬜     |
+| T-02-03 | Motor de cálculo por concepto con `decimal.js`                               | `modules/hr/payroll.calculator.ts` (nuevo)                   | T-02-02 | unit con casos dorados (LOTTT)                          | L     | ⬜     |
+| T-02-04 | Prestaciones, utilidades, vacaciones y bono vacacional                       | ídem + `employee_profit_sharing`                             | T-02-03 | integración con períodos completos                      | L     | ⬜     |
+| T-02-05 | Liquidación de egreso (`employee_settlements`)                               | tabla nueva + `POST /hr/employees/:id/settle`                | T-02-04 | cálculo por causa de egreso                             | M     | ⬜     |
+| T-02-06 | Pago de nómina integrado a tesorería (idempotente)                           | `modules/hr` + `modules/treasury`                            | T-02-03 | 2 llamadas → 1 solo `payment`                           | M     | ⬜     |
+| T-02-07 | UI parámetros de nómina                                                      | `app/(dashboard)/settings/payroll-settings/`                 | T-02-01 | alta de nueva vigencia                                  | M     | ⬜     |
+| T-02-08 | UI conceptos de nómina                                                       | `app/(dashboard)/settings/payroll-concepts/`                 | T-02-02 | CRUD completo                                           | M     | ⬜     |
+| T-02-09 | UI ficha de empleado y detalle de recibo                                     | `hr/employees/[id]`, `hr/payroll/[id]`                       | T-02-03 | desglose por concepto visible                           | L     | ⬜     |
+| T-02-10 | Casos de prueba legales y documentación                                      | tests + `docs/09-HR-NOMINA-VENEZUELA.md` (creado en T-02-00) | T-02-04 | tabla de casos cubiertos                                | M     | ⬜     |
 
 **Gate de salida E2:** un run generado hoy y recalculado tras cambiar parámetros da el mismo total
 (inmutabilidad); cobertura backend no baja.
@@ -245,27 +246,29 @@ trazada.
 | 1   | 1       | E0 backend (T-00-01 … T-00-07) | 7      | 2      |
 | 2   | 2       | E0 cierre (T-00-08 … T-00-13)  | 6      | 0      |
 | 3   | 3       | E1 frentes A, B y C            | 18     | 0      |
-| 4   | 4-5     | E2 nómina                      | 10     | 0      |
+| 4   | 4-5     | E2 nómina                      | 11     | 0      |
 | 5   | 6-7     | E3 compras y CxP               | 9      | 0      |
 | 6   | 8-9     | E4 contabilidad                | 9      | 0      |
 | 7   | 10      | E5 tesorería                   | 9      | 0      |
 | 8   | 11      | E6 reportes fiscales           | 6      | 0      |
 | 9   | 12      | E7 frontend restante           | 7      | 0      |
 | —   | —       | Transversales                  | 6      | 0      |
-| —   | —       | **Total**                      | **87** | **2**  |
+| —   | —       | **Total**                      | **88** | **2**  |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). E1 antes de E2-E7 porque desbloquea pantallas hoy rotas con esfuerzo bajo.
 
 ## 11. Riesgos del plan
 
-| Riesgo                                                         | Mitigación                                                                         |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| T-00-08 es `XL` y toca 8 módulos                               | Partir por módulo (un PR cada uno) y cerrar con la suite de aislamiento            |
-| Backfill de `branch_id` en datos existentes sin sucursal clara | Asignar la sucursal por defecto de la empresa y registrar excepciones en auditoría |
-| Cambio de envoltura en `GET /billing/invoices` es breaking     | Versionar en `API-CONTRACTS.md` y actualizar el cliente en el mismo PR             |
-| Reglas LOTTT mal interpretadas                                 | Cerrar T-02-10 con revisión de nómina antes de conectar la UI                      |
-| Migraciones de 12 columnas en una sola tanda                   | Migración por tabla con su backfill y verificación de conteos                      |
+| Riesgo                                                             | Mitigación                                                                                                 |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| T-00-08 es `XL` y toca 8 módulos                                   | Partir por módulo (un PR cada uno) y cerrar con la suite de aislamiento                                    |
+| Backfill de `branch_id` en datos existentes sin sucursal clara     | Asignar la sucursal por defecto de la empresa y registrar excepciones en auditoría                         |
+| Cambio de envoltura en `GET /billing/invoices` es breaking         | Versionar en `API-CONTRACTS.md` y actualizar el cliente en el mismo PR                                     |
+| Reglas LOTTT mal interpretadas                                     | Cerrar T-02-10 con revisión de nómina antes de conectar la UI                                              |
+| Migraciones de 12 columnas en una sola tanda                       | Migración por tabla con su backfill y verificación de conteos                                              |
+| La base de desarrollo hoy tiene 5 facturas, 3 pagos y 2 sucursales | Backfill trivial en dev; si hay producción con datos, definir sucursal por defecto y registrar excepciones |
+| `docs/09-HR-NOMINA-VENEZUELA.md` citado en S-02 **no existía**     | Se crea en T-02-00 antes de tocar el motor de cálculo                                                      |
 
 ## 12. Fuera de alcance (no entra en estas 12 semanas)
 

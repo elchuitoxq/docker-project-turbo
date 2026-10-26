@@ -84,7 +84,7 @@ Permisos: `hr:payroll:view|generate|approve|pay`, `hr:settings:manage`, `hr:conc
 | `hr/employees/[id]`         | Datos, contrato, salario, cuenta bancaria, histórico de recibos, liquidar        |
 | `hr/payroll`                | Botón "Generar período", filtros por estado y sucursal                           |
 
-## 7. Reglas de negocio (LOTTT — validar con `09-HR-NOMINA-VENEZUELA.md`)
+## 7. Reglas de negocio (LOTTT — documento `09-HR-NOMINA-VENEZUELA.md`, se redacta en `T-02-00`)
 
 1. Salario integral = salario normal + alícuota de utilidades + alícuota de bono vacacional.
 2. Prestaciones: garantía trimestral + días adicionales; se acumulan por antigüedad.
