@@ -78,3 +78,17 @@ Cada hallazgo tiene un ID estable que se usa en todos los documentos y en la bit
 | H-40 | 🟢 Bajo  | Carpetas vacías (`apps/frontend/tests/{e2e,unit}`, `apps/backend/src/common/filters`).                                                                                                              | `glob`                                 | 6    | ✅ Resuelto |
 | H-41 | 🟠 Alto  | Sin CI (`.github/workflows` ausente) pese a que todo el tooling está preparado para CI.                                                                                                             | ausencia de `.github`                  | 7    | ✅ Resuelto |
 | H-42 | 🟢 Bajo  | README desincronizado: `docker compose exec monorepo` (no existe), "5 servicios" (son 6), `db:seed:rbac` (no existe).                                                                               | `README.md`                            | 6    | ✅ Resuelto |
+
+---
+
+## Hallazgos del SDD (2026-10-26)
+
+Detectados al inventariar contratos para [docs/sdd/](../sdd/README.md).
+
+| ID   | Sev      | Hallazgo                                                                                                                                                                               | Evidencia                                                                   | Estado                                                                |
+| ---- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| H-43 | 🟠 Alto  | **Sin aislamiento por sucursal**: el frontend envia `x-branch-id` pero el backend nunca lo lee (no hay guard ni interceptor). Un usuario puede leer o escribir datos de otra sucursal. | `grep -r "x-branch-id\|BranchInterceptor" apps/backend/src` -> 0 resultados | ⬜ Abierto - spec [`S-00`](../sdd/specs/S-00-aislamiento-sucursal.md) |
+| H-44 | 🟠 Alto  | **Mas de 15 llamadas del frontend sin endpoint**: HR (8), inventario (4), billing/finance (3+).                                                                                        | [`docs/sdd/01-gap-analysis.md`](../sdd/01-gap-analysis.md) seccion 2        | ⬜ Abierto - spec [`S-01`](../sdd/specs/S-01-contratos-p0.md)         |
+| H-45 | 🟡 Medio | `DELETE /partners/:id` no borra ni desactiva: solo pone `isSpecialTaxpayer=false`.                                                                                                     | `API-CONTRACTS.md` lineas 48-56                                             | ⬜ Abierto - spec S-01                                                |
+| H-46 | 🟡 Medio | El home del dashboard es un stub (KPIs en guion).                                                                                                                                      | `app/(dashboard)/dashboard/page.tsx`                                        | ⬜ Abierto - spec [`S-07`](../sdd/specs/S-07-frontend-restante.md)    |
+| H-47 | 🟡 Medio | `docs/PROJECT-STATUS.md` y `API-CONTRACTS.md` desactualizados tras los guards globales.                                                                                                | comparacion con `docs/update/03-FASE-2-SEGURIDAD.md`                        | ⬜ Abierto - actualizar en el PR de S-01                              |

@@ -389,3 +389,36 @@ commit sea coherente por sí mismo):
 La causa era la misma que en backend: hooks de Postgres contra el timeout por defecto (10 s).
 Se alinearon los timeouts (`testTimeout: 30 s`, `hookTimeout: 60 s`) → **3 corridas consecutivas
 verdes**.
+
+---
+
+## Análisis funcional y SDD
+
+### BT-028 · 2026-10-26 · Revisión de documentación y brechas del ERP
+
+**Qué se hizo**
+
+1. Inventario de los 22 controladores del backend con sus verbos y rutas.
+2. Inventario de las 22 rutas de dashboard + 3 de auth y de las 79 llamadas `apiClient.*` del frontend.
+3. Lectura de `PROJECT-STATUS.md`, `API-CONTRACTS.md`, `PLANNING.md` y estructura de `audit-report/`.
+4. Creación del **SDD** en [`docs/sdd/`](../sdd/README.md): contexto, matriz de brechas, arquitectura,
+   roadmap y 8 specs (`S-00` … `S-07`).
+
+**Hallazgos nuevos (H-43 … H-47)**
+
+| ID   | Hallazgo                                                                                       | Impacto                                 |
+| ---- | ---------------------------------------------------------------------------------------------- | --------------------------------------- |
+| H-43 | El frontend envía `x-branch-id` pero el backend **no lo lee**: no hay aislamiento por sucursal | Alto — riesgo de negocio y cumplimiento |
+| H-44 | ≥15 llamadas del frontend sin endpoint (HR 8, inventario 4, billing/finance 3+)                | Alto — pantallas parcialmente muertas   |
+| H-45 | `DELETE /partners/:id` no borra ni desactiva                                                   | Medio                                   |
+| H-46 | Home del dashboard es un stub                                                                  | Medio                                   |
+| H-47 | `PROJECT-STATUS.md` / `API-CONTRACTS.md` desactualizados                                       | Medio                                   |
+
+**Cómo se verificó**
+
+- `grep -r "x-branch-id\|BranchInterceptor" apps/backend/src` → **0 resultados** (H-43).
+- Mapeo cruzado controlador ↔ `apiClient.*` (ver tabla en `docs/sdd/01-gap-analysis.md` §2).
+- `git status` limpio antes y después; no se modificó código funcional en esta etapa (solo docs).
+
+**Decisión:** no se implementaron módulos en este paso. El SDD es el artefacto de planificación
+pedido; la implementación arranca por `S-00` (cimiento de sucursal) y `S-01` (contratos).
