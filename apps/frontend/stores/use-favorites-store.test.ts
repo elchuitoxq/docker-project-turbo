@@ -30,6 +30,6 @@ describe('useFavoritesStore', () => {
     useFavoritesStore.getState().add({ path: '/c', label: 'C' });
     useFavoritesStore.getState().reorder(0, 2);
     const items = useFavoritesStore.getState().items;
-    expect(items.map((i) => i.path)).toEqual(['/b', '/c', '/a']);
+    expect(items.map(i => i.path)).toEqual(['/b', '/c', '/a']);
   });
 });

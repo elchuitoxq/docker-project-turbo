@@ -22,7 +22,16 @@ describe('useBranchStore', () => {
 
   it('setAvailableBranches() stores list', () => {
     const list = [
-      { id: 'b1', companyId: 'c1', name: 'X', taxId: 'J-1', address: null, phone: null, email: null, isActive: true },
+      {
+        id: 'b1',
+        companyId: 'c1',
+        name: 'X',
+        taxId: 'J-1',
+        address: null,
+        phone: null,
+        email: null,
+        isActive: true,
+      },
     ];
     useBranchStore.getState().setAvailableBranches(list);
     expect(useBranchStore.getState().availableBranches).toEqual(list);

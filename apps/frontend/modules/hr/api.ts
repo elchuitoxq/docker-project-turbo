@@ -48,13 +48,7 @@ export type Position = {
 };
 
 export type IncidentType =
-  | 'ABSENCE'
-  | 'TARDINESS'
-  | 'OVERTIME'
-  | 'VACATION'
-  | 'SICK_LEAVE'
-  | 'PERMIT'
-  | 'BONUS';
+  'ABSENCE' | 'TARDINESS' | 'OVERTIME' | 'VACATION' | 'SICK_LEAVE' | 'PERMIT' | 'BONUS';
 
 export type Incident = {
   id: string;
@@ -95,25 +89,46 @@ function buildQuery(filters: Record<string, string | number | boolean | undefine
 }
 
 export const hrApi = {
-  listEmployees: (filters: { status?: string; departmentId?: string; search?: string; page?: number; limit?: number } = {}) =>
-    apiClient.get<{ data: Employee[]; total: number; page: number; limit: number }>(`/hr/employees${buildQuery(filters)}`),
+  listEmployees: (
+    filters: {
+      status?: string;
+      departmentId?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    } = {}
+  ) =>
+    apiClient.get<{ data: Employee[]; total: number; page: number; limit: number }>(
+      `/hr/employees${buildQuery(filters)}`
+    ),
   getEmployee: (id: string) => apiClient.get<Employee>(`/hr/employees/${id}`),
   createEmployee: (data: Partial<Employee>) => apiClient.post<Employee>('/hr/employees', data),
-  updateEmployee: (id: string, data: Partial<Employee>) => apiClient.patch<Employee>(`/hr/employees/${id}`, data),
+  updateEmployee: (id: string, data: Partial<Employee>) =>
+    apiClient.patch<Employee>(`/hr/employees/${id}`, data),
   terminateEmployee: (id: string, data: { reason: string; date: string }) =>
     apiClient.post<Employee>(`/hr/employees/${id}/terminate`, data),
 
   listDepartments: () => apiClient.get<Department[]>('/hr/departments'),
-  createDepartment: (data: Partial<Department>) => apiClient.post<Department>('/hr/departments', data),
-  updateDepartment: (id: string, data: Partial<Department>) => apiClient.patch<Department>(`/hr/departments/${id}`, data),
+  createDepartment: (data: Partial<Department>) =>
+    apiClient.post<Department>('/hr/departments', data),
+  updateDepartment: (id: string, data: Partial<Department>) =>
+    apiClient.patch<Department>(`/hr/departments/${id}`, data),
 
   listPositions: (filters: { departmentId?: string; isActive?: boolean } = {}) =>
     apiClient.get<Position[]>(`/hr/positions${buildQuery(filters)}`),
   createPosition: (data: Partial<Position>) => apiClient.post<Position>('/hr/positions', data),
-  updatePosition: (id: string, data: Partial<Position>) => apiClient.patch<Position>(`/hr/positions/${id}`, data),
+  updatePosition: (id: string, data: Partial<Position>) =>
+    apiClient.patch<Position>(`/hr/positions/${id}`, data),
 
-  listIncidents: (filters: { employeeId?: string; type?: IncidentType; status?: string; fromDate?: string; toDate?: string } = {}) =>
-    apiClient.get<{ data: Incident[]; total: number }>(`/hr/incidents${buildQuery(filters)}`),
+  listIncidents: (
+    filters: {
+      employeeId?: string;
+      type?: IncidentType;
+      status?: string;
+      fromDate?: string;
+      toDate?: string;
+    } = {}
+  ) => apiClient.get<{ data: Incident[]; total: number }>(`/hr/incidents${buildQuery(filters)}`),
   createIncident: (data: Partial<Incident>) => apiClient.post<Incident>('/hr/incidents', data),
   approveIncident: (id: string) => apiClient.post<Incident>(`/hr/incidents/${id}/approve`, {}),
   rejectIncident: (id: string) => apiClient.post<Incident>(`/hr/incidents/${id}/reject`, {}),

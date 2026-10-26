@@ -15,7 +15,7 @@ export function LoginForm() {
   const t = useTranslations('auth');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const login = useAuthStore((s) => s.login);
+  const login = useAuthStore(s => s.login);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -26,13 +26,16 @@ export function LoginForm() {
     setError(null);
     setLoading(true);
     try {
-      const response = await apiClient.post<{ accessToken?: unknown; user?: unknown }>('/auth/login', {
-        email,
-        password,
-      });
+      const response = await apiClient.post<{ accessToken?: unknown; user?: unknown }>(
+        '/auth/login',
+        {
+          email,
+          password,
+        }
+      );
       if (typeof response.accessToken !== 'string' || !isAuthUser(response.user)) {
         setError(
-          'La respuesta del servidor no incluye los permisos y sucursales necesarios. Actualiza o reinicia el backend e inténtalo de nuevo.',
+          'La respuesta del servidor no incluye los permisos y sucursales necesarios. Actualiza o reinicia el backend e inténtalo de nuevo.'
         );
         return;
       }
@@ -65,7 +68,7 @@ export function LoginForm() {
               type="email"
               autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               required
               disabled={loading}
             />
@@ -77,7 +80,7 @@ export function LoginForm() {
               type="password"
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               required
               disabled={loading}
             />

@@ -9,7 +9,19 @@
     "password": "Contraseña",
     "submit": "Entrar",
     "invalidCredentials": "Credenciales inválidas",
-    "sessionExpired": "Tu sesión ha expirado"
+    "sessionExpired": "Tu sesión ha expirado",
+    "resetPassword": {
+      "title": "Restablecer contraseña",
+      "description": "Elige una nueva contraseña para tu cuenta.",
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "submit": "Guardar contraseña",
+      "success": "Tu contraseña fue actualizada. Ya puedes iniciar sesión.",
+      "mismatch": "Las contraseñas no coinciden",
+      "invalidToken": "El enlace no es válido o expiró. Solicita uno nuevo.",
+      "tooManyAttempts": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+      "backToLogin": "Volver al inicio de sesión"
+    }
   },
   "nav": {
     "dashboard": "Panel",

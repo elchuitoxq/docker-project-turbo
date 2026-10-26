@@ -18,7 +18,7 @@ type ExchangeRate = {
 };
 
 export function GlobalRateDisplay() {
-  const isAuthed = useAuthStore((s) => s.isAuthenticated);
+  const isAuthed = useAuthStore(s => s.isAuthenticated);
   const { data, isLoading } = useQuery<ExchangeRate[]>({
     queryKey: ['exchange-rate', 'current'],
     queryFn: () => apiClient.get<ExchangeRate[]>('/settings/currencies/rates/latest'),
@@ -35,7 +35,7 @@ export function GlobalRateDisplay() {
     );
   }
 
-  const vesRate = data?.find((r) => r.currencyCode === 'VES');
+  const vesRate = data?.find(r => r.currencyCode === 'VES');
   if (!vesRate) return null;
 
   const rate = vesRate.rate.toFixed(2);

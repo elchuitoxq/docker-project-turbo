@@ -7,7 +7,14 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -54,7 +61,9 @@ export function PayrollView() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Nómina</h1>
-        <p className="text-sm text-muted-foreground">Procesamiento de nómina, IVSS, FAOV, prestaciones</p>
+        <p className="text-sm text-muted-foreground">
+          Procesamiento de nómina, IVSS, FAOV, prestaciones
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
@@ -127,7 +136,9 @@ export function PayrollView() {
               ))}
             </div>
           ) : runs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No hay nóminas procesadas</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No hay nóminas procesadas
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -143,14 +154,16 @@ export function PayrollView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {runs.map((r) => (
+                {runs.map(r => (
                   <TableRow key={r.id}>
                     <TableCell className="font-mono text-xs">{r.code}</TableCell>
                     <TableCell className="text-xs">
                       {formatDate(r.periodFrom)} – {formatDate(r.periodTo)}
                     </TableCell>
                     <TableCell className="tabular-nums">{r.employeesCount}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatCurrency(Number(r.totalGross))}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatCurrency(Number(r.totalGross))}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatCurrency(Number(r.totalDeductions))}
                     </TableCell>

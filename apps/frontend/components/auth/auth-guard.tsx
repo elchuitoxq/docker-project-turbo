@@ -3,6 +3,8 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/use-auth-store';
+import { isAuthUser } from '@/stores/use-auth-store';
+import { apiClient } from '@/lib/api/client';
 import { useCompanyStore } from '@/stores/use-company-store';
 import { useBranchStore } from '@/stores/use-branch-store';
 import { useQueryClient } from '@tanstack/react-query';
@@ -25,6 +27,24 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setCompany = useCompanyStore(s => s.setCompany);
   const setAvailableBranches = useBranchStore(s => s.setAvailableBranches);
   const setBranch = useBranchStore(s => s.setBranch);
+  const setUser = useAuthStore(s => s.setUser);
+
+  // Refresca permisos/sucursales contra el backend usando la cookie httpOnly.
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+
+    apiClient
+      .get<unknown>('/auth/me')
+      .then(profile => {
+        if (!cancelled && isAuthUser(profile)) setUser(profile);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, setUser]);
 
   const companiesQuery = useCompanies();
   const companies = companiesQuery.data ?? [];

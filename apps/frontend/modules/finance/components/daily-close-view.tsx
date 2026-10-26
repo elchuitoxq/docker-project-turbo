@@ -6,7 +6,14 @@ import { CalendarCheck, Lock, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { dailyCloseApi, type DailyClose } from '../api/daily-close';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -55,7 +62,9 @@ export function DailyCloseView() {
               ))}
             </div>
           ) : closes.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No hay cierres registrados</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No hay cierres registrados
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -70,7 +79,7 @@ export function DailyCloseView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {closes.map((c) => (
+                {closes.map(c => (
                   <TableRow key={c.id}>
                     <TableCell className="text-sm">{formatDate(c.date)}</TableCell>
                     <TableCell>
@@ -94,7 +103,9 @@ export function DailyCloseView() {
                     >
                       {formatCurrency(Number(c.netMovement))}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{c.closedBy ?? '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {c.closedBy ?? '—'}
+                    </TableCell>
                     <TableCell>
                       {c.status === 'OPEN' && (
                         <Button size="sm" variant="outline">

@@ -24,22 +24,22 @@ interface BranchState {
 
 export const useBranchStore = create<BranchState>()(
   persist(
-    (set) => ({
+    set => ({
       currentBranchId: null,
       availableBranches: [],
       hasHydrated: false,
-      setBranch: (id) => set({ currentBranchId: id }),
-      setAvailableBranches: (branches) => set({ availableBranches: branches }),
-      setHydrated: (v) => set({ hasHydrated: v }),
+      setBranch: id => set({ currentBranchId: id }),
+      setAvailableBranches: branches => set({ availableBranches: branches }),
+      setHydrated: v => set({ hasHydrated: v }),
       reset: () => set({ currentBranchId: null, availableBranches: [] }),
     }),
     {
       name: 'erp.branch',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ currentBranchId: state.currentBranchId }),
-      onRehydrateStorage: () => (state) => {
+      partialize: state => ({ currentBranchId: state.currentBranchId }),
+      onRehydrateStorage: () => state => {
         state?.setHydrated(true);
       },
-    },
-  ),
+    }
+  )
 );

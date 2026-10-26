@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useProducts, useProduct, useProductCategories } from './use-products';
@@ -22,14 +22,12 @@ describe('inventory hooks', () => {
 
   it('useProducts() returns list', async () => {
     const { result } = renderHook(() => useProducts(), { wrapper: Wrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(result.current.data?.data.length).toBeGreaterThan(0);
+    await waitFor(() => expect(result.current.data?.data.length).toBeGreaterThan(0));
   });
 
   it('useProduct() is enabled with id', async () => {
     const { result } = renderHook(() => useProduct('pr-1'), { wrapper: Wrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(result.current.data?.id).toBe('pr-1');
+    await waitFor(() => expect(result.current.data?.id).toBe('pr-1'));
   });
 
   it('useProduct() disabled without id', () => {
@@ -39,7 +37,6 @@ describe('inventory hooks', () => {
 
   it('useProductCategories() returns categories', async () => {
     const { result } = renderHook(() => useProductCategories(), { wrapper: Wrapper });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(result.current.data?.length).toBeGreaterThan(0);
+    await waitFor(() => expect(result.current.data?.length).toBeGreaterThan(0));
   });
 });

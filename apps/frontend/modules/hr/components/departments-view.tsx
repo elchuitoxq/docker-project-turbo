@@ -6,7 +6,14 @@ import { Plus, Building2, MoreHorizontal, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sheet,
@@ -49,7 +56,7 @@ export function DepartmentsView() {
         </div>
         <Sheet
           open={open}
-          onOpenChange={(v) => {
+          onOpenChange={v => {
             if (!v) reset();
             setOpen(v);
           }}
@@ -65,7 +72,7 @@ export function DepartmentsView() {
               <SheetDescription>Crea un departamento o unidad organizacional</SheetDescription>
             </SheetHeader>
             <form
-              onSubmit={async (e) => {
+              onSubmit={async e => {
                 e.preventDefault();
                 try {
                   await create.mutateAsync({ name, description, isActive });
@@ -81,19 +88,28 @@ export function DepartmentsView() {
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="dep-name">Nombre *</FieldLabel>
-                  <Input id="dep-name" value={name} onChange={(e) => setName(e.target.value)} required />
+                  <Input
+                    id="dep-name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    required
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="dep-desc">Descripción</FieldLabel>
                   <Textarea
                     id="dep-desc"
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={e => setDescription(e.target.value)}
                     rows={3}
                   />
                 </Field>
                 <Field orientation="horizontal" className="items-center gap-2 space-y-0">
-                  <Checkbox id="dep-active" checked={isActive} onCheckedChange={(v) => setIsActive(!!v)} />
+                  <Checkbox
+                    id="dep-active"
+                    checked={isActive}
+                    onCheckedChange={v => setIsActive(!!v)}
+                  />
                   <FieldLabel htmlFor="dep-active" className="cursor-pointer">
                     Activo
                   </FieldLabel>
@@ -116,7 +132,9 @@ export function DepartmentsView() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
           <CardDescription>
-            {isLoading ? 'Cargando…' : `${departments.length} departamento${departments.length === 1 ? '' : 's'}`}
+            {isLoading
+              ? 'Cargando…'
+              : `${departments.length} departamento${departments.length === 1 ? '' : 's'}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -127,7 +145,9 @@ export function DepartmentsView() {
               ))}
             </div>
           ) : departments.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No hay departamentos</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No hay departamentos
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -140,8 +160,10 @@ export function DepartmentsView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {departments.map((d) => {
-                  const count = (employeesData?.data ?? []).filter((e) => e.departmentId === d.id).length;
+                {departments.map(d => {
+                  const count = (employeesData?.data ?? []).filter(
+                    e => e.departmentId === d.id
+                  ).length;
                   return (
                     <TableRow key={d.id}>
                       <TableCell>

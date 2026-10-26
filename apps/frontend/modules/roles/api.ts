@@ -20,9 +20,7 @@ export const rolesApi = {
   listPermissions: () => apiClient.get<Permission[]>('/roles/permissions'),
   create: (body: { name: string; description?: string; permissionIds?: string[] }) =>
     apiClient.post<ManagedRole>('/roles', body),
-  update: (
-    id: string,
-    body: { name?: string; description?: string; permissionIds?: string[] },
-  ) => apiClient.patch<ManagedRole>(`/roles/${id}`, body),
+  update: (id: string, body: { name?: string; description?: string; permissionIds?: string[] }) =>
+    apiClient.patch<ManagedRole>(`/roles/${id}`, body),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/roles/${id}`),
 };

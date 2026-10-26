@@ -7,7 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -52,14 +59,18 @@ export function RetentionsView() {
   });
 
   const filtered = (data?.data ?? []).filter(
-    (r) =>
+    r =>
       !search ||
       r.documentCode.toLowerCase().includes(search.toLowerCase()) ||
-      (r.partnerName ?? '').toLowerCase().includes(search.toLowerCase()),
+      (r.partnerName ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalIva = filtered.filter((r) => r.type === 'IVA').reduce((acc, r) => acc + Number(r.retentionAmount), 0);
-  const totalIslr = filtered.filter((r) => r.type === 'ISLR').reduce((acc, r) => acc + Number(r.retentionAmount), 0);
+  const totalIva = filtered
+    .filter(r => r.type === 'IVA')
+    .reduce((acc, r) => acc + Number(r.retentionAmount), 0);
+  const totalIslr = filtered
+    .filter(r => r.type === 'ISLR')
+    .reduce((acc, r) => acc + Number(r.retentionAmount), 0);
 
   function downloadTxt() {
     if (!fromDate || !toDate) {
@@ -68,7 +79,7 @@ export function RetentionsView() {
     }
     retentionsApi
       .generateIvaTxt(fromDate, toDate)
-      .then((res) => {
+      .then(res => {
         const blob = new Blob([res.content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -87,7 +98,7 @@ export function RetentionsView() {
     }
     retentionsApi
       .generateIslrXml(fromDate, toDate)
-      .then((res) => {
+      .then(res => {
         const blob = new Blob([res.content], { type: 'application/xml' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -142,9 +153,14 @@ export function RetentionsView() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar…" className="pl-8" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar…"
+                className="pl-8"
+              />
             </div>
-            <Select value={type} onValueChange={(v) => setType(v as 'ALL' | 'IVA' | 'ISLR')}>
+            <Select value={type} onValueChange={v => setType(v as 'ALL' | 'IVA' | 'ISLR')}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -172,14 +188,14 @@ export function RetentionsView() {
               <Input
                 type="date"
                 value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
+                onChange={e => setFromDate(e.target.value)}
                 className="w-40"
                 placeholder="Desde"
               />
               <Input
                 type="date"
                 value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
+                onChange={e => setToDate(e.target.value)}
                 className="w-40"
                 placeholder="Hasta"
               />
@@ -191,7 +207,9 @@ export function RetentionsView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${filtered.length} retenciones`}</CardDescription>
+          <CardDescription>
+            {isLoading ? 'Cargando…' : `${filtered.length} retenciones`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (

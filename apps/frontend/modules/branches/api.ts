@@ -36,17 +36,36 @@ export const branchesApi = {
     phone?: string;
     email?: string;
     isActive?: boolean;
-  }) =>
-    apiClient.post<Company>('/branches/companies', body),
+  }) => apiClient.post<Company>('/branches/companies', body),
   updateCompany: (
     id: string,
-    body: { name?: string; taxId?: string; address?: string; phone?: string; email?: string; isActive?: boolean },
-  ) =>
-    apiClient.patch<Company>(`/branches/companies/${id}`, body),
-  create: (body: { companyId: string; name: string; address?: string; phone?: string; email?: string }) =>
-    apiClient.post<Branch>('/branches', body),
-  update: (id: string, body: Partial<{ companyId: string; name: string; address: string; phone: string; email: string; isActive: boolean }>) =>
-    apiClient.patch<Branch>(`/branches/${id}`, body),
+    body: {
+      name?: string;
+      taxId?: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+      isActive?: boolean;
+    }
+  ) => apiClient.patch<Company>(`/branches/companies/${id}`, body),
+  create: (body: {
+    companyId: string;
+    name: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  }) => apiClient.post<Branch>('/branches', body),
+  update: (
+    id: string,
+    body: Partial<{
+      companyId: string;
+      name: string;
+      address: string;
+      phone: string;
+      email: string;
+      isActive: boolean;
+    }>
+  ) => apiClient.patch<Branch>(`/branches/${id}`, body),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/branches/${id}`),
   get: (id: string) => apiClient.get<Branch>(`/branches/${id}`),
 };

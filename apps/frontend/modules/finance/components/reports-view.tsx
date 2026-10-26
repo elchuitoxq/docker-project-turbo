@@ -50,18 +50,20 @@ export function ReportsView() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Reportes financieros</h1>
-        <p className="text-sm text-muted-foreground">Balance, estado de resultados, libros IVA/ISLR</p>
+        <p className="text-sm text-muted-foreground">
+          Balance, estado de resultados, libros IVA/ISLR
+        </p>
       </div>
 
       <Card>
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
           <div className="flex-1">
             <p className="mb-1 text-xs text-muted-foreground">Desde</p>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <Input type="date" value={from} onChange={e => setFrom(e.target.value)} />
           </div>
           <div className="flex-1">
             <p className="mb-1 text-xs text-muted-foreground">Hasta</p>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+            <Input type="date" value={to} onChange={e => setTo(e.target.value)} />
           </div>
         </CardContent>
       </Card>

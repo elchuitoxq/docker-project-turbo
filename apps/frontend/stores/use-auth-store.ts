@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { env } from '@/lib/env';
 
 export type AuthUser = {
   id: string;
@@ -20,7 +21,7 @@ export function isAuthUser(value: unknown): value is AuthUser {
     typeof value.email !== 'string' ||
     !('permissions' in value) ||
     !Array.isArray(value.permissions) ||
-    !value.permissions.every((permission) => typeof permission === 'string') ||
+    !value.permissions.every(permission => typeof permission === 'string') ||
     !('branches' in value) ||
     !Array.isArray(value.branches)
   ) {
@@ -28,7 +29,7 @@ export function isAuthUser(value: unknown): value is AuthUser {
   }
 
   return value.branches.every(
-    (branch) =>
+    branch =>
       typeof branch === 'object' &&
       branch !== null &&
       'id' in branch &&
@@ -36,7 +37,7 @@ export function isAuthUser(value: unknown): value is AuthUser {
       'name' in branch &&
       typeof branch.name === 'string' &&
       'taxId' in branch &&
-      (typeof branch.taxId === 'string' || branch.taxId === null),
+      (typeof branch.taxId === 'string' || branch.taxId === null)
   );
 }
 
@@ -53,25 +54,44 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    set => ({
       token: null,
       user: null,
       isAuthenticated: false,
       hasHydrated: false,
       login: (token, user) => set({ token, user, isAuthenticated: true }),
-      logout: () => set({ token: null, user: null, isAuthenticated: false }),
-      setUser: (user) => set({ user }),
-      setHydrated: (v) => set({ hasHydrated: v }),
+      logout: () => {
+        // Borra la cookie httpOnly del backend (fire-and-forget).
+        if (typeof window !== 'undefined') {
+          void fetch(`${env.NEXT_PUBLIC_API_URL}${env.NEXT_PUBLIC_API_PREFIX}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include',
+          }).catch(() => undefined);
+        }
+        set({ token: null, user: null, isAuthenticated: false });
+      },
+      setUser: user => set({ user }),
+      setHydrated: v => set({ hasHydrated: v }),
     }),
     {
       name: 'erp.auth',
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        if (state?.isAuthenticated && (!state.token || !isAuthUser(state.user))) {
+      version: 1,
+      // El token ya no se persiste: la sesión vive en la cookie httpOnly.
+      partialize: state => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      migrate: persisted => {
+        const legacy = persisted as Partial<AuthState> | undefined;
+        return {
+          user: legacy?.user ?? null,
+          isAuthenticated: Boolean(legacy?.isAuthenticated),
+        } as unknown as AuthState;
+      },
+      onRehydrateStorage: () => state => {
+        if (state?.isAuthenticated && !isAuthUser(state.user)) {
           state.logout();
         }
         state?.setHydrated(true);
       },
-    },
-  ),
+    }
+  )
 );

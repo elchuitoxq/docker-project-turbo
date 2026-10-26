@@ -4,7 +4,7 @@ import { PERMISSIONS } from './permissions';
 
 describe('NAV_ITEMS', () => {
   it('contains the six main module groups', () => {
-    const titles = NAV_ITEMS.map((g) => g.title);
+    const titles = NAV_ITEMS.map(g => g.title);
     expect(titles).toContain('Dashboard');
     expect(titles).toContain('Operaciones');
     expect(titles).toContain('Inventario');

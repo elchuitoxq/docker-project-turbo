@@ -13,6 +13,7 @@ export const warehousesApi = {
   list: () => apiClient.get<Warehouse[]>('/warehouses'),
   get: (id: string) => apiClient.get<Warehouse>(`/warehouses/${id}`),
   create: (data: Partial<Warehouse>) => apiClient.post<Warehouse>('/warehouses', data),
-  update: (id: string, data: Partial<Warehouse>) => apiClient.patch<Warehouse>(`/warehouses/${id}`, data),
+  update: (id: string, data: Partial<Warehouse>) =>
+    apiClient.patch<Warehouse>(`/warehouses/${id}`, data),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/warehouses/${id}`),
 };

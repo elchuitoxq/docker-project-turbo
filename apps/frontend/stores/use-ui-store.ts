@@ -18,25 +18,25 @@ interface UiState {
 
 export const useUiStore = create<UiState>()(
   persist(
-    (set) => ({
+    set => ({
       sidebarOpen: true,
       commandPaletteOpen: false,
       language: 'es-VE',
       hasHydrated: false,
-      setSidebarOpen: (v) => set({ sidebarOpen: v }),
-      toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-      setCommandPaletteOpen: (v) => set({ commandPaletteOpen: v }),
-      toggleCommandPalette: () => set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
-      setLanguage: (l) => set({ language: l }),
-      setHydrated: (v) => set({ hasHydrated: v }),
+      setSidebarOpen: v => set({ sidebarOpen: v }),
+      toggleSidebar: () => set(s => ({ sidebarOpen: !s.sidebarOpen })),
+      setCommandPaletteOpen: v => set({ commandPaletteOpen: v }),
+      toggleCommandPalette: () => set(s => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+      setLanguage: l => set({ language: l }),
+      setHydrated: v => set({ hasHydrated: v }),
     }),
     {
       name: 'erp.ui',
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ sidebarOpen: state.sidebarOpen, language: state.language }),
-      onRehydrateStorage: () => (state) => {
+      partialize: state => ({ sidebarOpen: state.sidebarOpen, language: state.language }),
+      onRehydrateStorage: () => state => {
         state?.setHydrated(true);
       },
-    },
-  ),
+    }
+  )
 );

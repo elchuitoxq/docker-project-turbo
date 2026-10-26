@@ -12,8 +12,20 @@ const companies = [
     isActive: true,
     branchCount: 2,
     branches: [
-      { id: 'branch-1', companyId: 'company-1', name: 'Sucursal Caracas', taxId: 'J-12345678-9', isActive: true },
-      { id: 'branch-2', companyId: 'company-1', name: 'Sucursal Valencia', taxId: 'J-12345678-9', isActive: true },
+      {
+        id: 'branch-1',
+        companyId: 'company-1',
+        name: 'Sucursal Caracas',
+        taxId: 'J-12345678-9',
+        isActive: true,
+      },
+      {
+        id: 'branch-2',
+        companyId: 'company-1',
+        name: 'Sucursal Valencia',
+        taxId: 'J-12345678-9',
+        isActive: true,
+      },
     ],
   },
   {
@@ -26,7 +38,13 @@ const companies = [
     isActive: true,
     branchCount: 1,
     branches: [
-      { id: 'branch-3', companyId: 'company-2', name: 'Otra Empresa', taxId: 'J-98765432-1', isActive: true },
+      {
+        id: 'branch-3',
+        companyId: 'company-2',
+        name: 'Otra Empresa',
+        taxId: 'J-98765432-1',
+        isActive: true,
+      },
     ],
   },
 ];
@@ -58,8 +76,18 @@ export const handlers = [
           'settings:view',
         ],
         branches: [
-          { id: 'branch-1', name: 'Sucursal Caracas', companyId: 'company-1', taxId: 'J-12345678-9' },
-          { id: 'branch-2', name: 'Sucursal Valencia', companyId: 'company-1', taxId: 'J-12345678-9' },
+          {
+            id: 'branch-1',
+            name: 'Sucursal Caracas',
+            companyId: 'company-1',
+            taxId: 'J-12345678-9',
+          },
+          {
+            id: 'branch-2',
+            name: 'Sucursal Valencia',
+            companyId: 'company-1',
+            taxId: 'J-12345678-9',
+          },
         ],
       },
     });
@@ -69,11 +97,25 @@ export const handlers = [
   http.get(`${API}/branches/companies/all`, () => HttpResponse.json(companies)),
   http.get(`${API}/branches`, () => {
     return HttpResponse.json([
-      { id: 'branch-1', companyId: 'company-1', name: 'Sucursal Caracas', taxId: 'J-12345678-9', isActive: true },
-      { id: 'branch-2', companyId: 'company-1', name: 'Sucursal Valencia', taxId: 'J-12345678-9', isActive: true },
+      {
+        id: 'branch-1',
+        companyId: 'company-1',
+        name: 'Sucursal Caracas',
+        taxId: 'J-12345678-9',
+        isActive: true,
+      },
+      {
+        id: 'branch-2',
+        companyId: 'company-1',
+        name: 'Sucursal Valencia',
+        taxId: 'J-12345678-9',
+        isActive: true,
+      },
     ]);
   }),
-  http.get(`${API}/branches/all`, () => HttpResponse.json(companies.flatMap((company) => company.branches))),
+  http.get(`${API}/branches/all`, () =>
+    HttpResponse.json(companies.flatMap(company => company.branches))
+  ),
   http.get(`${API}/users`, () =>
     HttpResponse.json([
       {
@@ -87,7 +129,7 @@ export const handlers = [
           { id: 'branch-1', name: 'Sucursal Caracas', companyId: 'company-1', isDefault: true },
         ],
       },
-    ]),
+    ])
   ),
   http.get(`${API}/roles`, () =>
     HttpResponse.json([
@@ -96,14 +138,26 @@ export const handlers = [
         name: 'ADMIN',
         description: 'Administrator role',
         isSystem: true,
-        permissions: [{ id: 'permission-dashboard', code: 'dashboard:view', description: null, module: 'dashboard' }],
+        permissions: [
+          {
+            id: 'permission-dashboard',
+            code: 'dashboard:view',
+            description: null,
+            module: 'dashboard',
+          },
+        ],
       },
-    ]),
+    ])
   ),
   http.get(`${API}/roles/permissions`, () =>
     HttpResponse.json([
-      { id: 'permission-dashboard', code: 'dashboard:view', description: 'View dashboard', module: 'dashboard' },
-    ]),
+      {
+        id: 'permission-dashboard',
+        code: 'dashboard:view',
+        description: 'View dashboard',
+        module: 'dashboard',
+      },
+    ])
   ),
 
   http.get(`${API}/partners`, ({ request }) => {

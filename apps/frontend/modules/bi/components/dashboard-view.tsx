@@ -41,9 +41,18 @@ const VARIANT_COLOR: Record<KpiCard['variant'], string> = {
 };
 
 export function DashboardView() {
-  const { data: kpis, isLoading: loadingKpis } = useQuery({ queryKey: ['bi', 'kpis'], queryFn: () => biApi.kpis() });
-  const { data: chart, isLoading: loadingChart } = useQuery({ queryKey: ['bi', 'chart'], queryFn: () => biApi.chart() });
-  const { data: activity, isLoading: loadingActivity } = useQuery({ queryKey: ['bi', 'activity'], queryFn: () => biApi.activity({ limit: 20 }) });
+  const { data: kpis, isLoading: loadingKpis } = useQuery({
+    queryKey: ['bi', 'kpis'],
+    queryFn: () => biApi.kpis(),
+  });
+  const { data: chart, isLoading: loadingChart } = useQuery({
+    queryKey: ['bi', 'chart'],
+    queryFn: () => biApi.chart(),
+  });
+  const { data: activity, isLoading: loadingActivity } = useQuery({
+    queryKey: ['bi', 'activity'],
+    queryFn: () => biApi.activity({ limit: 20 }),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -61,7 +70,7 @@ export function DashboardView() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {loadingKpis
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)
-          : (kpis ?? []).slice(0, 8).map((kpi) => <KpiCardView key={kpi.id} kpi={kpi} />)}
+          : (kpis ?? []).slice(0, 8).map(kpi => <KpiCardView key={kpi.id} kpi={kpi} />)}
       </div>
 
       {/* Chart + Activity */}
@@ -72,11 +81,7 @@ export function DashboardView() {
             <CardDescription>Últimos 30 días</CardDescription>
           </CardHeader>
           <CardContent>
-            {loadingChart ? (
-              <Skeleton className="h-64" />
-            ) : (
-              <ChartView data={chart ?? []} />
-            )}
+            {loadingChart ? <Skeleton className="h-64" /> : <ChartView data={chart ?? []} />}
           </CardContent>
         </Card>
 
@@ -98,7 +103,7 @@ export function DashboardView() {
               <div className="p-8 text-center text-sm text-muted-foreground">Sin actividad</div>
             ) : (
               <div className="divide-y">
-                {(activity ?? []).map((item) => (
+                {(activity ?? []).map(item => (
                   <ActivityRow key={item.id} item={item} />
                 ))}
               </div>
@@ -140,9 +145,13 @@ function KpiCardView({ kpi }: { kpi: KpiCard }) {
 
 function ChartView({ data }: { data: ChartPoint[] }) {
   if (data.length === 0) {
-    return <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">Sin datos</div>;
+    return (
+      <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+        Sin datos
+      </div>
+    );
   }
-  const max = Math.max(...data.map((d) => Math.max(d.income, d.expense)), 1);
+  const max = Math.max(...data.map(d => Math.max(d.income, d.expense)), 1);
   const width = 600;
   const height = 240;
   const padding = 24;
@@ -151,10 +160,16 @@ function ChartView({ data }: { data: ChartPoint[] }) {
   const xStep = innerW / Math.max(1, data.length - 1);
 
   const incomePath = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'}${padding + i * xStep},${padding + innerH - (d.income / max) * innerH}`)
+    .map(
+      (d, i) =>
+        `${i === 0 ? 'M' : 'L'}${padding + i * xStep},${padding + innerH - (d.income / max) * innerH}`
+    )
     .join(' ');
   const expensePath = data
-    .map((d, i) => `${i === 0 ? 'M' : 'L'}${padding + i * xStep},${padding + innerH - (d.expense / max) * innerH}`)
+    .map(
+      (d, i) =>
+        `${i === 0 ? 'M' : 'L'}${padding + i * xStep},${padding + innerH - (d.expense / max) * innerH}`
+    )
     .join(' ');
 
   return (
@@ -180,8 +195,14 @@ function ChartView({ data }: { data: ChartPoint[] }) {
             <stop offset="100%" stopColor="rgb(239 68 68)" stopOpacity="0" />
           </linearGradient>
         </defs>
-        <path d={`${incomePath} L${padding + (data.length - 1) * xStep},${padding + innerH} L${padding},${padding + innerH} Z`} fill="url(#income-gradient)" />
-        <path d={`${expensePath} L${padding + (data.length - 1) * xStep},${padding + innerH} L${padding},${padding + innerH} Z`} fill="url(#expense-gradient)" />
+        <path
+          d={`${incomePath} L${padding + (data.length - 1) * xStep},${padding + innerH} L${padding},${padding + innerH} Z`}
+          fill="url(#income-gradient)"
+        />
+        <path
+          d={`${expensePath} L${padding + (data.length - 1) * xStep},${padding + innerH} L${padding},${padding + innerH} Z`}
+          fill="url(#expense-gradient)"
+        />
         <path d={incomePath} fill="none" stroke="rgb(16 185 129)" strokeWidth="2" />
         <path d={expensePath} fill="none" stroke="rgb(239 68 68)" strokeWidth="2" />
       </svg>

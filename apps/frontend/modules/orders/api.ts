@@ -24,11 +24,14 @@ function buildQuery(filters: Record<string, string | number | undefined> = {}): 
 }
 
 export const invoicesApi = {
-  list: (filters: { type?: 'SALE' | 'PURCHASE'; status?: string; page?: number; limit?: number } = {}) =>
+  list: (
+    filters: { type?: 'SALE' | 'PURCHASE'; status?: string; page?: number; limit?: number } = {}
+  ) =>
     apiClient.get<{ data: Invoice[]; total: number; page: number; limit: number }>(
-      `/billing/invoices${buildQuery(filters)}`,
+      `/billing/invoices${buildQuery(filters)}`
     ),
   get: (id: string) => apiClient.get<Invoice>(`/billing/invoices/${id}`),
   post: (id: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/post`, {}),
-  void: (id: string, reason: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/void`, { reason }),
+  void: (id: string, reason: string) =>
+    apiClient.post<Invoice>(`/billing/invoices/${id}/void`, { reason }),
 };

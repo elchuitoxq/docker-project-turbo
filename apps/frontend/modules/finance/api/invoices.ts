@@ -63,14 +63,17 @@ function buildQuery(filters: InvoiceFilters = {}): string {
 export const invoicesApi = {
   list: (filters?: InvoiceFilters) =>
     apiClient.get<{ data: Invoice[]; total: number; page: number; limit: number }>(
-      `/billing/invoices${buildQuery(filters)}`,
+      `/billing/invoices${buildQuery(filters)}`
     ),
   get: (id: string) => apiClient.get<Invoice>(`/billing/invoices/${id}`),
-  getFiscalJson: (id: string) => apiClient.get<Record<string, unknown>>(`/billing/invoices/${id}/fiscal-json`),
+  getFiscalJson: (id: string) =>
+    apiClient.get<Record<string, unknown>>(`/billing/invoices/${id}/fiscal-json`),
   create: (data: Partial<Invoice>) => apiClient.post<Invoice>('/billing/invoices', data),
-  update: (id: string, data: Partial<Invoice>) => apiClient.post<Invoice>(`/billing/invoices/${id}`, data),
+  update: (id: string, data: Partial<Invoice>) =>
+    apiClient.post<Invoice>(`/billing/invoices/${id}`, data),
   post: (id: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/post`, {}),
-  void: (id: string, reason: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/void`, { reason }),
+  void: (id: string, reason: string) =>
+    apiClient.post<Invoice>(`/billing/invoices/${id}/void`, { reason }),
   stats: () =>
     apiClient.get<{
       draft: number;

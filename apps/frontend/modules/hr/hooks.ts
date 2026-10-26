@@ -1,7 +1,14 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { hrApi, type Employee, type Department, type Position, type Incident, type PayrollRun } from './api';
+import {
+  hrApi,
+  type Employee,
+  type Department,
+  type Position,
+  type Incident,
+  type PayrollRun,
+} from './api';
 
 export const hrKeys = {
   employees: ['hr', 'employees'] as const,
@@ -14,11 +21,18 @@ export const hrKeys = {
 };
 
 export function useEmployees(filters: Record<string, string | number | undefined> = {}) {
-  return useQuery({ queryKey: [...hrKeys.employees, filters], queryFn: () => hrApi.listEmployees(filters) });
+  return useQuery({
+    queryKey: [...hrKeys.employees, filters],
+    queryFn: () => hrApi.listEmployees(filters),
+  });
 }
 
 export function useEmployee(id: string | null) {
-  return useQuery({ queryKey: hrKeys.employee(id ?? ''), queryFn: () => hrApi.getEmployee(id as string), enabled: !!id });
+  return useQuery({
+    queryKey: hrKeys.employee(id ?? ''),
+    queryFn: () => hrApi.getEmployee(id as string),
+    enabled: !!id,
+  });
 }
 
 export function useCreateEmployee() {
@@ -33,7 +47,7 @@ export function useUpdateEmployee(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Employee>) => hrApi.updateEmployee(id, data),
-    onSuccess: (data) => {
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: hrKeys.employees });
       qc.setQueryData(hrKeys.employee(id), data);
     },
@@ -62,11 +76,17 @@ export function useCreateDepartment() {
 }
 
 export function usePositions(filters: { departmentId?: string; isActive?: boolean } = {}) {
-  return useQuery({ queryKey: [...hrKeys.positions, filters], queryFn: () => hrApi.listPositions(filters) });
+  return useQuery({
+    queryKey: [...hrKeys.positions, filters],
+    queryFn: () => hrApi.listPositions(filters),
+  });
 }
 
 export function useIncidents(filters: Record<string, string | number | undefined> = {}) {
-  return useQuery({ queryKey: [...hrKeys.incidents, filters], queryFn: () => hrApi.listIncidents(filters) });
+  return useQuery({
+    queryKey: [...hrKeys.incidents, filters],
+    queryFn: () => hrApi.listIncidents(filters),
+  });
 }
 
 export function useCreateIncident() {
@@ -94,11 +114,18 @@ export function useRejectIncident() {
 }
 
 export function usePayrolls(filters: Record<string, string | number | undefined> = {}) {
-  return useQuery({ queryKey: [...hrKeys.payrolls, filters], queryFn: () => hrApi.listPayrolls(filters) });
+  return useQuery({
+    queryKey: [...hrKeys.payrolls, filters],
+    queryFn: () => hrApi.listPayrolls(filters),
+  });
 }
 
 export function usePayroll(id: string | null) {
-  return useQuery({ queryKey: [...hrKeys.payrolls, id], queryFn: () => hrApi.getPayroll(id as string), enabled: !!id });
+  return useQuery({
+    queryKey: [...hrKeys.payrolls, id],
+    queryFn: () => hrApi.getPayroll(id as string),
+    enabled: !!id,
+  });
 }
 
 export function useCalculatePayroll() {

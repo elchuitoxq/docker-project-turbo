@@ -1,7 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { ArrowDown, ArrowUp, ArrowLeftRight, Sliders, Check, X, Search, MoreHorizontal } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowLeftRight,
+  Sliders,
+  Check,
+  X,
+  Search,
+  MoreHorizontal,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
@@ -81,32 +90,31 @@ export function MovesView() {
       ...(type !== 'ALL' && { type }),
       ...(status !== 'ALL' && { status }),
     }),
-    [type, status],
+    [type, status]
   );
   const { data, isLoading } = useMoves(filters);
   const approve = useApproveMove();
   const cancel = useCancelMove();
 
-  const moves = (data?.data ?? []).filter((m) =>
-    !search ||
-    m.code.toLowerCase().includes(search.toLowerCase()) ||
-    (m.productName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (m.productSku ?? '').toLowerCase().includes(search.toLowerCase()),
+  const moves = (data?.data ?? []).filter(
+    m =>
+      !search ||
+      m.code.toLowerCase().includes(search.toLowerCase()) ||
+      (m.productName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.productSku ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Movimientos de inventario</h1>
-        <p className="text-sm text-muted-foreground">
-          Entradas, salidas, transferencias y ajustes
-        </p>
+        <p className="text-sm text-muted-foreground">Entradas, salidas, transferencias y ajustes</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4">
-        {(['IN', 'OUT', 'TRANSFER', 'ADJUSTMENT'] as MoveType[]).map((t) => {
+        {(['IN', 'OUT', 'TRANSFER', 'ADJUSTMENT'] as MoveType[]).map(t => {
           const Icon = TYPE_ICON[t];
-          const count = (data?.data ?? []).filter((m) => m.type === t).length;
+          const count = (data?.data ?? []).filter(m => m.type === t).length;
           return (
             <Card key={t}>
               <CardContent className="flex items-center justify-between p-4">
@@ -128,12 +136,12 @@ export function MovesView() {
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por código, producto o SKU…"
                 className="pl-8"
               />
             </div>
-            <Select value={type} onValueChange={(v) => setType(v as MoveType | 'ALL')}>
+            <Select value={type} onValueChange={v => setType(v as MoveType | 'ALL')}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue />
               </SelectTrigger>
@@ -146,7 +154,7 @@ export function MovesView() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={status} onValueChange={(v) => setStatus(v as MoveStatus | 'ALL')}>
+            <Select value={status} onValueChange={v => setStatus(v as MoveStatus | 'ALL')}>
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
@@ -166,7 +174,9 @@ export function MovesView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${moves.length} movimiento${moves.length === 1 ? '' : 's'}`}</CardDescription>
+          <CardDescription>
+            {isLoading ? 'Cargando…' : `${moves.length} movimiento${moves.length === 1 ? '' : 's'}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -192,7 +202,7 @@ export function MovesView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {moves.map((m) => {
+                {moves.map(m => {
                   const Icon = TYPE_ICON[m.type];
                   return (
                     <TableRow key={m.id}>
@@ -207,7 +217,9 @@ export function MovesView() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-sm">{m.productName ?? '—'}</span>
-                          <span className="font-mono text-xs text-muted-foreground">{m.productSku}</span>
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {m.productSku}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-muted-foreground">
@@ -228,18 +240,19 @@ export function MovesView() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {m.status === 'DRAFT' && hasPermission(PERMISSIONS.INVENTORY.MOVES.APPROVE) && (
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  approve.mutate(m.id, {
-                                    onSuccess: () => toast.success('Movimiento aprobado'),
-                                    onError: () => toast.error('Error al aprobar'),
-                                  })
-                                }
-                              >
-                                <Check /> Aprobar
-                              </DropdownMenuItem>
-                            )}
+                            {m.status === 'DRAFT' &&
+                              hasPermission(PERMISSIONS.INVENTORY.MOVES.APPROVE) && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    approve.mutate(m.id, {
+                                      onSuccess: () => toast.success('Movimiento aprobado'),
+                                      onError: () => toast.error('Error al aprobar'),
+                                    })
+                                  }
+                                >
+                                  <Check /> Aprobar
+                                </DropdownMenuItem>
+                              )}
                             {m.status !== 'CANCELLED' && (
                               <DropdownMenuItem
                                 onClick={() =>

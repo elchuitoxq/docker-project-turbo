@@ -32,12 +32,17 @@ export type Payment = {
 
 export const treasuryApi = {
   listAccounts: () => apiClient.get<BankAccount[]>('/treasury/bank-accounts'),
-  listPayments: (filters: { type?: 'INBOUND' | 'OUTBOUND'; status?: string; page?: number; limit?: number } = {}) => {
+  listPayments: (
+    filters: { type?: 'INBOUND' | 'OUTBOUND'; status?: string; page?: number; limit?: number } = {}
+  ) => {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(filters)) if (v) params.set(k, String(v));
     const qs = params.toString();
-    return apiClient.get<{ data: Payment[]; total: number }>(`/treasury/payments${qs ? `?${qs}` : ''}`);
+    return apiClient.get<{ data: Payment[]; total: number }>(
+      `/treasury/payments${qs ? `?${qs}` : ''}`
+    );
   },
   createPayment: (data: Partial<Payment>) => apiClient.post<Payment>('/treasury/payments', data),
-  voidPayment: (id: string, reason: string) => apiClient.post<Payment>(`/treasury/payments/${id}/void`, { reason }),
+  voidPayment: (id: string, reason: string) =>
+    apiClient.post<Payment>(`/treasury/payments/${id}/void`, { reason }),
 };

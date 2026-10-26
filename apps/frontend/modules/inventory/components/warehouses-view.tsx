@@ -1,14 +1,28 @@
 'use client';
 
 import * as React from 'react';
-import { Warehouse as WarehouseIcon, Plus, Search, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  Warehouse as WarehouseIcon,
+  Plus,
+  Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -39,8 +53,11 @@ export function WarehousesView() {
   const [search, setSearch] = React.useState('');
   const [open, setOpen] = React.useState(false);
 
-  const warehouses = (data ?? []).filter((w) =>
-    !search || w.name.toLowerCase().includes(search.toLowerCase()) || (w.address ?? '').toLowerCase().includes(search.toLowerCase()),
+  const warehouses = (data ?? []).filter(
+    w =>
+      !search ||
+      w.name.toLowerCase().includes(search.toLowerCase()) ||
+      (w.address ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -48,7 +65,9 @@ export function WarehousesView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Almacenes</h1>
-          <p className="text-sm text-muted-foreground">{warehouses.length} almacén{warehouses.length === 1 ? '' : 'es'}</p>
+          <p className="text-sm text-muted-foreground">
+            {warehouses.length} almacén{warehouses.length === 1 ? '' : 'es'}
+          </p>
         </div>
         {hasPermission(PERMISSIONS.INVENTORY.WAREHOUSES.CREATE) && (
           <Button onClick={() => setOpen(true)}>
@@ -63,7 +82,7 @@ export function WarehousesView() {
             <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nombre o dirección…"
               className="pl-8"
             />
@@ -74,7 +93,9 @@ export function WarehousesView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${warehouses.length} resultados`}</CardDescription>
+          <CardDescription>
+            {isLoading ? 'Cargando…' : `${warehouses.length} resultados`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -96,7 +117,7 @@ export function WarehousesView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {warehouses.map((w) => (
+                {warehouses.map(w => (
                   <TableRow key={w.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
@@ -148,7 +169,7 @@ export function WarehousesView() {
         open={open}
         onOpenChange={setOpen}
         submitting={create.isPending}
-        onSubmit={async (data) => {
+        onSubmit={async data => {
           await create.mutateAsync(data);
           toast.success('Almacén creado');
           setOpen(false);
@@ -183,7 +204,7 @@ function CreateWarehouseDialog({
   return (
     <Sheet
       open={open}
-      onOpenChange={(v) => {
+      onOpenChange={v => {
         if (!v) reset();
         onOpenChange(v);
       }}
@@ -194,7 +215,7 @@ function CreateWarehouseDialog({
           <SheetDescription>Registra un nuevo punto de almacenamiento</SheetDescription>
         </SheetHeader>
         <form
-          onSubmit={async (e) => {
+          onSubmit={async e => {
             e.preventDefault();
             await onSubmit({ name, address, isActive });
             reset();
@@ -204,14 +225,14 @@ function CreateWarehouseDialog({
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="wh-name">Nombre *</FieldLabel>
-              <Input id="wh-name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input id="wh-name" value={name} onChange={e => setName(e.target.value)} required />
             </Field>
             <Field>
               <FieldLabel htmlFor="wh-address">Dirección</FieldLabel>
-              <Input id="wh-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+              <Input id="wh-address" value={address} onChange={e => setAddress(e.target.value)} />
             </Field>
             <Field orientation="horizontal" className="items-center gap-2 space-y-0">
-              <Checkbox id="wh-active" checked={isActive} onCheckedChange={(v) => setIsActive(!!v)} />
+              <Checkbox id="wh-active" checked={isActive} onCheckedChange={v => setIsActive(!!v)} />
               <FieldLabel htmlFor="wh-active" className="cursor-pointer">
                 Activo
               </FieldLabel>

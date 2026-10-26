@@ -25,7 +25,14 @@ type Props = {
   className?: string;
 };
 
-export function PartnerCombobox({ value, onChange, filterType, placeholder = 'Seleccionar partner…', disabled, className }: Props) {
+export function PartnerCombobox({
+  value,
+  onChange,
+  filterType,
+  placeholder = 'Seleccionar partner…',
+  disabled,
+  className,
+}: Props) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
   const { data, isLoading } = usePartners({
@@ -34,7 +41,7 @@ export function PartnerCombobox({ value, onChange, filterType, placeholder = 'Se
     limit: 50,
   });
   const partners: Partner[] = data?.data ?? [];
-  const selected = partners.find((p) => p.id === value);
+  const selected = partners.find(p => p.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -59,11 +66,15 @@ export function PartnerCombobox({ value, onChange, filterType, placeholder = 'Se
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput value={search} onValueChange={setSearch} placeholder="Buscar por nombre o RIF…" />
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Buscar por nombre o RIF…"
+          />
           <CommandList>
             <CommandEmpty>{isLoading ? 'Cargando…' : 'Sin resultados'}</CommandEmpty>
             <CommandGroup>
-              {partners.map((p) => (
+              {partners.map(p => (
                 <CommandItem
                   key={p.id}
                   value={p.id}

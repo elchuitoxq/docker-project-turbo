@@ -7,7 +7,14 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -69,7 +76,7 @@ export function IncidentsView() {
   const reject = useRejectIncident();
 
   const incidents: Incident[] = data?.data ?? [];
-  const pendingCount = incidents.filter((i) => i.status === 'PENDING').length;
+  const pendingCount = incidents.filter(i => i.status === 'PENDING').length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,8 +95,8 @@ export function IncidentsView() {
             <Clock className="size-5 text-muted-foreground" />
           </CardContent>
         </Card>
-        {(['VACATION', 'ABSENCE', 'OVERTIME'] as IncidentType[]).map((t) => {
-          const count = incidents.filter((i) => i.type === t).length;
+        {(['VACATION', 'ABSENCE', 'OVERTIME'] as IncidentType[]).map(t => {
+          const count = incidents.filter(i => i.type === t).length;
           return (
             <Card key={t}>
               <CardContent className="flex items-center justify-between p-4">
@@ -106,7 +113,7 @@ export function IncidentsView() {
 
       <Card>
         <CardContent className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
-          <Select value={type} onValueChange={(v) => setType(v as IncidentType | 'ALL')}>
+          <Select value={type} onValueChange={v => setType(v as IncidentType | 'ALL')}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue />
             </SelectTrigger>
@@ -139,7 +146,9 @@ export function IncidentsView() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
           <CardDescription>
-            {isLoading ? 'Cargando…' : `${incidents.length} resultado${incidents.length === 1 ? '' : 's'}`}
+            {isLoading
+              ? 'Cargando…'
+              : `${incidents.length} resultado${incidents.length === 1 ? '' : 's'}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -164,7 +173,7 @@ export function IncidentsView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {incidents.map((i) => (
+                {incidents.map(i => (
                   <TableRow key={i.id}>
                     <TableCell className="text-xs">
                       <div className="flex items-center gap-1">

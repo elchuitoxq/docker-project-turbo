@@ -24,7 +24,11 @@ function buildQuery(filters: Record<string, string | number | undefined> = {}): 
 }
 
 export const ordersApi = {
-  list: (filters: { type?: 'SALE' | 'PURCHASE'; status?: string; page?: number; limit?: number } = {}) =>
-    apiClient.get<{ data: Order[]; total: number; page: number; limit: number }>(`/orders${buildQuery(filters)}`),
+  list: (
+    filters: { type?: 'SALE' | 'PURCHASE'; status?: string; page?: number; limit?: number } = {}
+  ) =>
+    apiClient.get<{ data: Order[]; total: number; page: number; limit: number }>(
+      `/orders${buildQuery(filters)}`
+    ),
   get: (id: string) => apiClient.get<Order>(`/orders/${id}`),
 };

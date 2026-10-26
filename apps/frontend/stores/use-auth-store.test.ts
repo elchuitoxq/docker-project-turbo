@@ -22,7 +22,7 @@ describe('useAuthStore', () => {
         email: 'ana@test.com',
         permissions: ['dashboard:view'],
         branches: [{ id: 'b-1', name: 'Main', taxId: null }],
-      }),
+      })
     ).toBe(true);
     expect(isAuthUser({ id: 'u-1', name: 'Ana', email: 'ana@test.com' })).toBe(false);
   });
@@ -65,7 +65,9 @@ describe('useAuthStore', () => {
       permissions: [],
       branches: [],
     });
-    useAuthStore.getState().setUser({ id: '1', name: 'B', email: 'a@b.c', permissions: [], branches: [] });
+    useAuthStore
+      .getState()
+      .setUser({ id: '1', name: 'B', email: 'a@b.c', permissions: [], branches: [] });
     expect(useAuthStore.getState().user?.name).toBe('B');
     expect(useAuthStore.getState().token).toBe('t');
   });
@@ -80,7 +82,7 @@ describe('useAuthStore', () => {
           isAuthenticated: true,
         },
         version: 0,
-      }),
+      })
     );
 
     await useAuthStore.persist.rehydrate();

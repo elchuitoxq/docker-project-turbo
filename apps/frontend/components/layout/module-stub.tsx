@@ -29,7 +29,8 @@ export function ModuleStub({
         </CardHeader>
         <CardContent>
           <p className="text-xs text-muted-foreground">
-            Endpoint backend de referencia: <code className="rounded bg-muted px-1 py-0.5">{endpoint ?? 'N/A'}</code>
+            Endpoint backend de referencia:{' '}
+            <code className="rounded bg-muted px-1 py-0.5">{endpoint ?? 'N/A'}</code>
           </p>
         </CardContent>
       </Card>

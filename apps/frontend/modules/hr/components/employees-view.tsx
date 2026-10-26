@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -36,12 +43,13 @@ const STATUS_LABEL: Record<EmployeeStatus, string> = {
   TERMINATED: 'Egresado',
 };
 
-const STATUS_VARIANT: Record<EmployeeStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  ACTIVE: 'default',
-  INACTIVE: 'secondary',
-  SUSPENDED: 'outline',
-  TERMINATED: 'destructive',
-};
+const STATUS_VARIANT: Record<EmployeeStatus, 'default' | 'secondary' | 'destructive' | 'outline'> =
+  {
+    ACTIVE: 'default',
+    INACTIVE: 'secondary',
+    SUSPENDED: 'outline',
+    TERMINATED: 'destructive',
+  };
 
 export function EmployeesView() {
   const { hasPermission } = usePermission();
@@ -55,7 +63,7 @@ export function EmployeesView() {
   });
   const { data: departments = [] } = useDepartments();
 
-  const filtered = (data?.data ?? []).filter((e) => {
+  const filtered = (data?.data ?? []).filter(e => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
@@ -89,12 +97,12 @@ export function EmployeesView() {
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por nombre, cédula o código…"
                 className="pl-8"
               />
             </div>
-            <Select value={status} onValueChange={(v) => setStatus(v as EmployeeStatus | 'ALL')}>
+            <Select value={status} onValueChange={v => setStatus(v as EmployeeStatus | 'ALL')}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue />
               </SelectTrigger>
@@ -113,7 +121,7 @@ export function EmployeesView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos los departamentos</SelectItem>
-                {departments.map((d) => (
+                {departments.map(d => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
                   </SelectItem>
@@ -127,7 +135,9 @@ export function EmployeesView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${filtered.length} resultados`}</CardDescription>
+          <CardDescription>
+            {isLoading ? 'Cargando…' : `${filtered.length} resultados`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -176,7 +186,10 @@ export function EmployeesView() {
                       <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-right tabular-nums">
-                      {formatCurrency(Number(e.salary), e.salaryCurrencyCode === 'VES' ? 'VES' : 'USD')}
+                      {formatCurrency(
+                        Number(e.salary),
+                        e.salaryCurrencyCode === 'VES' ? 'VES' : 'USD'
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

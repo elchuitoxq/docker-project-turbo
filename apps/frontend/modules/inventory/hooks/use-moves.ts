@@ -5,7 +5,8 @@ import { movesApi, type Move } from '../api/moves';
 
 export const movesKeys = {
   all: ['inventory', 'moves'] as const,
-  list: (filters: Record<string, string | number | undefined>) => ['inventory', 'moves', 'list', filters] as const,
+  list: (filters: Record<string, string | number | undefined>) =>
+    ['inventory', 'moves', 'list', filters] as const,
 };
 
 export function useMoves(filters: Record<string, string | number | undefined> = {}) {

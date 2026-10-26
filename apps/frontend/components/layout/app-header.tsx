@@ -17,11 +17,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CommandPalette } from './command-palette';
 
 const LABELS: Record<string, string> = {
@@ -59,8 +55,7 @@ export function AppHeader() {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const segments = pathname.split('/').filter(Boolean);
-  const crumbs = segments
-    .map((segment) => ({ slug: segment, label: LABELS[segment] ?? segment }));
+  const crumbs = segments.map(segment => ({ slug: segment, label: LABELS[segment] ?? segment }));
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur sm:px-4">
@@ -102,7 +97,8 @@ export function AppHeader() {
           <div className="space-y-2">
             <h4 className="font-medium">Ayuda contextual</h4>
             <p className="text-xs text-muted-foreground">
-              Documentación de {crumbs[crumbs.length - 1]?.label ?? 'esta sección'} se mostrará aquí.
+              Documentación de {crumbs[crumbs.length - 1]?.label ?? 'esta sección'} se mostrará
+              aquí.
             </p>
           </div>
         </PopoverContent>

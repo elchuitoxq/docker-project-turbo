@@ -18,7 +18,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -55,27 +62,34 @@ export function TreasuryView() {
   const [type, setType] = React.useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
   const [status, setStatus] = React.useState<string>('ALL');
 
-  const { data: accounts } = useQuery({ queryKey: ['bank-accounts'], queryFn: () => treasuryApi.listAccounts() });
+  const { data: accounts } = useQuery({
+    queryKey: ['bank-accounts'],
+    queryFn: () => treasuryApi.listAccounts(),
+  });
   const { data: payments, isLoading } = useQuery({
     queryKey: ['treasury', 'payments', { type, status }],
-    queryFn: () => treasuryApi.listPayments({ ...(type !== 'ALL' && { type }), ...(status !== 'ALL' && { status }) }),
+    queryFn: () =>
+      treasuryApi.listPayments({
+        ...(type !== 'ALL' && { type }),
+        ...(status !== 'ALL' && { status }),
+      }),
   });
   const voidPay = useVoidInvoice();
 
   const totalBalance = (accounts ?? []).reduce((acc, a) => acc + Number(a.balance ?? 0), 0);
   const totalInflow = (payments?.data ?? [])
-    .filter((p) => p.type === 'INBOUND' && p.status === 'CONFIRMED')
+    .filter(p => p.type === 'INBOUND' && p.status === 'CONFIRMED')
     .reduce((acc, p) => acc + Number(p.amount), 0);
   const totalOutflow = (payments?.data ?? [])
-    .filter((p) => p.type === 'OUTBOUND' && p.status === 'CONFIRMED')
+    .filter(p => p.type === 'OUTBOUND' && p.status === 'CONFIRMED')
     .reduce((acc, p) => acc + Number(p.amount), 0);
 
   const filtered = (payments?.data ?? []).filter(
-    (p) =>
+    p =>
       !search ||
       p.code.toLowerCase().includes(search.toLowerCase()) ||
       (p.partnerName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (p.reference ?? '').toLowerCase().includes(search.toLowerCase()),
+      (p.reference ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -99,7 +113,9 @@ export function TreasuryView() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-xs text-muted-foreground">Ingresos</p>
-              <p className="text-2xl font-bold tabular-nums text-emerald-600">{formatCurrency(totalInflow)}</p>
+              <p className="text-2xl font-bold tabular-nums text-emerald-600">
+                {formatCurrency(totalInflow)}
+              </p>
             </div>
             <ArrowDown className="size-5 text-emerald-600" />
           </CardContent>
@@ -108,7 +124,9 @@ export function TreasuryView() {
           <CardContent className="flex items-center justify-between p-4">
             <div>
               <p className="text-xs text-muted-foreground">Egresos</p>
-              <p className="text-2xl font-bold tabular-nums text-destructive">{formatCurrency(totalOutflow)}</p>
+              <p className="text-2xl font-bold tabular-nums text-destructive">
+                {formatCurrency(totalOutflow)}
+              </p>
             </div>
             <ArrowUp className="size-5 text-destructive" />
           </CardContent>
@@ -122,13 +140,15 @@ export function TreasuryView() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(accounts ?? []).map((a) => (
+          {(accounts ?? []).map(a => (
             <div key={a.id} className="rounded-md border p-3">
               <p className="text-sm font-medium">{a.bankName}</p>
               <p className="font-mono text-xs text-muted-foreground">{a.accountNumber}</p>
               <div className="mt-2 flex items-center justify-between">
                 <Badge variant="outline">{a.currencyCode}</Badge>
-                <span className="font-semibold tabular-nums">{formatCurrency(Number(a.balance ?? 0))}</span>
+                <span className="font-semibold tabular-nums">
+                  {formatCurrency(Number(a.balance ?? 0))}
+                </span>
               </div>
             </div>
           ))}
@@ -142,12 +162,12 @@ export function TreasuryView() {
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar pagos…"
                 className="pl-8"
               />
             </div>
-            <Select value={type} onValueChange={(v) => setType(v as 'ALL' | 'INBOUND' | 'OUTBOUND')}>
+            <Select value={type} onValueChange={v => setType(v as 'ALL' | 'INBOUND' | 'OUTBOUND')}>
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
@@ -218,7 +238,9 @@ export function TreasuryView() {
                       </Badge>
                     </TableCell>
                     <TableCell>{p.partnerName ?? '—'}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">{p.reference ?? '—'}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {p.reference ?? '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[p.status]}>{STATUS_LABEL[p.status]}</Badge>
                     </TableCell>
@@ -247,7 +269,7 @@ export function TreasuryView() {
                                     {
                                       onSuccess: () => toast.success('Pago anulado'),
                                       onError: () => toast.error('Error al anular'),
-                                    },
+                                    }
                                   );
                                 }
                               }}

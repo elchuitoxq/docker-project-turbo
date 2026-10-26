@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LockKeyhole, Plus, Save, ShieldCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -38,12 +38,23 @@ export function RolesAdminView() {
     queryFn: rolesApi.listPermissions,
   });
   const [activeRoleId, setActiveRoleId] = useState<string | null>(null);
-  const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
+  const [pendingSelection, setPendingSelection] = useState<{
+    roleId: string;
+    permissionIds: string[];
+  } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const roleList = rolesQuery.data ?? [];
   const permissions = permissionsQuery.data ?? [];
   const activeRole = roleList.find(role => role.id === activeRoleId) ?? roleList[0] ?? null;
+  const activeRolePermissionIds = useMemo(
+    () => activeRole?.permissions.map(permission => permission.id) ?? [],
+    [activeRole]
+  );
+  const selectedPermissionIds =
+    pendingSelection && pendingSelection.roleId === activeRole?.id
+      ? pendingSelection.permissionIds
+      : activeRolePermissionIds;
   const permissionGroups = useMemo(
     () =>
       permissions.reduce<Record<string, Permission[]>>((groups, permission) => {
@@ -53,18 +64,11 @@ export function RolesAdminView() {
     [permissions]
   );
 
-  useEffect(() => {
-    if (!activeRoleId && roleList[0]) setActiveRoleId(roleList[0].id);
-  }, [activeRoleId, roleList]);
-
-  useEffect(() => {
-    setSelectedPermissionIds(activeRole?.permissions.map(permission => permission.id) ?? []);
-  }, [activeRole?.id, activeRole?.permissions]);
-
   const updateMutation = useMutation({
     mutationFn: (input: { id: string; permissionIds: string[] }) =>
       rolesApi.update(input.id, { permissionIds: input.permissionIds }),
     onSuccess: async role => {
+      setPendingSelection(null);
       await queryClient.invalidateQueries({ queryKey: ['settings', 'roles'] });
       toast.success(`Permisos actualizados para ${role.name}`);
     },
@@ -79,6 +83,7 @@ export function RolesAdminView() {
     onSuccess: async role => {
       await queryClient.invalidateQueries({ queryKey: ['settings', 'roles'] });
       setActiveRoleId(role.id);
+      setPendingSelection(null);
       setCreateOpen(false);
       toast.success('Rol personalizado creado');
     },
@@ -91,6 +96,7 @@ export function RolesAdminView() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['settings', 'roles'] });
       setActiveRoleId(null);
+      setPendingSelection(null);
       toast.success('Rol eliminado');
     },
     onError: error =>
@@ -98,9 +104,13 @@ export function RolesAdminView() {
   });
 
   function togglePermission(id: string, checked: boolean) {
-    setSelectedPermissionIds(current =>
-      checked ? [...current, id] : current.filter(permissionId => permissionId !== id)
-    );
+    if (!activeRole) return;
+    setPendingSelection({
+      roleId: activeRole.id,
+      permissionIds: checked
+        ? [...selectedPermissionIds, id]
+        : selectedPermissionIds.filter(permissionId => permissionId !== id),
+    });
   }
 
   return (
@@ -151,7 +161,10 @@ export function RolesAdminView() {
                 <button
                   key={role.id}
                   type="button"
-                  onClick={() => setActiveRoleId(role.id)}
+                  onClick={() => {
+                    setActiveRoleId(role.id);
+                    setPendingSelection(null);
+                  }}
                   className={`flex min-h-12 items-center justify-between gap-3 rounded-lg px-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     activeRole?.id === role.id
                       ? 'bg-primary text-primary-foreground'
@@ -324,18 +337,6 @@ function CreateRoleDialog({
   onOpenChange: (open: boolean) => void;
   onCreate: (body: { name: string; description?: string; permissionIds?: string[] }) => void;
 }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [permissionIds, setPermissionIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (open) {
-      setName('');
-      setDescription('');
-      setPermissionIds([]);
-    }
-  }, [open]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
@@ -343,71 +344,96 @@ function CreateRoleDialog({
           <DialogTitle>Nuevo rol personalizado</DialogTitle>
           <DialogDescription>Los roles base no pueden duplicarse ni modificarse.</DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            onCreate({
-              name: name.trim().toUpperCase().replace(/\s+/g, '_'),
-              description: description.trim() || undefined,
-              permissionIds,
-            });
-          }}
-          className="flex flex-col gap-5"
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="role-name">Nombre del rol</FieldLabel>
-              <Input
-                id="role-name"
-                value={name}
-                onChange={event => setName(event.target.value)}
-                minLength={2}
-                required
-              />
-              <FieldDescription>Se normaliza a mayúsculas y guiones bajos.</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="role-description">Descripción</FieldLabel>
-              <Input
-                id="role-description"
-                value={description}
-                onChange={event => setDescription(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-          <FieldSet>
-            <FieldLegend>Permisos iniciales</FieldLegend>
-            <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg border p-3 sm:grid-cols-2">
-              {permissions.map(permission => (
-                <label
-                  key={permission.id}
-                  className="flex min-h-10 cursor-pointer items-center gap-2 text-xs"
-                >
-                  <Checkbox
-                    checked={permissionIds.includes(permission.id)}
-                    onCheckedChange={checked =>
-                      setPermissionIds(current =>
-                        checked === true
-                          ? [...current, permission.id]
-                          : current.filter(id => id !== permission.id)
-                      )
-                    }
-                  />
-                  <span className="break-all font-mono">{permission.code}</span>
-                </label>
-              ))}
-            </div>
-          </FieldSet>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Creando...' : 'Crear rol'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <CreateRoleForm
+          permissions={permissions}
+          pending={pending}
+          onCancel={() => onOpenChange(false)}
+          onCreate={onCreate}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CreateRoleForm({
+  permissions,
+  pending,
+  onCancel,
+  onCreate,
+}: {
+  permissions: Permission[];
+  pending: boolean;
+  onCancel: () => void;
+  onCreate: (body: { name: string; description?: string; permissionIds?: string[] }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [permissionIds, setPermissionIds] = useState<string[]>([]);
+
+  return (
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        onCreate({
+          name: name.trim().toUpperCase().replace(/\s+/g, '_'),
+          description: description.trim() || undefined,
+          permissionIds,
+        });
+      }}
+      className="flex flex-col gap-5"
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="role-name">Nombre del rol</FieldLabel>
+          <Input
+            id="role-name"
+            value={name}
+            onChange={event => setName(event.target.value)}
+            minLength={2}
+            required
+          />
+          <FieldDescription>Se normaliza a mayúsculas y guiones bajos.</FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="role-description">Descripción</FieldLabel>
+          <Input
+            id="role-description"
+            value={description}
+            onChange={event => setDescription(event.target.value)}
+          />
+        </Field>
+      </FieldGroup>
+      <FieldSet>
+        <FieldLegend>Permisos iniciales</FieldLegend>
+        <div className="grid max-h-56 gap-2 overflow-y-auto rounded-lg border p-3 sm:grid-cols-2">
+          {permissions.map(permission => (
+            <label
+              key={permission.id}
+              className="flex min-h-10 cursor-pointer items-center gap-2 text-xs"
+            >
+              <Checkbox
+                checked={permissionIds.includes(permission.id)}
+                onCheckedChange={checked =>
+                  setPermissionIds(current =>
+                    checked === true
+                      ? [...current, permission.id]
+                      : current.filter(id => id !== permission.id)
+                  )
+                }
+              />
+              <span className="break-all font-mono">{permission.code}</span>
+            </label>
+          ))}
+        </div>
+      </FieldSet>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Creando...' : 'Crear rol'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

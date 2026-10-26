@@ -34,28 +34,28 @@ describe('partners hooks', () => {
 
   it('usePartners() filters by type', async () => {
     const { result } = renderHook(() => usePartners({ type: 'CUSTOMER' }), { wrapper });
-    await new Promise(r => setTimeout(r, 50));
-    expect(result.current.data?.data.every(p => p.type === 'CUSTOMER')).toBe(true);
+    await waitFor(() =>
+      expect(result.current.data?.data.every(p => p.type === 'CUSTOMER')).toBe(true)
+    );
   });
 
   it('usePartners() filters vendors against the backend list', async () => {
     const { result } = renderHook(() => usePartners({ type: 'VENDOR' }), { wrapper });
-    await new Promise(r => setTimeout(r, 50));
-    expect(result.current.data?.data).toHaveLength(2);
+    await waitFor(() => expect(result.current.data?.data).toHaveLength(2));
     expect(result.current.data?.data.every(p => p.type === 'VENDOR')).toBe(true);
   });
 
   it('usePartnerStatement() uses the treasury statement contract', async () => {
     const { result } = renderHook(() => usePartnerStatement('p-1'), { wrapper });
-    await new Promise(r => setTimeout(r, 50));
-    expect(result.current.data?.totalOutstanding).toBe(1500.5);
-    expect(result.current.data?.recentPayments).toHaveLength(2);
+    await waitFor(() => {
+      expect(result.current.data?.totalOutstanding).toBe(1500.5);
+      expect(result.current.data?.recentPayments).toHaveLength(2);
+    });
   });
 
   it('usePartner() returns single partner', async () => {
     const { result } = renderHook(() => usePartner('p-1'), { wrapper });
-    await new Promise(r => setTimeout(r, 50));
-    expect(result.current.data?.id).toBe('p-1');
+    await waitFor(() => expect(result.current.data?.id).toBe('p-1'));
   });
 
   it('usePartner() is disabled when id is null', () => {

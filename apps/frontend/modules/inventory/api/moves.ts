@@ -34,8 +34,18 @@ function buildQuery(filters: Record<string, string | number | undefined> = {}): 
 }
 
 export const movesApi = {
-  list: (filters: { type?: MoveType; status?: MoveStatus; warehouseId?: string; page?: number; limit?: number } = {}) =>
-    apiClient.get<{ data: Move[]; total: number; page: number; limit: number }>(`/inventory/moves${buildQuery(filters)}`),
+  list: (
+    filters: {
+      type?: MoveType;
+      status?: MoveStatus;
+      warehouseId?: string;
+      page?: number;
+      limit?: number;
+    } = {}
+  ) =>
+    apiClient.get<{ data: Move[]; total: number; page: number; limit: number }>(
+      `/inventory/moves${buildQuery(filters)}`
+    ),
   get: (id: string) => apiClient.get<Move>(`/inventory/moves/${id}`),
   create: (data: Partial<Move>) => apiClient.post<Move>('/inventory/moves', data),
   approve: (id: string) => apiClient.post<Move>(`/inventory/moves/${id}/approve`, {}),

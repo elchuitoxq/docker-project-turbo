@@ -26,44 +26,45 @@ interface CompanyState {
 
 export const useCompanyStore = create<CompanyState>()(
   persist(
-    (set) => ({
+    set => ({
       currentCompanyId: null,
       legacyCompanyTaxId: null,
       availableCompanies: [],
       hasHydrated: false,
-      setCompany: (id) => set({ currentCompanyId: id, legacyCompanyTaxId: null }),
-      setAvailableCompanies: (companies) =>
-        set((state) => ({
+      setCompany: id => set({ currentCompanyId: id, legacyCompanyTaxId: null }),
+      setAvailableCompanies: companies =>
+        set(state => ({
           availableCompanies: companies,
           currentCompanyId:
             state.currentCompanyId ??
             (state.legacyCompanyTaxId
-              ? companies.find((company) => company.taxId === state.legacyCompanyTaxId)?.id
+              ? companies.find(company => company.taxId === state.legacyCompanyTaxId)?.id
               : null) ??
             null,
           legacyCompanyTaxId: null,
         })),
-      setHydrated: (v) => set({ hasHydrated: v }),
-      reset: () => set({ currentCompanyId: null, legacyCompanyTaxId: null, availableCompanies: [] }),
+      setHydrated: v => set({ hasHydrated: v }),
+      reset: () =>
+        set({ currentCompanyId: null, legacyCompanyTaxId: null, availableCompanies: [] }),
     }),
     {
       name: 'erp.company',
       storage: createJSONStorage(() => localStorage),
       version: 2,
-      partialize: (state) => ({
+      partialize: state => ({
         currentCompanyId: state.currentCompanyId,
         legacyCompanyTaxId: state.legacyCompanyTaxId,
       }),
-      migrate: (persistedState) => {
+      migrate: persistedState => {
         const previous = persistedState as { currentCompanyTaxId?: string | null };
         return {
           currentCompanyId: null,
           legacyCompanyTaxId: previous.currentCompanyTaxId ?? null,
         };
       },
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         state?.setHydrated(true);
       },
-    },
-  ),
+    }
+  )
 );

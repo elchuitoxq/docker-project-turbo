@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -460,23 +460,6 @@ function CompanyDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (body: CompanyFormValue) => void;
 }) {
-  const [name, setName] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [isActive, setIsActive] = useState(true);
-
-  useEffect(() => {
-    if (!open) return;
-    setName(company?.name ?? '');
-    setTaxId(company?.taxId ?? '');
-    setAddress(company?.address ?? '');
-    setPhone(company?.phone ?? '');
-    setEmail(company?.email ?? '');
-    setIsActive(company?.isActive ?? true);
-  }, [open, company]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -486,86 +469,115 @@ function CompanyDialog({
             El RIF es un dato legal, no la clave de agrupación de la empresa.
           </DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            onSave({
-              name: name.trim(),
-              ...(taxId.trim() ? { taxId: taxId.trim() } : {}),
-              ...(address.trim() ? { address: address.trim() } : {}),
-              ...(phone.trim() ? { phone: phone.trim() } : {}),
-              ...(email.trim() ? { email: email.trim() } : {}),
-              isActive,
-            });
-          }}
-          className="flex flex-col gap-5"
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="company-name">Razón social</FieldLabel>
-              <Input
-                id="company-name"
-                value={name}
-                onChange={event => setName(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="company-tax-id">RIF (opcional)</FieldLabel>
-              <Input
-                id="company-tax-id"
-                value={taxId}
-                onChange={event => setTaxId(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="company-address">Dirección</FieldLabel>
-              <Input
-                id="company-address"
-                value={address}
-                onChange={event => setAddress(event.target.value)}
-              />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="company-phone">Teléfono</FieldLabel>
-                <Input
-                  id="company-phone"
-                  value={phone}
-                  onChange={event => setPhone(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="company-email">Correo</FieldLabel>
-                <Input
-                  id="company-email"
-                  type="email"
-                  value={email}
-                  onChange={event => setEmail(event.target.value)}
-                />
-              </Field>
-            </div>
-            {company && (
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3">
-                <Checkbox
-                  checked={isActive}
-                  onCheckedChange={checked => setIsActive(checked === true)}
-                />
-                <span className="text-sm">Empresa activa</span>
-              </label>
-            )}
-          </FieldGroup>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Guardando...' : 'Guardar empresa'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <CompanyForm
+          key={company?.id ?? 'new'}
+          company={company}
+          pending={pending}
+          onCancel={() => onOpenChange(false)}
+          onSave={onSave}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CompanyForm({
+  company,
+  pending,
+  onCancel,
+  onSave,
+}: {
+  company: Company | null;
+  pending: boolean;
+  onCancel: () => void;
+  onSave: (body: CompanyFormValue) => void;
+}) {
+  const [name, setName] = useState(() => company?.name ?? '');
+  const [taxId, setTaxId] = useState(() => company?.taxId ?? '');
+  const [address, setAddress] = useState(() => company?.address ?? '');
+  const [phone, setPhone] = useState(() => company?.phone ?? '');
+  const [email, setEmail] = useState(() => company?.email ?? '');
+  const [isActive, setIsActive] = useState(() => company?.isActive ?? true);
+
+  return (
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        onSave({
+          name: name.trim(),
+          ...(taxId.trim() ? { taxId: taxId.trim() } : {}),
+          ...(address.trim() ? { address: address.trim() } : {}),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          ...(email.trim() ? { email: email.trim() } : {}),
+          isActive,
+        });
+      }}
+      className="flex flex-col gap-5"
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="company-name">Razón social</FieldLabel>
+          <Input
+            id="company-name"
+            value={name}
+            onChange={event => setName(event.target.value)}
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="company-tax-id">RIF (opcional)</FieldLabel>
+          <Input
+            id="company-tax-id"
+            value={taxId}
+            onChange={event => setTaxId(event.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="company-address">Dirección</FieldLabel>
+          <Input
+            id="company-address"
+            value={address}
+            onChange={event => setAddress(event.target.value)}
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="company-phone">Teléfono</FieldLabel>
+            <Input
+              id="company-phone"
+              value={phone}
+              onChange={event => setPhone(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="company-email">Correo</FieldLabel>
+            <Input
+              id="company-email"
+              type="email"
+              value={email}
+              onChange={event => setEmail(event.target.value)}
+            />
+          </Field>
+        </div>
+        {company && (
+          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3">
+            <Checkbox
+              checked={isActive}
+              onCheckedChange={checked => setIsActive(checked === true)}
+            />
+            <span className="text-sm">Empresa activa</span>
+          </label>
+        )}
+      </FieldGroup>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Guardando...' : 'Guardar empresa'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
@@ -584,21 +596,6 @@ function BranchDialog({
   onOpenChange: (open: boolean) => void;
   onSave: (body: BranchFormValue) => void;
 }) {
-  const [companyId, setCompanyId] = useState('');
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setCompanyId(branch?.companyId ?? companies[0]?.id ?? '');
-    setName(branch?.name ?? '');
-    setAddress(branch?.address ?? '');
-    setPhone(branch?.phone ?? '');
-    setEmail(branch?.email ?? '');
-  }, [open, branch, companies]);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -606,84 +603,115 @@ function BranchDialog({
           <DialogTitle>{branch ? 'Editar sucursal' : 'Nueva sucursal'}</DialogTitle>
           <DialogDescription>Selecciona a qué empresa legal pertenece esta sede.</DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={event => {
-            event.preventDefault();
-            onSave({
-              companyId,
-              name: name.trim(),
-              ...(address.trim() ? { address: address.trim() } : {}),
-              ...(phone.trim() ? { phone: phone.trim() } : {}),
-              ...(email.trim() ? { email: email.trim() } : {}),
-            });
-          }}
-          className="flex flex-col gap-5"
-        >
-          <FieldGroup>
-            <Field>
-              <FieldLabel>Empresa</FieldLabel>
-              <Select value={companyId} onValueChange={setCompanyId}>
-                <SelectTrigger aria-label="Empresa de la sucursal">
-                  <SelectValue placeholder="Selecciona una empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {companies.map(company => (
-                      <SelectItem key={company.id} value={company.id}>
-                        {company.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="branch-name">Nombre de sucursal</FieldLabel>
-              <Input
-                id="branch-name"
-                value={name}
-                onChange={event => setName(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="branch-address">Dirección</FieldLabel>
-              <Input
-                id="branch-address"
-                value={address}
-                onChange={event => setAddress(event.target.value)}
-              />
-            </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="branch-phone">Teléfono</FieldLabel>
-                <Input
-                  id="branch-phone"
-                  value={phone}
-                  onChange={event => setPhone(event.target.value)}
-                />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="branch-email">Correo</FieldLabel>
-                <Input
-                  id="branch-email"
-                  type="email"
-                  value={email}
-                  onChange={event => setEmail(event.target.value)}
-                />
-              </Field>
-            </div>
-          </FieldGroup>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pending || !companyId}>
-              {pending ? 'Guardando...' : 'Guardar sucursal'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <BranchForm
+          key={branch?.id ?? 'new'}
+          branch={branch}
+          companies={companies}
+          pending={pending}
+          onCancel={() => onOpenChange(false)}
+          onSave={onSave}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BranchForm({
+  branch,
+  companies,
+  pending,
+  onCancel,
+  onSave,
+}: {
+  branch: Branch | null;
+  companies: Company[];
+  pending: boolean;
+  onCancel: () => void;
+  onSave: (body: BranchFormValue) => void;
+}) {
+  const [companyId, setCompanyId] = useState(() => branch?.companyId ?? companies[0]?.id ?? '');
+  const [name, setName] = useState(() => branch?.name ?? '');
+  const [address, setAddress] = useState(() => branch?.address ?? '');
+  const [phone, setPhone] = useState(() => branch?.phone ?? '');
+  const [email, setEmail] = useState(() => branch?.email ?? '');
+
+  return (
+    <form
+      onSubmit={event => {
+        event.preventDefault();
+        onSave({
+          companyId,
+          name: name.trim(),
+          ...(address.trim() ? { address: address.trim() } : {}),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          ...(email.trim() ? { email: email.trim() } : {}),
+        });
+      }}
+      className="flex flex-col gap-5"
+    >
+      <FieldGroup>
+        <Field>
+          <FieldLabel>Empresa</FieldLabel>
+          <Select value={companyId} onValueChange={setCompanyId}>
+            <SelectTrigger aria-label="Empresa de la sucursal">
+              <SelectValue placeholder="Selecciona una empresa" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {companies.map(company => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="branch-name">Nombre de sucursal</FieldLabel>
+          <Input
+            id="branch-name"
+            value={name}
+            onChange={event => setName(event.target.value)}
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="branch-address">Dirección</FieldLabel>
+          <Input
+            id="branch-address"
+            value={address}
+            onChange={event => setAddress(event.target.value)}
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="branch-phone">Teléfono</FieldLabel>
+            <Input
+              id="branch-phone"
+              value={phone}
+              onChange={event => setPhone(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="branch-email">Correo</FieldLabel>
+            <Input
+              id="branch-email"
+              type="email"
+              value={email}
+              onChange={event => setEmail(event.target.value)}
+            />
+          </Field>
+        </div>
+      </FieldGroup>
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={pending || !companyId}>
+          {pending ? 'Guardando...' : 'Guardar sucursal'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

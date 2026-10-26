@@ -47,7 +47,9 @@ describe('usePermission', () => {
 
   it('hasAllPermissions() returns true only when all match', () => {
     const { result } = renderHook(() => usePermission());
-    expect(result.current.hasAllPermissions(['dashboard:view', 'finance:invoices:view'])).toBe(true);
+    expect(result.current.hasAllPermissions(['dashboard:view', 'finance:invoices:view'])).toBe(
+      true
+    );
     expect(result.current.hasAllPermissions(['dashboard:view', 'hr:payroll:process'])).toBe(false);
   });
 

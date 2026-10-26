@@ -11,9 +11,13 @@ const messages = {
 } as const;
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const language = useUiStore((s) => s.language);
+  const language = useUiStore(s => s.language);
   return (
-    <NextIntlClientProvider locale={language} messages={messages[language]} timeZone="America/Caracas">
+    <NextIntlClientProvider
+      locale={language}
+      messages={messages[language]}
+      timeZone="America/Caracas"
+    >
       {children}
     </NextIntlClientProvider>
   );

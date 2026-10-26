@@ -15,7 +15,7 @@ function buildQuery(filters: ProductFilters = {}): string {
 export const productsApi = {
   list: (filters?: ProductFilters) =>
     apiClient.get<{ data: Product[]; total: number; page: number; limit: number }>(
-      `/products${buildQuery(filters)}`,
+      `/products${buildQuery(filters)}`
     ),
   get: (id: string) => apiClient.get<Product>(`/products/${id}`),
   create: (data: Partial<Product>) => apiClient.post<Product>('/products', data),

@@ -46,7 +46,7 @@ export function useUpdateInvoice(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Invoice>) => invoicesApi.update(id, data),
-    onSuccess: (data) => {
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: invoiceKeys.all });
       qc.setQueryData(invoiceKeys.detail(id), data);
     },
@@ -57,7 +57,7 @@ export function usePostInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => invoicesApi.post(id),
-    onSuccess: (data) => {
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: invoiceKeys.all });
       qc.setQueryData(invoiceKeys.detail(data.id), data);
     },
@@ -68,7 +68,7 @@ export function useVoidInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => invoicesApi.void(id, reason),
-    onSuccess: (data) => {
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: invoiceKeys.all });
       qc.setQueryData(invoiceKeys.detail(data.id), data);
     },

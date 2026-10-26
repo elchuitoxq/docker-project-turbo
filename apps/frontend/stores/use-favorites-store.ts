@@ -19,28 +19,30 @@ interface FavoritesState {
 
 export const useFavoritesStore = create<FavoritesState>()(
   persist(
-    (set) => ({
+    set => ({
       items: [],
       hasHydrated: false,
-      add: (fav) =>
-        set((state) => (state.items.find((i) => i.path === fav.path) ? state : { items: [...state.items, fav] })),
-      remove: (path) => set((state) => ({ items: state.items.filter((i) => i.path !== path) })),
+      add: fav =>
+        set(state =>
+          state.items.find(i => i.path === fav.path) ? state : { items: [...state.items, fav] }
+        ),
+      remove: path => set(state => ({ items: state.items.filter(i => i.path !== path) })),
       reorder: (fromIndex, toIndex) =>
-        set((state) => {
+        set(state => {
           const next = [...state.items];
           const [moved] = next.splice(fromIndex, 1);
           next.splice(toIndex, 0, moved);
           return { items: next };
         }),
-      setHydrated: (v) => set({ hasHydrated: v }),
+      setHydrated: v => set({ hasHydrated: v }),
       reset: () => set({ items: [] }),
     }),
     {
       name: 'erp.favorites',
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         state?.setHydrated(true);
       },
-    },
-  ),
+    }
+  )
 );

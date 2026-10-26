@@ -22,7 +22,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -88,7 +95,10 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
   const voidInvoice = useVoidInvoice();
 
   const filtered = (data?.data ?? []).filter(
-    (i) => !search || i.code.toLowerCase().includes(search.toLowerCase()) || (i.partnerName ?? '').toLowerCase().includes(search.toLowerCase()),
+    i =>
+      !search ||
+      i.code.toLowerCase().includes(search.toLowerCase()) ||
+      (i.partnerName ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -104,28 +114,15 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
 
       {stats && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-4">
-          <StatCard
-            icon={FileEdit}
-            label="Borradores"
-            value={stats.draft}
-            variant="secondary"
-          />
-          <StatCard
-            icon={CheckCircle2}
-            label="Emitidas"
-            value={stats.posted}
-            variant="default"
-          />
-          <StatCard
-            icon={AlertCircle}
-            label="Anuladas"
-            value={stats.void}
-            variant="destructive"
-          />
+          <StatCard icon={FileEdit} label="Borradores" value={stats.draft} variant="secondary" />
+          <StatCard icon={CheckCircle2} label="Emitidas" value={stats.posted} variant="default" />
+          <StatCard icon={AlertCircle} label="Anuladas" value={stats.void} variant="destructive" />
           <Card>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">Total emitido</p>
-              <p className="text-2xl font-bold tabular-nums">{formatCurrency(Number(stats.totalPosted))}</p>
+              <p className="text-2xl font-bold tabular-nums">
+                {formatCurrency(Number(stats.totalPosted))}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -138,7 +135,7 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por código o partner…"
                 className="pl-8"
               />
@@ -155,7 +152,10 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                     <SheetTitle>Filtros</SheetTitle>
                   </SheetHeader>
                   <div className="mt-4">
-                    <Select value={status} onValueChange={(v) => setStatus(v as InvoiceStatus | 'ALL')}>
+                    <Select
+                      value={status}
+                      onValueChange={v => setStatus(v as InvoiceStatus | 'ALL')}
+                    >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -170,7 +170,7 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                 </SheetContent>
               </Sheet>
             ) : (
-              <Select value={status} onValueChange={(v) => setStatus(v as InvoiceStatus | 'ALL')}>
+              <Select value={status} onValueChange={v => setStatus(v as InvoiceStatus | 'ALL')}>
                 <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
@@ -194,7 +194,11 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${filtered.length} factura${filtered.length === 1 ? '' : 's'}`}</CardDescription>
+          <CardDescription>
+            {isLoading
+              ? 'Cargando…'
+              : `${filtered.length} factura${filtered.length === 1 ? '' : 's'}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -219,7 +223,7 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((inv) => (
+                {filtered.map(inv => (
                   <TableRow key={inv.id}>
                     <TableCell className="font-mono text-xs">
                       <Link href={`/dashboard/finance/invoices`} className="hover:underline">
@@ -235,7 +239,10 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                       {inv.dueDate ? formatDate(inv.dueDate) : '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Number(inv.total), inv.currencyCode === 'VES' ? 'VES' : 'USD')}
+                      {formatCurrency(
+                        Number(inv.total),
+                        inv.currencyCode === 'VES' ? 'VES' : 'USD'
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -247,7 +254,9 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => {
-                              const blob = new Blob([JSON.stringify(inv, null, 2)], { type: 'application/json' });
+                              const blob = new Blob([JSON.stringify(inv, null, 2)], {
+                                type: 'application/json',
+                              });
                               const url = URL.createObjectURL(blob);
                               const a = document.createElement('a');
                               a.href = url;
@@ -258,30 +267,32 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                           >
                             <Download /> JSON Fiscal
                           </DropdownMenuItem>
-                          {inv.status === 'DRAFT' && hasPermission(PERMISSIONS.FINANCE.INVOICES.POST) && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                post.mutate(inv.id, {
-                                  onSuccess: () => toast.success('Factura emitida'),
-                                  onError: () => toast.error('Error al emitir'),
-                                })
-                              }
-                            >
-                              <Check /> Emitir
-                            </DropdownMenuItem>
-                          )}
-                          {inv.status === 'POSTED' && hasPermission(PERMISSIONS.FINANCE.INVOICES.VOID) && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setVoiding(inv);
-                                setVoidReason('');
-                                setVoidOpen(true);
-                              }}
-                              className="text-destructive"
-                            >
-                              <X /> Anular
-                            </DropdownMenuItem>
-                          )}
+                          {inv.status === 'DRAFT' &&
+                            hasPermission(PERMISSIONS.FINANCE.INVOICES.POST) && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  post.mutate(inv.id, {
+                                    onSuccess: () => toast.success('Factura emitida'),
+                                    onError: () => toast.error('Error al emitir'),
+                                  })
+                                }
+                              >
+                                <Check /> Emitir
+                              </DropdownMenuItem>
+                            )}
+                          {inv.status === 'POSTED' &&
+                            hasPermission(PERMISSIONS.FINANCE.INVOICES.VOID) && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setVoiding(inv);
+                                  setVoidReason('');
+                                  setVoidOpen(true);
+                                }}
+                                className="text-destructive"
+                              >
+                                <X /> Anular
+                              </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -302,7 +313,7 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
             </SheetDescription>
           </SheetHeader>
           <form
-            onSubmit={async (e) => {
+            onSubmit={async e => {
               e.preventDefault();
               if (!voiding || !voidReason) return;
               await voidInvoice.mutateAsync({ id: voiding.id, reason: voidReason });
@@ -318,7 +329,7 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
                 <textarea
                   id="void-reason"
                   value={voidReason}
-                  onChange={(e) => setVoidReason(e.target.value)}
+                  onChange={e => setVoidReason(e.target.value)}
                   required
                   className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   placeholder="Describe el motivo de la anulación…"
@@ -329,7 +340,11 @@ export function InvoicesView({ type }: { type: 'SALE' | 'PURCHASE' }) {
               <Button type="button" variant="outline" onClick={() => setVoidOpen(false)}>
                 {t('cancel')}
               </Button>
-              <Button type="submit" variant="destructive" disabled={!voidReason || voidInvoice.isPending}>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={!voidReason || voidInvoice.isPending}
+              >
                 Confirmar anulación
               </Button>
             </SheetFooter>

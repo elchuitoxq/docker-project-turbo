@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Search, Shield, Trash2, UserRoundPen } from 'lucide-react';
 import { toast } from 'sonner';
@@ -363,27 +363,53 @@ function UserDialog({
   branches,
   onOpenChange,
   onSave,
+  ...props
+}: UserFormProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{user ? 'Editar usuario' : 'Crear usuario'}</DialogTitle>
+          <DialogDescription>
+            Configura los datos de acceso, roles y sucursal predeterminada.
+          </DialogDescription>
+        </DialogHeader>
+        <UserForm
+          key={`${user?.id ?? 'new'}-${roles.length}`}
+          user={user}
+          roles={roles}
+          branches={branches}
+          onSave={onSave}
+          onCancel={() => onOpenChange(false)}
+          {...props}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function UserForm({
+  user,
+  roles,
+  branches,
+  onSave,
+  onCancel,
   pending,
   canManageRoleAssignments,
   canManageBranchAssignments,
-}: UserFormProps) {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+}: Omit<UserFormProps, 'open' | 'onOpenChange'> & { onCancel: () => void }) {
+  const [name, setName] = useState(() => user?.name ?? '');
+  const [email, setEmail] = useState(() => user?.email ?? '');
   const [password, setPassword] = useState('');
-  const [roleIds, setRoleIds] = useState<string[]>([]);
-  const [branchIds, setBranchIds] = useState<string[]>([]);
-  const [defaultBranchId, setDefaultBranchId] = useState('');
-
-  useEffect(() => {
-    if (!open) return;
-    setName(user?.name ?? '');
-    setEmail(user?.email ?? '');
-    setPassword('');
-    setRoleIds(roles.filter(role => user?.roles.includes(role.name)).map(role => role.id));
-    const assigned = user?.branches ?? [];
-    setBranchIds(assigned.map(branch => branch.id));
-    setDefaultBranchId(assigned.find(branch => branch.isDefault)?.id ?? '');
-  }, [open, user, roles]);
+  const [roleIds, setRoleIds] = useState<string[]>(() =>
+    roles.filter(role => user?.roles.includes(role.name)).map(role => role.id)
+  );
+  const [branchIds, setBranchIds] = useState<string[]>(
+    () => user?.branches.map(branch => branch.id) ?? []
+  );
+  const [defaultBranchId, setDefaultBranchId] = useState(
+    () => user?.branches.find(branch => branch.isDefault)?.id ?? ''
+  );
 
   function toggleValue(values: string[], value: string, checked: boolean): string[] {
     return checked ? [...values, value] : values.filter(current => current !== value);
@@ -404,138 +430,128 @@ function UserDialog({
   const availableAssignedBranches = branches.filter(branch => branchIds.includes(branch.id));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{user ? 'Editar usuario' : 'Crear usuario'}</DialogTitle>
-          <DialogDescription>
-            Configura los datos de acceso, roles y sucursal predeterminada.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="flex flex-col gap-6">
-          <FieldGroup className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
-              <Input
-                id="user-name"
-                value={name}
-                onChange={event => setName(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="user-email">Correo electrónico</FieldLabel>
-              <Input
-                id="user-email"
-                type="email"
-                value={email}
-                onChange={event => setEmail(event.target.value)}
-                required
-              />
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="user-password">
-                {user ? 'Nueva contraseña (opcional)' : 'Contraseña'}
-              </FieldLabel>
-              <Input
-                id="user-password"
-                type="password"
-                minLength={6}
-                value={password}
-                onChange={event => setPassword(event.target.value)}
-                required={!user}
-                autoComplete="new-password"
-              />
-            </Field>
-          </FieldGroup>
+    <form onSubmit={submit} className="flex flex-col gap-6">
+      <FieldGroup className="grid gap-4 sm:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="user-name">Nombre completo</FieldLabel>
+          <Input
+            id="user-name"
+            value={name}
+            onChange={event => setName(event.target.value)}
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="user-email">Correo electrónico</FieldLabel>
+          <Input
+            id="user-email"
+            type="email"
+            value={email}
+            onChange={event => setEmail(event.target.value)}
+            required
+          />
+        </Field>
+        <Field className="sm:col-span-2">
+          <FieldLabel htmlFor="user-password">
+            {user ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+          </FieldLabel>
+          <Input
+            id="user-password"
+            type="password"
+            minLength={6}
+            value={password}
+            onChange={event => setPassword(event.target.value)}
+            required={!user}
+            autoComplete="new-password"
+          />
+        </Field>
+      </FieldGroup>
 
-          {canManageRoleAssignments && (
-            <FieldSet>
-              <FieldLegend>Roles de acceso</FieldLegend>
-              <FieldDescription>
-                Los roles base no se editan aquí; puedes asignarlos o crear roles personalizados en
-                la sección Roles.
-              </FieldDescription>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {roles.map(role => (
-                  <label
-                    key={role.id}
-                    className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      checked={roleIds.includes(role.id)}
-                      onCheckedChange={checked =>
-                        setRoleIds(current => toggleValue(current, role.id, checked === true))
+      {canManageRoleAssignments && (
+        <FieldSet>
+          <FieldLegend>Roles de acceso</FieldLegend>
+          <FieldDescription>
+            Los roles base no se editan aquí; puedes asignarlos o crear roles personalizados en la
+            sección Roles.
+          </FieldDescription>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {roles.map(role => (
+              <label
+                key={role.id}
+                className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={roleIds.includes(role.id)}
+                  onCheckedChange={checked =>
+                    setRoleIds(current => toggleValue(current, role.id, checked === true))
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">{role.name}</span>
+                {role.isSystem && <Badge variant="outline">Sistema</Badge>}
+              </label>
+            ))}
+          </div>
+        </FieldSet>
+      )}
+
+      {canManageBranchAssignments && (
+        <FieldSet>
+          <FieldLegend>Sucursales asignadas</FieldLegend>
+          <FieldDescription>
+            Si asignas sucursales, elige exactamente una como predeterminada.
+          </FieldDescription>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {branches
+              .filter(branch => branch.isActive)
+              .map(branch => (
+                <label
+                  key={branch.id}
+                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
+                >
+                  <Checkbox
+                    checked={branchIds.includes(branch.id)}
+                    onCheckedChange={checked => {
+                      const selected = checked === true;
+                      setBranchIds(current => toggleValue(current, branch.id, selected));
+                      if (selected && !defaultBranchId) setDefaultBranchId(branch.id);
+                      if (!selected && defaultBranchId === branch.id) {
+                        setDefaultBranchId(branchIds.filter(id => id !== branch.id)[0] ?? '');
                       }
-                    />
-                    <span className="min-w-0 flex-1 truncate">{role.name}</span>
-                    {role.isSystem && <Badge variant="outline">Sistema</Badge>}
-                  </label>
-                ))}
-              </div>
-            </FieldSet>
+                    }}
+                  />
+                  <span className="truncate">{branch.name}</span>
+                </label>
+              ))}
+          </div>
+          {availableAssignedBranches.length > 0 && (
+            <Field>
+              <FieldLabel>Sucursal predeterminada</FieldLabel>
+              <Select value={defaultBranchId} onValueChange={setDefaultBranchId}>
+                <SelectTrigger aria-label="Sucursal predeterminada">
+                  <SelectValue placeholder="Selecciona una sucursal" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {availableAssignedBranches.map(branch => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
           )}
-
-          {canManageBranchAssignments && (
-            <FieldSet>
-              <FieldLegend>Sucursales asignadas</FieldLegend>
-              <FieldDescription>
-                Si asignas sucursales, elige exactamente una como predeterminada.
-              </FieldDescription>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {branches
-                  .filter(branch => branch.isActive)
-                  .map(branch => (
-                    <label
-                      key={branch.id}
-                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        checked={branchIds.includes(branch.id)}
-                        onCheckedChange={checked => {
-                          const selected = checked === true;
-                          setBranchIds(current => toggleValue(current, branch.id, selected));
-                          if (selected && !defaultBranchId) setDefaultBranchId(branch.id);
-                          if (!selected && defaultBranchId === branch.id) {
-                            setDefaultBranchId(branchIds.filter(id => id !== branch.id)[0] ?? '');
-                          }
-                        }}
-                      />
-                      <span className="truncate">{branch.name}</span>
-                    </label>
-                  ))}
-              </div>
-              {availableAssignedBranches.length > 0 && (
-                <Field>
-                  <FieldLabel>Sucursal predeterminada</FieldLabel>
-                  <Select value={defaultBranchId} onValueChange={setDefaultBranchId}>
-                    <SelectTrigger aria-label="Sucursal predeterminada">
-                      <SelectValue placeholder="Selecciona una sucursal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {availableAssignedBranches.map(branch => (
-                          <SelectItem key={branch.id} value={branch.id}>
-                            {branch.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              )}
-            </FieldSet>
-          )}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pending}>
-              {pending ? 'Guardando...' : user ? 'Guardar cambios' : 'Crear usuario'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </FieldSet>
+      )}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Guardando...' : user ? 'Guardar cambios' : 'Crear usuario'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

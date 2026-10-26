@@ -37,14 +37,12 @@ export function PartnersView() {
   const { hasPermission } = usePermission();
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState<PartnerType | 'ALL'>('ALL');
-  const [view, setView] = React.useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
   const [page, setPage] = React.useState(1);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Partner | null>(null);
 
-  React.useEffect(() => {
-    if (isMobile) setView('cards');
-  }, [isMobile]);
+  const view = isMobile ? 'cards' : viewMode;
 
   const filters = React.useMemo(
     () => ({
@@ -96,7 +94,7 @@ export function PartnersView() {
             <ToggleGroup
               type="single"
               value={view}
-              onValueChange={v => v && setView(v as 'table' | 'cards')}
+              onValueChange={v => v && setViewMode(v as 'table' | 'cards')}
               size="sm"
             >
               <ToggleGroupItem value="table" aria-label="Tabla">

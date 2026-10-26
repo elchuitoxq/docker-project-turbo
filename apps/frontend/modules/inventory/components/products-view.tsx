@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Loader2,
@@ -89,14 +89,12 @@ export function ProductsView() {
   const { hasPermission } = usePermission();
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState<ProductType | 'ALL'>('ALL');
-  const [view, setView] = React.useState<'table' | 'cards'>('table');
+  const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
   const [page, setPage] = React.useState(1);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Product | null>(null);
 
-  React.useEffect(() => {
-    if (isMobile) setView('cards');
-  }, [isMobile]);
+  const view = isMobile ? 'cards' : viewMode;
 
   const filters = React.useMemo(
     () => ({
@@ -148,7 +146,7 @@ export function ProductsView() {
             <ToggleGroup
               type="single"
               value={view}
-              onValueChange={v => v && setView(v as 'table' | 'cards')}
+              onValueChange={v => v && setViewMode(v as 'table' | 'cards')}
               size="sm"
             >
               <ToggleGroupItem value="table" aria-label="Tabla">
@@ -409,7 +407,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -460,6 +458,11 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
     }
   }, [product, reset]);
 
+  const typeValue = useWatch({ control, name: 'type' });
+  const categoryId = useWatch({ control, name: 'categoryId' });
+  const isExempt = useWatch({ control, name: 'isExempt' });
+  const hasBatches = useWatch({ control, name: 'hasBatches' });
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
@@ -494,7 +497,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
             <Field>
               <FieldLabel htmlFor="type">Tipo</FieldLabel>
               <Select
-                value={watch('type')}
+                value={typeValue}
                 onValueChange={v => setValue('type', v as ProductFormValues['type'])}
               >
                 <SelectTrigger id="type">
@@ -509,10 +512,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
             </Field>
             <Field>
               <FieldLabel htmlFor="categoryId">Categoría</FieldLabel>
-              <Select
-                value={watch('categoryId') ?? ''}
-                onValueChange={v => setValue('categoryId', v)}
-              >
+              <Select value={categoryId ?? ''} onValueChange={v => setValue('categoryId', v)}>
                 <SelectTrigger id="categoryId">
                   <SelectValue placeholder="Seleccionar…" />
                 </SelectTrigger>
@@ -569,7 +569,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
             <Field orientation="horizontal" className="items-center gap-2 space-y-0">
               <Checkbox
                 id="isExempt"
-                checked={watch('isExempt')}
+                checked={isExempt}
                 onCheckedChange={v => setValue('isExempt', !!v)}
               />
               <FieldLabel htmlFor="isExempt" className="cursor-pointer">
@@ -579,7 +579,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
             <Field orientation="horizontal" className="items-center gap-2 space-y-0">
               <Checkbox
                 id="hasBatches"
-                checked={watch('hasBatches')}
+                checked={hasBatches}
                 onCheckedChange={v => setValue('hasBatches', !!v)}
               />
               <FieldLabel htmlFor="hasBatches" className="cursor-pointer">

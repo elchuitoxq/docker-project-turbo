@@ -9,7 +9,19 @@
     "password": "Password",
     "submit": "Sign in",
     "invalidCredentials": "Invalid credentials",
-    "sessionExpired": "Your session has expired"
+    "sessionExpired": "Your session has expired",
+    "resetPassword": {
+      "title": "Reset password",
+      "description": "Choose a new password for your account.",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "submit": "Save password",
+      "success": "Your password has been updated. You can sign in now.",
+      "mismatch": "Passwords do not match",
+      "invalidToken": "The link is invalid or has expired. Request a new one.",
+      "tooManyAttempts": "Too many attempts. Wait a minute and try again.",
+      "backToLogin": "Back to sign in"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",

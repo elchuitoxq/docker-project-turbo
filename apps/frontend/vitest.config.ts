@@ -13,9 +13,17 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     fileParallelism: false,
-    isolate: false,
+    // `isolate: false` compartía el registro de módulos entre archivos y volvía
+    // flaky tests con estado global (msw + stores de zustand). Ver P-09.
+    isolate: true,
     include: ['**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
     exclude: ['node_modules', '.next', '.turbo', 'dist', 'e2e'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      // Umbrales de no-regresión (medidos 2026-10-26: 52.31 / 53.84 / 49.34 / 55.00).
+      thresholds: { statements: 47, branches: 48, functions: 44, lines: 50 },
+    },
   },
 });

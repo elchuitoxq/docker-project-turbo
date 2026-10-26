@@ -44,7 +44,7 @@ export function useUpdateProduct(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Product>) => productsApi.update(id, data),
-    onSuccess: (data) => {
+    onSuccess: data => {
       qc.invalidateQueries({ queryKey: productsKeys.all });
       qc.setQueryData(productsKeys.detail(id), data);
     },
@@ -55,12 +55,11 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => productsApi.remove(id),
-    onMutate: async (id) => {
+    onMutate: async id => {
       await qc.cancelQueries({ queryKey: productsKeys.all });
       const previous = qc.getQueriesData({ queryKey: productsKeys.all });
-      qc.setQueriesData<{ data: Product[]; total: number }>(
-        { queryKey: productsKeys.all },
-        (old) => (old ? { ...old, data: old.data.filter((p) => p.id !== id), total: old.total - 1 } : old),
+      qc.setQueriesData<{ data: Product[]; total: number }>({ queryKey: productsKeys.all }, old =>
+        old ? { ...old, data: old.data.filter(p => p.id !== id), total: old.total - 1 } : old
       );
       return { previous };
     },

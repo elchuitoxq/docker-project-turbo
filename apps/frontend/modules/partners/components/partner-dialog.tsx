@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -49,7 +49,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<PartnerFormInput, unknown, PartnerFormValues>({
     resolver: zodResolver(partnerSchema),
@@ -96,6 +96,10 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
       });
     }
   }, [partner, reset]);
+
+  const typeValue = useWatch({ control, name: 'type' });
+  const taxpayerType = useWatch({ control, name: 'taxpayerType' });
+  const isSpecialTaxpayer = useWatch({ control, name: 'isSpecialTaxpayer' });
 
   const onSubmit = handleSubmit(async data => {
     try {
@@ -160,7 +164,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
             <Field>
               <FieldLabel htmlFor="type">Tipo</FieldLabel>
               <Select
-                value={watch('type')}
+                value={typeValue}
                 onValueChange={v => setValue('type', v as PartnerFormValues['type'])}
               >
                 <SelectTrigger id="type">
@@ -196,7 +200,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
             <Field>
               <FieldLabel htmlFor="taxpayerType">Tipo de contribuyente</FieldLabel>
               <Select
-                value={watch('taxpayerType')}
+                value={taxpayerType}
                 onValueChange={v =>
                   setValue('taxpayerType', v as PartnerFormValues['taxpayerType'])
                 }
@@ -237,7 +241,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
             <Field orientation="horizontal" className="items-center gap-2 space-y-0">
               <Checkbox
                 id="isSpecialTaxpayer"
-                checked={watch('isSpecialTaxpayer')}
+                checked={isSpecialTaxpayer}
                 onCheckedChange={v => setValue('isSpecialTaxpayer', !!v)}
               />
               <FieldLabel htmlFor="isSpecialTaxpayer" className="cursor-pointer">

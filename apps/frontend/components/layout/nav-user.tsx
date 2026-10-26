@@ -18,11 +18,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar';
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { useCompanyStore } from '@/stores/use-company-store';
 import { useBranchStore } from '@/stores/use-branch-store';
@@ -31,19 +27,19 @@ import { useUiStore, type Language } from '@/stores/use-ui-store';
 export function NavUser() {
   const t = useTranslations('auth');
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
-  const resetCompany = useCompanyStore((s) => s.reset);
-  const resetBranch = useBranchStore((s) => s.reset);
+  const user = useAuthStore(s => s.user);
+  const logout = useAuthStore(s => s.logout);
+  const resetCompany = useCompanyStore(s => s.reset);
+  const resetBranch = useBranchStore(s => s.reset);
   const { setTheme } = useTheme();
-  const language = useUiStore((s) => s.language);
-  const setLanguage = useUiStore((s) => s.setLanguage);
+  const language = useUiStore(s => s.language);
+  const setLanguage = useUiStore(s => s.setLanguage);
 
   if (!user) return null;
 
   const initials = user.name
     .split(' ')
-    .map((p) => p[0])
+    .map(p => p[0])
     .slice(0, 2)
     .join('')
     .toUpperCase();

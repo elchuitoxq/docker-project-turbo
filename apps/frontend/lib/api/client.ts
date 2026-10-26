@@ -14,17 +14,20 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const { token } = useAuthStore.getState();
   const { currentBranchId } = useBranchStore.getState();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(currentBranchId ? { 'x-branch-id': currentBranchId } : {}),
     ...(init.headers as Record<string, string> | undefined),
   };
 
-  const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${env.NEXT_PUBLIC_API_PREFIX}${path}`, { ...init, headers });
+  const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${env.NEXT_PUBLIC_API_PREFIX}${path}`, {
+    ...init,
+    headers,
+    // La sesión viaja en una cookie httpOnly (no accesible desde JavaScript).
+    credentials: 'include',
+  });
 
   if (res.status === 401) {
     useAuthStore.getState().logout();
@@ -44,13 +47,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const apiClient = {
-  get: <T,>(path: string) => request<T>(path),
-  post: <T,>(path: string, body: unknown) =>
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-  put: <T,>(path: string, body: unknown) =>
+  put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
-  patch: <T,>(path: string, body: unknown) =>
+  patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
-  request: <T,>(path: string, init?: RequestInit) => request<T>(path, init),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  request: <T>(path: string, init?: RequestInit) => request<T>(path, init),
 };

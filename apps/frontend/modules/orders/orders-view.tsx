@@ -4,7 +4,14 @@ import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ordersApi, type Order } from './orders-api';
 import { formatCurrency, formatDate } from '@/lib/utils';
@@ -16,12 +23,13 @@ const STATUS_LABEL: Record<Order['status'], string> = {
   CANCELLED: 'Cancelado',
 };
 
-const STATUS_VARIANT: Record<Order['status'], 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  PENDING: 'secondary',
-  APPROVED: 'default',
-  INVOICED: 'outline',
-  CANCELLED: 'destructive',
-};
+const STATUS_VARIANT: Record<Order['status'], 'default' | 'secondary' | 'destructive' | 'outline'> =
+  {
+    PENDING: 'secondary',
+    APPROVED: 'default',
+    INVOICED: 'outline',
+    CANCELLED: 'destructive',
+  };
 
 export function OrdersView() {
   const { data, isLoading } = useQuery({
@@ -41,7 +49,9 @@ export function OrdersView() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>{isLoading ? 'Cargando…' : `${orders.length} pedido${orders.length === 1 ? '' : 's'}`}</CardDescription>
+          <CardDescription>
+            {isLoading ? 'Cargando…' : `${orders.length} pedido${orders.length === 1 ? '' : 's'}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
@@ -65,7 +75,7 @@ export function OrdersView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((o) => (
+                {orders.map(o => (
                   <TableRow key={o.id}>
                     <TableCell className="font-mono text-xs">{o.code}</TableCell>
                     <TableCell className="text-xs">{formatDate(o.orderDate)}</TableCell>

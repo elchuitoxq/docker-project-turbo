@@ -5,7 +5,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Briefcase } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePositions } from '../hooks';
 import { formatCurrency } from '@/lib/utils';
@@ -24,7 +31,9 @@ export function PositionsView() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
           <CardDescription>
-            {isLoading ? 'Cargando…' : `${positions.length} cargo${positions.length === 1 ? '' : 's'}`}
+            {isLoading
+              ? 'Cargando…'
+              : `${positions.length} cargo${positions.length === 1 ? '' : 's'}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -48,7 +57,7 @@ export function PositionsView() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map((p) => (
+                {positions.map(p => (
                   <TableRow key={p.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
