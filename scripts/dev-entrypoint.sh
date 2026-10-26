@@ -16,6 +16,13 @@ if [ -n "$WAIT_FOR_POSTGRES" ]; then
   echo "[entrypoint] Postgres listo (esperado ${ATTEMPTS}s)"
 fi
 
+# El backend consume el paquete `database` compilado (dist). Sin este build el
+# runtime fallaria al resolver `require('database')`.
+if [ "$BUILD_DATABASE" = "true" ]; then
+  echo "[entrypoint] Compilando paquete database..."
+  pnpm --filter database build
+fi
+
 if [ "$RUN_DATABASE_SETUP" = "true" ]; then
   echo "[entrypoint] Aplicando migraciones de la base de desarrollo..."
   pnpm --filter database db:migrate

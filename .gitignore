@@ -44,6 +44,16 @@ Thumbs.db
 # --- Testing ---
 coverage/
 *.lcov
+test-results/
+playwright-report/
+blob-report/
+
+# --- Artefactos de herramientas / agentes ---
+graphify-out/
+.opencode/
+
+# --- Generados ---
+packages/shared-types/openapi.json
 
 # --- Misc ---
 *.tsbuildinfo

@@ -2,13 +2,19 @@
   "name": "mi-monorepo",
   "private": true,
   "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=20.19",
+    "pnpm": ">=10"
+  },
   "pnpm": {
     "overrides": {
       "body-parser": "^1.20.9",
       "js-yaml": "^4.3.2",
       "lodash": "^4.18.0",
       "multer": "^2.3.0",
-      "qs": "^6.16.1"
+      "qs": "^6.16.1",
+      "esbuild@<0.25.0": "^0.25.12",
+      "uuid@<11.1.1": "^11.1.1"
     },
     "onlyBuiltDependencies": [
       "@nestjs/core",
@@ -26,7 +32,9 @@
     "dev:mock": "pnpm --filter backend mock",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:db": "pnpm --filter database db:studio",
-    "dev:docker:up": "docker compose up",
+    "dev:docker:up": "docker compose up -d",
+    "dev:docker:tools": "docker compose --profile tools up -d",
+    "dev:docker:watch": "docker compose watch",
     "dev:docker:build": "docker compose up --build",
     "dev:docker:down": "docker compose down",
     "dev:docker:logs": "docker compose logs -f",
@@ -34,10 +42,11 @@
     "openapi:export": "pnpm --filter backend openapi:export",
     "sync:types": "pnpm --filter @mi-monorepo/shared-types sync",
     "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" \"!**/node_modules/**\" \"!**/dist/**\" \"!**/.next/**\" \"!**/coverage/**\" \"!**/.turbo/**\" \"!packages/database/drizzle/**\" \"!packages/shared-types/src/api-types.ts\" \"!packages/shared-types/openapi.json\" \"!apps/backend/docs/openapi.json\" \"!apps/frontend/next-env.d.ts\" \"!test-results/**\" \"!playwright-report/**\" \"!audit-report/**\" \"!graphify-out/**\" \"!.agents/**\" \"!.opencode/**\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\" \"!**/node_modules/**\" \"!**/dist/**\" \"!**/.next/**\" \"!**/coverage/**\" \"!**/.turbo/**\" \"!packages/database/drizzle/**\" \"!packages/shared-types/src/api-types.ts\" \"!packages/shared-types/openapi.json\" \"!apps/backend/docs/openapi.json\" \"!apps/frontend/next-env.d.ts\" \"!test-results/**\" \"!playwright-report/**\" \"!audit-report/**\" \"!graphify-out/**\" \"!.agents/**\" \"!.opencode/**\"",
     "test": "turbo run test",
     "test:watch": "turbo run test:watch",
     "test:coverage": "turbo run test:coverage",
@@ -45,7 +54,8 @@
     "db:migrate": "turbo run db:migrate",
     "db:seed:test": "turbo run db:seed:test",
     "test:db:prepare": "turbo run test:db:prepare",
-    "prepare": "husky install"
+    "test:e2e": "playwright test",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

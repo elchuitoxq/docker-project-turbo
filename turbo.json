@@ -1,18 +1,26 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
+  "globalEnv": ["NODE_ENV", "CI"],
+  "globalDependencies": ["tsconfig.base.json", "pnpm-lock.yaml"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**/*", "tsconfig.json", "next.config.js"],
-      "outputs": [".next/**", "dist/**"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["NEXT_PUBLIC_*", "NEXT_OUTPUT", "NODE_ENV"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "db:generate": {
       "inputs": ["src/**/*", "drizzle.config.ts"],
+      "outputs": ["drizzle/**"],
       "cache": true
     },
     "db:migrate": {
@@ -24,9 +32,7 @@
     "test:db:prepare": {
       "cache": false
     },
-    "lint": {
-      "dependsOn": ["^build"]
-    },
+    "lint": {},
     "lint:fix": {
       "cache": false
     },
@@ -34,9 +40,17 @@
       "cache": false,
       "outputs": []
     },
+    "test:coverage": {
+      "cache": false,
+      "outputs": ["coverage/**"]
+    },
     "test:watch": {
       "cache": false,
       "persistent": true
+    },
+    "test:e2e": {
+      "cache": false,
+      "outputs": ["playwright-report/**", "test-results/**"]
     }
   }
 }

@@ -8,4 +8,15 @@ coverage/
 .env
 .env.*
 docker-compose.override.yml
-</contents>
+
+# Artefactos generados / contenido histórico que no se formatea
+.agents/
+graphify-out/
+audit-report/
+.opencode/
+test-results/
+playwright-report/
+packages/shared-types/src/api-types.ts
+packages/shared-types/openapi.json
+**/docs/openapi.json
+packages/database/drizzle/meta/</contents>
