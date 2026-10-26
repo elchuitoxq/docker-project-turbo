@@ -456,3 +456,29 @@ código funcional** en esta tanda.
 
 **Pendiente para la próxima tanda:** aprobar T-00-02 (alcance de `partners`/`products`) y arrancar
 la ola 1 (T-00-01 … T-00-07).
+
+---
+
+### BT-030 · 2026-10-26 · Decisión de negocio sobre maestros y revisión del plan
+
+**Decisión (cierra T-00-02)**
+
+`partners`, `products` y `product_categories` se mantienen **compartidos entre sucursales**, igual
+que `banks`, `tax_concepts` y `exchange_rates`. No se migran a `branch_id`.
+
+**Consecuencias registradas**
+
+- Regla **R5** nueva en [`docs/sdd/02-arquitectura-y-convenciones.md`](../sdd/02-arquitectura-y-convenciones.md):
+  la cabecera `x-branch-id` sigue siendo obligatoria en catálogo, pero la lectura no se filtra por
+  sucursal; la escritura exige `core:catalog:manage` (alcance de empresa).
+- T-00-04 amplía su alcance: ahora crea dos permisos (`core:branch:all` y `core:catalog:manage`).
+- T-00-07 no cambia (las 12 tablas del grupo B siguen necesitando columna).
+- T-00-08 se acota: los servicios de catálogo validan permiso, no pertenencia.
+
+**Estado del plan:** 87 tareas, **2 completadas** (T-00-01 inventario, T-00-02 clasificación).
+El usuario pidió **revisar el plan antes de escribir código**; no se tocó código funcional.
+
+**Verificación**
+
+- `pnpm exec prettier --check "docs/sdd/**/*.md" "docs/update/*.md"` verde.
+- Enlaces relativos de `docs/sdd/` y `docs/update/` validados (0 rotos).

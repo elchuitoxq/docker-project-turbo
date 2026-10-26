@@ -22,21 +22,21 @@
 
 ### 1.1 Tareas
 
-| ID      | Tarea                                                                                                                                                                                 | Artefactos principales                                                                                 | Depende          | Verificación                                                  | Talla | Estado |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ------------------------------------------------------------- | ----- | ------ |
-| T-00-01 | Inventario de `branch_id` en las 50 tablas del schema                                                                                                                                 | `packages/database/src/schema.ts` (lectura)                                                            | —                | conteo reproducible (ver §1.2)                                | S     | ✅     |
-| T-00-02 | Clasificar las 32 tablas sin `branch_id`: heredan del padre / requieren columna / compartidas por diseño                                                                              | este documento §1.2                                                                                    | T-00-01          | revisión con negocio sobre `partners`, `products`, `banks`    | S     | 🟡     |
-| T-00-03 | `BranchContextGuard` + `@CurrentBranch()` + `@SkipBranch()`; valida `x-branch-id` contra `users_branches`; `403` sin asignación, `404` recurso ajeno; fallback query/body con warning | `apps/backend/src/common/branch/*` (nuevo), registro en `app.module.ts`                                | T-00-02          | unit: sin cabecera→400, sucursal ajena→403, recurso ajeno→404 | M     | ⬜     |
-| T-00-04 | Permiso `core:branch:all` para modo consolidado                                                                                                                                       | `packages/database/src/scripts/seed-rbac.ts`, `apps/frontend/lib/permissions.ts`                       | —                | seed idempotente; UI muestra etiqueta "Consolidado"           | S     | ⬜     |
-| T-00-05 | Migración `audit_logs.branch_id` + índice                                                                                                                                             | `packages/database/drizzle/*`                                                                          | —                | `pnpm --filter database db:generate` revisado + migrate       | S     | ⬜     |
-| T-00-06 | `AuditService.record()` + interceptor en escrituras de dinero/stock                                                                                                                   | `apps/backend/src/modules/audit/*`                                                                     | T-00-05          | integración: factura y pago dejan fila en `audit_logs`        | M     | ⬜     |
-| T-00-07 | Migraciones de `branch_id` con backfill desde el padre                                                                                                                                | tablas de §1.2 grupo B                                                                                 | T-00-02          | migración corre 2 veces sin error; conteos cuadran            | L     | ⬜     |
-| T-00-08 | Filtrado por sucursal en los 8 servicios de negocio                                                                                                                                   | `modules/{billing,treasury,inventory,orders,hr,accounting,credit-notes,loans}`                         | T-00-03, T-00-07 | integración: usuario de A no ve filas de B en cada módulo     | XL    | ⬜     |
-| T-00-09 | `GET /v1/auth/me` devuelve `defaultBranchId`                                                                                                                                          | `modules/auth/auth.service.ts`, `shared-types`                                                         | T-00-03          | contrato OpenAPI regenerado                                   | S     | ⬜     |
-| T-00-10 | Frontend: validar la sucursal contra el backend antes de pintar el dashboard; pantalla "sin acceso a esta sucursal"                                                                   | `apps/frontend/app/(dashboard)/layout.tsx`, `stores/use-auth-store.ts`                                 | T-00-09          | E2E: usuario sin sucursal ve la pantalla de bloqueo           | M     | ⬜     |
-| T-00-11 | `queryClient.clear()` al cambiar de sucursal                                                                                                                                          | `apps/frontend/lib/api/query-client.ts`, selector de sucursal                                          | T-00-10          | no quedan datos de la sucursal anterior en caché              | S     | ⬜     |
-| T-00-12 | Pruebas de aislamiento cruzado                                                                                                                                                        | `*.service.test.ts` + `apps/backend/test/*` + `e2e/*`                                                  | T-00-08          | 3 capas verdes; E2E "B no ve A"                               | M     | ⬜     |
-| T-00-13 | Documentar el contrato de la cabecera                                                                                                                                                 | `docs/API-CONTRACTS.md`, [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md) §3 | T-00-03          | `@ApiHeader` visible en Swagger                               | S     | ⬜     |
+| ID      | Tarea                                                                                                                                                                                 | Artefactos principales                                                                                 | Depende          | Verificación                                                     | Talla | Estado |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- | ---------------------------------------------------------------- | ----- | ------ |
+| T-00-01 | Inventario de `branch_id` en las 50 tablas del schema                                                                                                                                 | `packages/database/src/schema.ts` (lectura)                                                            | —                | conteo reproducible (ver §1.2)                                   | S     | ✅     |
+| T-00-02 | Clasificar las 32 tablas sin `branch_id`: heredan del padre / requieren columna / compartidas por diseño                                                                              | este documento §1.2                                                                                    | T-00-01          | **decidido** (2026-10-26): maestros compartidos entre sucursales | S     | ✅     |
+| T-00-03 | `BranchContextGuard` + `@CurrentBranch()` + `@SkipBranch()`; valida `x-branch-id` contra `users_branches`; `403` sin asignación, `404` recurso ajeno; fallback query/body con warning | `apps/backend/src/common/branch/*` (nuevo), registro en `app.module.ts`                                | T-00-02          | unit: sin cabecera→400, sucursal ajena→403, recurso ajeno→404    | M     | ⬜     |
+| T-00-04 | Permisos nuevos: `core:branch:all` (modo consolidado) y `core:catalog:manage` (maestros compartidos)                                                                                  | `packages/database/src/scripts/seed-rbac.ts`, `apps/frontend/lib/permissions.ts`                       | —                | seed idempotente; UI muestra etiqueta "Consolidado"              | S     | ⬜     |
+| T-00-05 | Migración `audit_logs.branch_id` + índice                                                                                                                                             | `packages/database/drizzle/*`                                                                          | —                | `pnpm --filter database db:generate` revisado + migrate          | S     | ⬜     |
+| T-00-06 | `AuditService.record()` + interceptor en escrituras de dinero/stock                                                                                                                   | `apps/backend/src/modules/audit/*`                                                                     | T-00-05          | integración: factura y pago dejan fila en `audit_logs`           | M     | ⬜     |
+| T-00-07 | Migraciones de `branch_id` con backfill desde el padre                                                                                                                                | tablas de §1.2 grupo B                                                                                 | T-00-02          | migración corre 2 veces sin error; conteos cuadran               | L     | ⬜     |
+| T-00-08 | Filtrado por sucursal en los 8 servicios de negocio                                                                                                                                   | `modules/{billing,treasury,inventory,orders,hr,accounting,credit-notes,loans}`                         | T-00-03, T-00-07 | integración: usuario de A no ve filas de B en cada módulo        | XL    | ⬜     |
+| T-00-09 | `GET /v1/auth/me` devuelve `defaultBranchId`                                                                                                                                          | `modules/auth/auth.service.ts`, `shared-types`                                                         | T-00-03          | contrato OpenAPI regenerado                                      | S     | ⬜     |
+| T-00-10 | Frontend: validar la sucursal contra el backend antes de pintar el dashboard; pantalla "sin acceso a esta sucursal"                                                                   | `apps/frontend/app/(dashboard)/layout.tsx`, `stores/use-auth-store.ts`                                 | T-00-09          | E2E: usuario sin sucursal ve la pantalla de bloqueo              | M     | ⬜     |
+| T-00-11 | `queryClient.clear()` al cambiar de sucursal                                                                                                                                          | `apps/frontend/lib/api/query-client.ts`, selector de sucursal                                          | T-00-10          | no quedan datos de la sucursal anterior en caché                 | S     | ⬜     |
+| T-00-12 | Pruebas de aislamiento cruzado                                                                                                                                                        | `*.service.test.ts` + `apps/backend/test/*` + `e2e/*`                                                  | T-00-08          | 3 capas verdes; E2E "B no ve A"                                  | M     | ⬜     |
+| T-00-13 | Documentar el contrato de la cabecera                                                                                                                                                 | `docs/API-CONTRACTS.md`, [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md) §3 | T-00-03          | `@ApiHeader` visible en Swagger                                  | S     | ⬜     |
 
 **Gate de salida E0:** los 8 módulos responden `403`/`404` correctamente ante sucursal ajena, no baja
 ningún umbral de cobertura, y `pnpm audit` sigue en 0.
@@ -58,9 +58,22 @@ Medición sobre `packages/database/src/schema.ts`: **50 tablas**, **18 con `bran
 `product_categories`, `banks`, `branches`, `roles`, `permissions`, `tax_concepts`, `exchange_rates`,
 `user_app_settings`.
 
-> 🟡 **Decisión pendiente de negocio (T-00-02):** si `partners` y `products` deben poder compartirse
-> entre sucursales (hoy es la lectura del código) o si cada sucursal exige su propio maestro. De esto
-> depende el alcance real de T-00-08.
+> ✅ **Decisión tomada (2026-10-26, T-00-02):** `partners` y `products`/`product_categories` se
+> mantienen **compartidos entre sucursales**, igual que `banks`, `tax_concepts` y `exchange_rates`.
+> Consecuencias que se aplican en T-00-08:
+>
+> 1. **Lectura de catálogo:** estos endpoints _no_ filtran por sucursal (`GET /partners`,
+>    `GET /products`, `GET /product-categories`, `GET /settings/*`) — la cabecera sigue siendo
+>    obligatoria, pero se valida permiso, no pertenencia.
+> 2. **Escritura de catálogo:** crear o modificar un partner o producto requiere permiso con alcance
+>    de empresa (`core:catalog:manage`), no de sucursal; queda auditado con la sucursal activa.
+> 3. **Documentos:** todo lo que genera movimientos (`invoices`, `orders`, `payments`, `inventory_moves`,
+>    `loans`, `payroll_runs`, `accounting_entries`) sí se filtra y se estampa por sucursal.
+> 4. **Reportes:** un partner con movimientos en dos sucursales se reporta por separado en cada una;
+>    nunca se consolida sin `core:branch:all`.
+>
+> Esto **no** reduce el alcance de T-00-07 (las 12 tablas del grupo B siguen necesitando columna) pero
+> sí acota T-00-08: los servicios de catálogo se validan con permiso y no con pertenencia.
 
 ---
 
@@ -229,7 +242,7 @@ trazada.
 
 | Ola | Semanas | Épica / tareas                 | Tareas | Hechas |
 | --- | ------- | ------------------------------ | ------ | ------ |
-| 1   | 1       | E0 backend (T-00-01 … T-00-07) | 7      | 1      |
+| 1   | 1       | E0 backend (T-00-01 … T-00-07) | 7      | 2      |
 | 2   | 2       | E0 cierre (T-00-08 … T-00-13)  | 6      | 0      |
 | 3   | 3       | E1 frentes A, B y C            | 18     | 0      |
 | 4   | 4-5     | E2 nómina                      | 10     | 0      |
@@ -239,7 +252,7 @@ trazada.
 | 8   | 11      | E6 reportes fiscales           | 6      | 0      |
 | 9   | 12      | E7 frontend restante           | 7      | 0      |
 | —   | —       | Transversales                  | 6      | 0      |
-| —   | —       | **Total**                      | **87** | **1**  |
+| —   | —       | **Total**                      | **87** | **2**  |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). E1 antes de E2-E7 porque desbloquea pantallas hoy rotas con esfuerzo bajo.
