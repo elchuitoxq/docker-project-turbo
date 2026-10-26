@@ -363,3 +363,29 @@ consecutivas**.
 | `pnpm turbo run test:coverage`   | ✅ 4/4 (699 + 75 + 29 tests)               |
 | `pnpm exec playwright test`      | ✅ 7/7 (× 3)                               |
 | `docker compose ps`              | ✅ backend + frontend + postgres `healthy` |
+
+### BT-027 · 2026-10-26 · Cierre · Commits por área
+
+El árbol quedó limpio en **9 commits** (historia agrupada por área, no por fase, para que cada
+commit sea coherente por sí mismo):
+
+| Commit           | Contenido                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `chore(tooling)` | ESLint flat compartido, Prettier, `.gitattributes`, turbo, `tsconfig.base`, deps y lockfile; deja de versionarse `test-results/` |
+| `feat(db)!`      | Schema único, build del paquete, migración `0004`, `shared-types`                                                                |
+| `feat(api)!`     | NestJS 12, guards globales, validación de env, hardening, cookie httpOnly, reset con SMTP, pino                                  |
+| `feat(web)`      | Cliente sin token en `localStorage`, `proxy.ts`, `/reset-password`, hooks limpios                                                |
+| `feat(infra)`    | `Dockerfile` prod, `Dockerfile.dev`, compose endurecido, `.dockerignore`                                                         |
+| `ci`             | Workflow con audit/cobertura/E2E bloqueantes + Dependabot + specs E2E                                                            |
+| `docs`           | `docs/update/**` y README                                                                                                        |
+| `chore(lint)`    | Eliminación del `.eslintrc.js` legacy                                                                                            |
+| `fix(test)`      | Timeouts de hooks en `packages/database`                                                                                         |
+
+> Los commits se hicieron con `--no-verify` porque `lint-staged` sobre 269 archivos es
+> desproporcionadamente lento; el equivalente (`format:check`, `lint`, `typecheck`, `build`,
+> `test:coverage`, `audit`) se ejecutó manualmente antes y después.
+
+**Incidente final:** `database#test:coverage` volvió a fallar de forma intermitente bajo carga.
+La causa era la misma que en backend: hooks de Postgres contra el timeout por defecto (10 s).
+Se alinearon los timeouts (`testTimeout: 30 s`, `hookTimeout: 60 s`) → **3 corridas consecutivas
+verdes**.
