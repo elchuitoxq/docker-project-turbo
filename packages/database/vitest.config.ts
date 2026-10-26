@@ -10,6 +10,9 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
+    // Las suites de integracion tocan Postgres; 10 s (default) no alcanza bajo carga.
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
     env: {
       TEST_DATABASE_URL: databaseTestUrl,
       DATABASE_URL: databaseTestUrl,
