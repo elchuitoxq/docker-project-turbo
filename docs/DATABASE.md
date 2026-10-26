@@ -15,17 +15,17 @@
 
 ## 📋 Resumen de Esquemas
 
-| Esquema              | Tablas  | Descripción                              |
-| -------------------- | ------- | ---------------------------------------- |
-| **Security & Audit** | 8       | RBAC, usuarios, permisos, auditoría      |
-| **Core**             | —       | Empresas, sucursales, monedas, tasas, partners |
-| **Inventory**        | 7       | Almacenes, productos, stock, movimientos |
-| **Orders & Billing** | 7       | Pedidos, facturas, notas de crédito      |
-| **Treasury**         | 7       | Pagos, métodos, cuentas, retenciones     |
-| **HR**               | 15      | Empleados, nóminas, contratos            |
-| **Accounting**       | 4       | Plan de cuentas, asientos                |
-| **Loans**            | 2       | Préstamos                                |
-| **Total**            | —       | Consultar `schema.ts` para el inventario actual |
+| Esquema              | Tablas | Descripción                                     |
+| -------------------- | ------ | ----------------------------------------------- |
+| **Security & Audit** | 8      | RBAC, usuarios, permisos, auditoría             |
+| **Core**             | —      | Empresas, sucursales, monedas, tasas, partners  |
+| **Inventory**        | 7      | Almacenes, productos, stock, movimientos        |
+| **Orders & Billing** | 7      | Pedidos, facturas, notas de crédito             |
+| **Treasury**         | 7      | Pagos, métodos, cuentas, retenciones            |
+| **HR**               | 15     | Empleados, nóminas, contratos                   |
+| **Accounting**       | 4      | Plan de cuentas, asientos                       |
+| **Loans**            | 2      | Préstamos                                       |
+| **Total**            | —      | Consultar `schema.ts` para el inventario actual |
 
 ---
 
@@ -52,12 +52,12 @@ Log de auditoría para todas las operaciones del sistema.
 
 Catálogo de permisos granulares del sistema.
 
-| Columna       | Tipo | Descripción                   |
-| ------------- | ---- | ----------------------------- |
-| `id`          | uuid | PK                            |
+| Columna       | Tipo | Descripción                             |
+| ------------- | ---- | --------------------------------------- |
+| `id`          | uuid | PK                                      |
 | `code`        | text | Código único, ej. `settings:users:view` |
-| `description` | text | Descripción opcional          |
-| `module`      | text | Módulo del permiso            |
+| `description` | text | Descripción opcional                    |
+| `module`      | text | Módulo del permiso                      |
 
 **Índices:** `code` (unique)
 
@@ -65,12 +65,12 @@ Catálogo de permisos granulares del sistema.
 
 Roles del sistema RBAC.
 
-| Columna       | Tipo    | Descripción                                 |
-| ------------- | ------- | ------------------------------------------- |
-| `id`          | uuid    | PK                                          |
-| `name`        | text    | Nombre único (ADMIN, MANAGER, etc.)         |
-| `description` | text    | Descripción opcional                        |
-| `is_system`   | boolean | Protege roles del sistema; default `false`  |
+| Columna       | Tipo    | Descripción                                |
+| ------------- | ------- | ------------------------------------------ |
+| `id`          | uuid    | PK                                         |
+| `name`        | text    | Nombre único (ADMIN, MANAGER, etc.)        |
+| `description` | text    | Descripción opcional                       |
+| `is_system`   | boolean | Protege roles del sistema; default `false` |
 
 **Índices:** `name` (unique)
 
@@ -78,11 +78,11 @@ Roles del sistema RBAC.
 
 Usuarios del sistema.
 
-| Columna        | Tipo      | Descripción             |
-| -------------- | --------- | ----------------------- |
-| `id`           | uuid      | PK                      |
-| `name`         | text      | Nombre completo         |
-| `email`        | text      | Email único             |
+| Columna         | Tipo      | Descripción               |
+| --------------- | --------- | ------------------------- |
+| `id`            | uuid      | PK                        |
+| `name`          | text      | Nombre completo           |
+| `email`         | text      | Email único               |
 | `password`      | text      | Hash de contraseña bcrypt |
 | `refresh_token` | text      | Refresh token opcional    |
 | `created_at`    | timestamp | Fecha de creación         |
@@ -116,10 +116,10 @@ Junction table para relación roles ↔ permissions.
 
 Acceso multisede - define a qué sucursales tiene acceso cada usuario.
 
-| Columna      | Tipo    | Descripción                         |
-| ------------ | ------- | ----------------------------------- |
-| `user_id`    | uuid    | FK → users                          |
-| `branch_id`  | uuid    | FK → branches                       |
+| Columna      | Tipo    | Descripción                              |
+| ------------ | ------- | ---------------------------------------- |
+| `user_id`    | uuid    | FK → users                               |
+| `branch_id`  | uuid    | FK → branches                            |
 | `is_default` | boolean | Sucursal predeterminada; default `false` |
 
 **PK Compuesta:** `(user_id, branch_id)`
@@ -129,12 +129,12 @@ Acceso multisede - define a qué sucursales tiene acceso cada usuario.
 
 Configuración personalizada por usuario.
 
-| Columna       | Tipo      | Descripción                        |
-| ------------- | --------- | ---------------------------------- |
-| `id`          | uuid      | PK                                 |
-| `user_id`     | uuid      | Identificador de usuario           |
-| `settings`    | jsonb     | Configuración en formato JSON      |
-| `updated_at`  | timestamp | Última actualización               |
+| Columna      | Tipo      | Descripción                   |
+| ------------ | --------- | ----------------------------- |
+| `id`         | uuid      | PK                            |
+| `user_id`    | uuid      | Identificador de usuario      |
+| `settings`   | jsonb     | Configuración en formato JSON |
+| `updated_at` | timestamp | Última actualización          |
 
 ---
 
@@ -162,16 +162,16 @@ agrupación de sucursales.
 Cada sucursal pertenece directamente a una empresa. No hay una tabla
 intermedia entre ambas entidades.
 
-| Columna      | Tipo      | Descripción                                     |
-| ------------ | --------- | ----------------------------------------------- |
-| `id`         | uuid      | PK                                              |
-| `company_id` | uuid      | FK → `companies.id` (`ON DELETE RESTRICT`)     |
-| `name`       | text      | Nombre de la sucursal                          |
-| `address`    | text      | Dirección                                       |
-| `phone`      | text      | Teléfono                                        |
-| `email`      | text      | Correo                                          |
-| `is_active`  | boolean   | Estado; default `true`                         |
-| `created_at` | timestamp | Fecha de creación                               |
+| Columna      | Tipo      | Descripción                                |
+| ------------ | --------- | ------------------------------------------ |
+| `id`         | uuid      | PK                                         |
+| `company_id` | uuid      | FK → `companies.id` (`ON DELETE RESTRICT`) |
+| `name`       | text      | Nombre de la sucursal                      |
+| `address`    | text      | Dirección                                  |
+| `phone`      | text      | Teléfono                                   |
+| `email`      | text      | Correo                                     |
+| `is_active`  | boolean   | Estado; default `true`                     |
+| `created_at` | timestamp | Fecha de creación                          |
 
 La migración `0003_explicit_companies_rbac.sql` crea empresas antes de cambiar
 la tabla de sucursales: agrupa filas históricas por RIF y asigna una empresa

@@ -26,6 +26,7 @@
 ## Estructura de archivos
 
 **Creados (10):**
+
 - `apps/backend/src/modules/auth/auth.service.test.ts` — 12 tests
 - `apps/backend/src/modules/cron/cron.service.test.ts` — 11 tests
 - `apps/backend/src/modules/cron/__fixtures__/bcv-page.html` — fixture HTML
@@ -38,6 +39,7 @@
 - `packages/database/tests/unit/seed.test.ts` — 7 tests (5 idempotencia + 2 invariant)
 
 **Modificados (6):**
+
 - `apps/backend/package.json` — añadir `@faker-js/faker`, `@vitest/coverage-v8`
 - `apps/backend/src/test/factories.ts` — Math.random → @faker-js/faker
 - `packages/database/package.json` — añadir `@faker-js/faker`, `bcryptjs`, `db:seed:test` script
@@ -52,11 +54,13 @@
 ### Task 1: Instalar `@faker-js/faker` y `@vitest/coverage-v8` en `apps/backend`
 
 **Files:**
+
 - Modify: `apps/backend/package.json` (devDependencies)
 
 - [ ] **Step 1: Verificar versión actual de vitest en backend**
 
 Run:
+
 ```bash
 Get-Content -LiteralPath "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\package.json" | Select-String "vitest"
 ```
@@ -66,6 +70,7 @@ Expected: muestra `"vitest": "^2.0.0"` (o `^2.1.9`).
 - [ ] **Step 2: Añadir dependencias con versiones compatibles**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend add -D @faker-js/faker@^9.0.0
@@ -73,6 +78,7 @@ pnpm --filter backend add -D @vitest/coverage-v8@^2.1.0
 ```
 
 Expected: ambos paquetes se instalan sin errores. La sección `devDependencies` de `apps/backend/package.json` ahora contiene:
+
 ```json
 "@faker-js/faker": "^9.0.0",
 "@vitest/coverage-v8": "^2.1.0",
@@ -81,6 +87,7 @@ Expected: ambos paquetes se instalan sin errores. La sección `devDependencies` 
 - [ ] **Step 3: Verificar que las nuevas deps están en package.json**
 
 Run:
+
 ```bash
 Get-Content -LiteralPath "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\package.json" | Select-String "@faker-js/faker|@vitest/coverage-v8"
 ```
@@ -90,6 +97,7 @@ Expected: imprime ambas líneas.
 - [ ] **Step 4: Verificar que los tests existentes siguen corriendo**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend test -- --run
@@ -100,12 +108,14 @@ Expected: los 708 tests existentes pasan 100% (puede tomar 30-60 segundos). Si a
 - [ ] **Step 5: Verificar que `test:coverage` ahora funciona (antes fallaba)**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend test:coverage
 ```
 
 Expected: genera un reporte en `apps/backend/coverage/`. La salida incluye líneas como:
+
 ```
 % Coverage report from v8
 -------------------|---------|----------|---------|---------|
@@ -129,6 +139,7 @@ git commit -m "feat(backend): add @faker-js/faker and @vitest/coverage-v8 devDep
 ### Task 2: Migrar `apps/backend/src/test/factories.ts` a `@faker-js/faker`
 
 **Files:**
+
 - Modify: `apps/backend/src/test/factories.ts` (reemplazar `Math.random()` con `faker.*`)
 
 - [ ] **Step 1: Leer el archivo actual**
@@ -196,9 +207,7 @@ export async function createTestPartner(data?: Partial<typeof partners.$inferIns
     address: faker.location.streetAddress({ useFullAddress: true }),
     phone: faker.phone.number(),
     type: faker.helpers.arrayElement(['CUSTOMER', 'SUPPLIER', 'BOTH']) as
-      | 'CUSTOMER'
-      | 'SUPPLIER'
-      | 'BOTH',
+      'CUSTOMER' | 'SUPPLIER' | 'BOTH',
     taxpayerType: faker.helpers.arrayElement(['ORDINARY', 'SPECIAL']) as 'ORDINARY' | 'SPECIAL',
     retentionRate: '0',
     isSpecialTaxpayer: faker.datatype.boolean({ probability: 0.2 }),
@@ -234,7 +243,7 @@ export async function createTestProduct(data?: Partial<typeof products.$inferIns
 
 export async function createTestWarehouse(
   branchId: string,
-  data?: Partial<typeof warehouses.$inferInsert>,
+  data?: Partial<typeof warehouses.$inferInsert>
 ) {
   const warehouse = {
     branchId,
@@ -269,7 +278,7 @@ export async function createTestInvoice(
   partnerId: string,
   branchId: string,
   currencyId: string,
-  data?: Partial<typeof invoices.$inferInsert>,
+  data?: Partial<typeof invoices.$inferInsert>
 ) {
   const invoice = {
     code: `INV-${Date.now()}-${faker.string.alphanumeric({ length: 4, casing: 'upper' })}`,
@@ -299,7 +308,7 @@ export async function createTestInvoice(
 export async function createTestInvoiceItem(
   invoiceId: string,
   productId: string,
-  data?: Partial<typeof invoiceItems.$inferInsert>,
+  data?: Partial<typeof invoiceItems.$inferInsert>
 ) {
   const item = {
     invoiceId,
@@ -317,7 +326,7 @@ export async function createTestInvoiceItem(
 export async function createTestOrder(
   partnerId: string,
   branchId: string,
-  data?: Partial<typeof orders.$inferInsert>,
+  data?: Partial<typeof orders.$inferInsert>
 ) {
   const order = {
     code: `ORD-${Date.now()}-${faker.string.alphanumeric({ length: 4, casing: 'upper' })}`,
@@ -340,7 +349,7 @@ export async function createTestOrder(
 export async function createTestOrderItem(
   orderId: string,
   productId: string,
-  data?: Partial<typeof orderItems.$inferInsert>,
+  data?: Partial<typeof orderItems.$inferInsert>
 ) {
   const item = {
     orderId,
@@ -357,7 +366,7 @@ export async function createTestOrderItem(
 export async function createTestStock(
   warehouseId: string,
   productId: string,
-  data?: Partial<typeof stock.$inferInsert>,
+  data?: Partial<typeof stock.$inferInsert>
 ) {
   const stockRecord = {
     warehouseId,
@@ -374,7 +383,7 @@ export async function createTestStock(
 export async function createTestInventoryMove(
   warehouseId: string,
   userId: string | null,
-  data?: Partial<typeof inventoryMoves.$inferInsert>,
+  data?: Partial<typeof inventoryMoves.$inferInsert>
 ) {
   const move = {
     code: `MOV-${Date.now()}-${faker.string.alphanumeric({ length: 4, casing: 'upper' })}`,
@@ -398,7 +407,7 @@ export async function createTestInventoryMove(
 export async function createTestInventoryMoveLine(
   moveId: string,
   productId: string,
-  data?: Partial<typeof inventoryMoveLines.$inferInsert>,
+  data?: Partial<typeof inventoryMoveLines.$inferInsert>
 ) {
   const line = {
     moveId,
@@ -414,7 +423,7 @@ export async function createTestInventoryMoveLine(
 
 export async function createTestProductBatch(
   productId: string,
-  data?: Partial<typeof productBatches.$inferInsert>,
+  data?: Partial<typeof productBatches.$inferInsert>
 ) {
   const batch = {
     productId,
@@ -432,6 +441,7 @@ export async function createTestProductBatch(
 - [ ] **Step 4: Verificar que no quedan usos de `Math.random()`**
 
 Run:
+
 ```bash
 Get-Content -LiteralPath "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\src\test\factories.ts" | Select-String "Math\.random"
 ```
@@ -441,6 +451,7 @@ Expected: sin output (0 ocurrencias). Si hay alguna, reemplázala con `faker.*`.
 - [ ] **Step 5: Verificar que la compilación TypeScript pasa**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend exec tsc --noEmit
@@ -451,6 +462,7 @@ Expected: exit code 0. Si hay errores de tipo, ajusta los casts (e.g., `as 'CUST
 - [ ] **Step 6: Verificar que el integration test sigue pasando (usa factories)**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose -f docker-compose.test.yml up -d
@@ -473,17 +485,20 @@ git commit -m "refactor(backend): migrate factories.ts to @faker-js/faker"
 ### Task 3: Instalar `@faker-js/faker` y `bcryptjs` en `packages/database`
 
 **Files:**
+
 - Modify: `packages/database/package.json` (devDependencies)
 
 - [ ] **Step 1: Añadir las dependencias**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter database add -D @faker-js/faker@^9.0.0 bcryptjs@^3.0.0 @types/bcryptjs@^3.0.0
 ```
 
 Expected: los 3 paquetes se instalan. La sección `devDependencies` ahora incluye:
+
 ```json
 "@faker-js/faker": "^9.0.0",
 "@types/bcryptjs": "^3.0.0",
@@ -495,6 +510,7 @@ Nota: `bcryptjs` se añade como devDep porque solo se usa en scripts de seed, no
 - [ ] **Step 2: Verificar que las deps están en package.json**
 
 Run:
+
 ```bash
 Get-Content -LiteralPath "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\package.json" | Select-String "@faker-js|bcryptjs"
 ```
@@ -514,6 +530,7 @@ git commit -m "feat(database): add @faker-js/faker and bcryptjs devDeps"
 ### Task 4: Migrar `packages/database/src/scripts/seed-faker.ts` a `@faker-js/faker`
 
 **Files:**
+
 - Modify: `packages/database/src/scripts/seed-faker.ts` (reemplazar `Math.random()` con `faker.*`)
 
 - [ ] **Step 1: Leer el archivo actual para ver los loops a modificar**
@@ -533,6 +550,7 @@ import { faker } from '@faker-js/faker';
 - [ ] **Step 3: Reemplazar la creación de partners**
 
 Edita el loop de partners. Reemplaza:
+
 ```typescript
 for (let i = 0; i < partnersCount; i++) {
   const rif = `J-${String(Math.floor(Math.random() * 99999999)).padStart(8, '0')}`;
@@ -553,6 +571,7 @@ for (let i = 0; i < partnersCount; i++) {
 ```
 
 Con:
+
 ```typescript
 for (let i = 0; i < partnersCount; i++) {
   await db.insert(partners).values({
@@ -574,6 +593,7 @@ for (let i = 0; i < partnersCount; i++) {
 - [ ] **Step 4: Reemplazar la creación de products**
 
 Edita el loop de products. Reemplaza:
+
 ```typescript
 for (let i = 0; i < productsCount; i++) {
   const price = (Math.random() * 500 + 10).toFixed(2);
@@ -596,6 +616,7 @@ for (let i = 0; i < productsCount; i++) {
 ```
 
 Con:
+
 ```typescript
 for (let i = 0; i < productsCount; i++) {
   const cost = faker.number.int({ min: 10, max: 500 });
@@ -621,6 +642,7 @@ for (let i = 0; i < productsCount; i++) {
 - [ ] **Step 5: Reemplazar la creación de employees**
 
 Edita el loop de employees. Reemplaza:
+
 ```typescript
 for (let i = 0; i < employeesCount; i++) {
   const positionId = positionIds[Math.floor(Math.random() * positionIds.length)];
@@ -647,6 +669,7 @@ for (let i = 0; i < employeesCount; i++) {
 ```
 
 Con:
+
 ```typescript
 for (let i = 0; i < employeesCount; i++) {
   const positionId = faker.helpers.arrayElement(positionIds);
@@ -675,6 +698,7 @@ for (let i = 0; i < employeesCount; i++) {
 - [ ] **Step 6: Verificar que no quedan usos de `Math.random()` en seed-faker**
 
 Run:
+
 ```bash
 Get-Content -LiteralPath "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\src\scripts\seed-faker.ts" | Select-String "Math\.random"
 ```
@@ -684,6 +708,7 @@ Expected: sin output.
 - [ ] **Step 7: Verificar que el archivo compila**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter database exec tsc --noEmit
@@ -706,12 +731,14 @@ git commit -m "refactor(database): migrate seed-faker.ts to @faker-js/faker"
 ### Task 5: Crear `packages/database/vitest.config.ts` y `src/test/database.ts`
 
 **Files:**
+
 - Create: `packages/database/vitest.config.ts`
 - Create: `packages/database/src/test/database.ts`
 
 - [ ] **Step 1: Crear `vitest.config.ts`**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\vitest.config.ts" -Force
 ```
@@ -737,6 +764,7 @@ export default defineConfig({
 - [ ] **Step 2: Crear `src/test/database.ts`**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\src\test\database.ts" -Force
 ```
@@ -836,6 +864,7 @@ Nota: la lista de tablas es más completa que la del backend (incluye todas las 
 - [ ] **Step 3: Crear un test vacío para verificar que vitest funciona**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\tests\unit\smoke.test.ts" -Force
 ```
@@ -855,6 +884,7 @@ describe('database package test infrastructure', () => {
 - [ ] **Step 4: Ejecutar el test vacío**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter database test -- --run
@@ -865,11 +895,13 @@ Expected: 1 test pasa. Verifica que vitest puede ejecutar el config y encontrar 
 - [ ] **Step 5: Verificar que `cleanDatabase` puede correr contra la test DB**
 
 Levanta la DB de test:
+
 ```bash
 docker compose -f docker-compose.test.yml up -d
 ```
 
 Espera 5 segundos y verifica que está saludable:
+
 ```bash
 docker ps --filter "name=mono-postgres-test" --format "{{.Status}}"
 ```
@@ -905,6 +937,7 @@ describe('database package test infrastructure', () => {
 ```
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter database test -- --run
@@ -949,6 +982,7 @@ git commit -m "feat(database): add vitest config and test database infrastructur
 ### Task 6: Añadir users, bank_accounts, userRoles, userBranches a `seed-core.ts`
 
 **Files:**
+
 - Modify: `packages/database/src/scripts/seed-core.ts`
 
 - [ ] **Step 1: Levantar la DB de test y aplicar migraciones**
@@ -979,6 +1013,7 @@ pnpm --filter database db:seed:rbac
 (Esto llama a `seedRbac` que es la parte RBAC de seed-rbac.ts.)
 
 Verifica que no hay users:
+
 ```bash
 docker exec mono-postgres psql -U myuser -d mydb -c "SELECT count(*) FROM users;"
 ```
@@ -1187,10 +1222,22 @@ export async function seedCoreData() {
   const [sellerRole] = await db.select().from(roles).where(eq(roles.name, 'SELLER')).limit(1);
 
   if (adminRole && sellerRole) {
-    await db.insert(usersRoles).values({ userId: adminUser.id, roleId: adminRole.id }).onConflictDoNothing();
-    await db.insert(usersRoles).values({ userId: sellerUser.id, roleId: sellerRole.id }).onConflictDoNothing();
-    await db.insert(usersBranches).values({ userId: adminUser.id, branchId: branch.id }).onConflictDoNothing();
-    await db.insert(usersBranches).values({ userId: sellerUser.id, branchId: branch.id }).onConflictDoNothing();
+    await db
+      .insert(usersRoles)
+      .values({ userId: adminUser.id, roleId: adminRole.id })
+      .onConflictDoNothing();
+    await db
+      .insert(usersRoles)
+      .values({ userId: sellerUser.id, roleId: sellerRole.id })
+      .onConflictDoNothing();
+    await db
+      .insert(usersBranches)
+      .values({ userId: adminUser.id, branchId: branch.id })
+      .onConflictDoNothing();
+    await db
+      .insert(usersBranches)
+      .values({ userId: sellerUser.id, branchId: branch.id })
+      .onConflictDoNothing();
     console.log('Assigned roles and branches to users');
   } else {
     console.warn('Roles ADMIN/SELLER not found; run seedRbac() first');
@@ -1203,6 +1250,7 @@ import { eq } from 'drizzle-orm';
 ```
 
 Notas:
+
 - Los caracteres `��` en los nombres de payment methods son del código original (encoding bug pre-existente); se preservan tal cual.
 - El `import { eq }` se movió al final para no romper el flujo visual del archivo.
 
@@ -1216,6 +1264,7 @@ pnpm exec tsx --env-file=.env packages/database/src/scripts/seed-core.ts
 (Si tu `DATABASE_URL` está en `.env` con prefijo correcto. Si no, usa `cross-env DATABASE_URL=postgresql://myuser:mypassword@localhost:5432/mydb tsx ...` o ajusta según tu setup local.)
 
 Expected output (resumido):
+
 ```
 Seeding core data...
 Created currency: USD
@@ -1234,6 +1283,7 @@ Core data seeding completed!
 - [ ] **Step 5: Verificar que el login funciona tras fresh seed**
 
 Levanta el backend en otra terminal (o usa una request directa):
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose up -d monorepo
@@ -1244,6 +1294,7 @@ docker compose logs -f monorepo | Select-String "Application running"
 (O si lo corres sin Docker, en otra terminal: `pnpm --filter backend dev`.)
 
 En otra terminal, prueba el login:
+
 ```bash
 curl -X POST http://localhost:4000/v1/auth/login -H "Content-Type: application/json" -d '{\"email\":\"admin@test.local\",\"password\":\"admin123\"}'
 ```
@@ -1270,6 +1321,7 @@ git commit -m "feat(database): add users, bank_accounts, and role/branch assignm
 ### Task 7: Añadir stock a `seed-faker.ts`
 
 **Files:**
+
 - Modify: `packages/database/src/scripts/seed-faker.ts`
 
 - [ ] **Step 1: Localizar dónde se crean los productos**
@@ -1281,12 +1333,14 @@ Edita `packages/database/src/scripts/seed-faker.ts`. Encuentra el loop de produc
 Reemplaza el loop de products existente con:
 
 ```typescript
-  const productIds: string[] = [];
-  console.log('Creating products...');
-  for (let i = 0; i < productsCount; i++) {
-    const cost = faker.number.int({ min: 10, max: 500 });
-    const price = Math.round(cost * 1.5 * 100) / 100;
-    const [product] = await db.insert(products).values({
+const productIds: string[] = [];
+console.log('Creating products...');
+for (let i = 0; i < productsCount; i++) {
+  const cost = faker.number.int({ min: 10, max: 500 });
+  const price = Math.round(cost * 1.5 * 100) / 100;
+  const [product] = await db
+    .insert(products)
+    .values({
       id: uuidv7(),
       sku: `SKU-${faker.string.alphanumeric({ length: 8, casing: 'upper' })}`,
       name: faker.commerce.productName(),
@@ -1300,26 +1354,30 @@ Reemplaza el loop de products existente con:
       minStock: faker.number.int({ min: 0, max: 50 }).toString(),
       hasBatches: faker.datatype.boolean({ probability: 0.3 }),
       currencyId: usd.id,
-    }).returning();
-    productIds.push(product.id);
-  }
-  console.log(`Created ${productsCount} products`);
+    })
+    .returning();
+  productIds.push(product.id);
+}
+console.log(`Created ${productsCount} products`);
 
-  // NEW: Create stock rows for each product in the warehouse
-  console.log('Creating stock rows...');
-  for (const productId of productIds) {
-    await db.insert(stock).values({
+// NEW: Create stock rows for each product in the warehouse
+console.log('Creating stock rows...');
+for (const productId of productIds) {
+  await db
+    .insert(stock)
+    .values({
       warehouseId: warehouse.id,
       productId,
       batchId: null,
       quantity: faker.number.int({ min: 0, max: 500 }).toString(),
       updatedAt: new Date(),
-    }).onConflictDoUpdate({
+    })
+    .onConflictDoUpdate({
       target: [stock.warehouseId, stock.productId, stock.batchId],
       set: { quantity: faker.number.int({ min: 0, max: 500 }).toString(), updatedAt: new Date() },
     });
-  }
-  console.log(`Created ${productIds.length} stock rows`);
+}
+console.log(`Created ${productIds.length} stock rows`);
 ```
 
 - [ ] **Step 3: Añadir `stock` al import**
@@ -1345,12 +1403,14 @@ import {
 - [ ] **Step 4: Verificar que el seed corre y crea stock**
 
 Levanta la DB:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose up -d postgres
 ```
 
 Espera a que esté healthy, luego corre el seed:
+
 ```bash
 pnpm --filter database db:seed:rbac
 pnpm exec tsx --env-file=.env packages/database/src/scripts/seed-core.ts
@@ -1358,6 +1418,7 @@ pnpm exec tsx --env-file=.env packages/database/src/scripts/seed-faker.ts
 ```
 
 Verifica que se crearon stock rows:
+
 ```bash
 docker exec mono-postgres psql -U myuser -d mydb -c "SELECT count(*) FROM stock;"
 ```
@@ -1377,6 +1438,7 @@ git commit -m "feat(database): add stock row creation in seed-faker"
 ### Task 8: Crear `seed-test.ts` con UUIDs deterministas y auto-validación
 
 **Files:**
+
 - Create: `packages/database/src/scripts/seed-test.ts`
 - Modify: `packages/database/package.json` (añadir script `db:seed:test`)
 - Modify: `package.json` (raíz) (añadir script `db:seed:test`)
@@ -1384,6 +1446,7 @@ git commit -m "feat(database): add stock row creation in seed-faker"
 - [ ] **Step 1: Crear el archivo `seed-test.ts`**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\src\scripts\seed-test.ts" -Force
 ```
@@ -1441,156 +1504,204 @@ export async function seedTestData() {
   await seedRbac();
 
   // 2. Currencies
-  await db.insert(currencies).values([
-    { id: ID.usd, code: 'USD', name: 'US Dollar', symbol: '$', isBase: true },
-    { id: ID.ves, code: 'VES', name: 'Venezuelan Bolivar', symbol: 'Bs', isBase: false },
-  ]).onConflictDoUpdate({ target: currencies.code, set: { name: currencies.name } });
+  await db
+    .insert(currencies)
+    .values([
+      { id: ID.usd, code: 'USD', name: 'US Dollar', symbol: '$', isBase: true },
+      { id: ID.ves, code: 'VES', name: 'Venezuelan Bolivar', symbol: 'Bs', isBase: false },
+    ])
+    .onConflictDoUpdate({ target: currencies.code, set: { name: currencies.name } });
 
   // 3. Branch
-  await db.insert(branches).values({
-    id: ID.branch,
-    name: 'Test Branch',
-    address: 'Test Address 123',
-    taxId: 'J-12345678-9',
-    phone: '+58 212 1234567',
-    email: 'test@branch.local',
-    isActive: true,
-  }).onConflictDoUpdate({ target: branches.taxId, set: { name: 'Test Branch' } });
+  await db
+    .insert(branches)
+    .values({
+      id: ID.branch,
+      name: 'Test Branch',
+      address: 'Test Address 123',
+      taxId: 'J-12345678-9',
+      phone: '+58 212 1234567',
+      email: 'test@branch.local',
+      isActive: true,
+    })
+    .onConflictDoUpdate({ target: branches.taxId, set: { name: 'Test Branch' } });
 
   // 4. Bank
-  await db.insert(banks).values({
-    id: ID.bank,
-    name: 'Test Bank',
-    code: '9999',
-    isActive: true,
-  }).onConflictDoUpdate({ target: banks.code, set: { name: 'Test Bank' } });
+  await db
+    .insert(banks)
+    .values({
+      id: ID.bank,
+      name: 'Test Bank',
+      code: '9999',
+      isActive: true,
+    })
+    .onConflictDoUpdate({ target: banks.code, set: { name: 'Test Bank' } });
 
   // 5. Bank Account
-  await db.insert(bankAccounts).values({
-    id: ID.bankAccount,
-    name: 'Test Bank Account',
-    accountNumber: 'TEST-USD-001',
-    type: 'CHECKING',
-    currencyId: ID.usd,
-    branchId: ID.branch,
-    currentBalance: '0',
-    isActive: true,
-  }).onConflictDoUpdate({
-    target: [bankAccounts.accountNumber, bankAccounts.branchId],
-    set: { name: 'Test Bank Account' },
-  });
+  await db
+    .insert(bankAccounts)
+    .values({
+      id: ID.bankAccount,
+      name: 'Test Bank Account',
+      accountNumber: 'TEST-USD-001',
+      type: 'CHECKING',
+      currencyId: ID.usd,
+      branchId: ID.branch,
+      currentBalance: '0',
+      isActive: true,
+    })
+    .onConflictDoUpdate({
+      target: [bankAccounts.accountNumber, bankAccounts.branchId],
+      set: { name: 'Test Bank Account' },
+    });
 
   // 6. Payment method
-  await db.insert(paymentMethods).values({
-    id: ID.paymentMethod,
-    name: 'Test Cash USD',
-    code: 'TEST_CASH_USD',
-    isDigital: false,
-    branchId: ID.branch,
-  }).onConflictDoUpdate({
-    target: [paymentMethods.code, paymentMethods.branchId],
-    set: { name: 'Test Cash USD' },
-  });
+  await db
+    .insert(paymentMethods)
+    .values({
+      id: ID.paymentMethod,
+      name: 'Test Cash USD',
+      code: 'TEST_CASH_USD',
+      isDigital: false,
+      branchId: ID.branch,
+    })
+    .onConflictDoUpdate({
+      target: [paymentMethods.code, paymentMethods.branchId],
+      set: { name: 'Test Cash USD' },
+    });
 
   // 7. Warehouse
-  await db.insert(warehouses).values({
-    id: ID.warehouse,
-    branchId: ID.branch,
-    name: 'Test Warehouse',
-    address: 'Test Warehouse Address',
-    isActive: true,
-  }).onConflictDoUpdate({ target: warehouses.id, set: { name: 'Test Warehouse' } });
+  await db
+    .insert(warehouses)
+    .values({
+      id: ID.warehouse,
+      branchId: ID.branch,
+      name: 'Test Warehouse',
+      address: 'Test Warehouse Address',
+      isActive: true,
+    })
+    .onConflictDoUpdate({ target: warehouses.id, set: { name: 'Test Warehouse' } });
 
   // 8. Users (admin + seller)
   const adminPassword = bcrypt.hashSync('Test1234!', 10);
   const sellerPassword = bcrypt.hashSync('Test1234!', 10);
 
-  await db.insert(users).values([
-    {
-      id: ID.adminUser,
-      name: 'Test Admin',
-      email: 'test-admin@test.local',
-      password: adminPassword,
-      refreshToken: null,
-    },
-    {
-      id: ID.sellerUser,
-      name: 'Test Seller',
-      email: 'test-seller@test.local',
-      password: sellerPassword,
-      refreshToken: null,
-    },
-  ]).onConflictDoUpdate({
-    target: users.email,
-    set: { name: users.name, password: users.password },
-  });
+  await db
+    .insert(users)
+    .values([
+      {
+        id: ID.adminUser,
+        name: 'Test Admin',
+        email: 'test-admin@test.local',
+        password: adminPassword,
+        refreshToken: null,
+      },
+      {
+        id: ID.sellerUser,
+        name: 'Test Seller',
+        email: 'test-seller@test.local',
+        password: sellerPassword,
+        refreshToken: null,
+      },
+    ])
+    .onConflictDoUpdate({
+      target: users.email,
+      set: { name: users.name, password: users.password },
+    });
 
   // 9. Partner
-  await db.insert(partners).values({
-    id: ID.partner,
-    name: 'Test Partner C.A.',
-    email: 'test-partner@test.local',
-    taxId: 'J-12345678-9',
-    address: 'Test Partner Address',
-    phone: '+58 212 7654321',
-    type: 'CUSTOMER',
-    taxpayerType: 'ORDINARY',
-    retentionRate: '0',
-    isSpecialTaxpayer: false,
-    creditLimit: '10000',
-  }).onConflictDoUpdate({ target: partners.taxId, set: { name: 'Test Partner C.A.' } });
+  await db
+    .insert(partners)
+    .values({
+      id: ID.partner,
+      name: 'Test Partner C.A.',
+      email: 'test-partner@test.local',
+      taxId: 'J-12345678-9',
+      address: 'Test Partner Address',
+      phone: '+58 212 7654321',
+      type: 'CUSTOMER',
+      taxpayerType: 'ORDINARY',
+      retentionRate: '0',
+      isSpecialTaxpayer: false,
+      creditLimit: '10000',
+    })
+    .onConflictDoUpdate({ target: partners.taxId, set: { name: 'Test Partner C.A.' } });
 
   // 10. Product category + Product
-  await db.insert(productCategories).values({
-    id: ID.productCategory,
-    name: 'Test Category',
-  }).onConflictDoNothing();
+  await db
+    .insert(productCategories)
+    .values({
+      id: ID.productCategory,
+      name: 'Test Category',
+    })
+    .onConflictDoNothing();
 
-  await db.insert(products).values({
-    id: ID.product,
-    sku: 'TEST-SKU-001',
-    name: 'Test Product',
-    description: 'Test product description',
-    categoryId: ID.productCategory,
-    cost: '60.00',
-    price: '100.00',
-    isExempt: false,
-    taxRate: '16.00',
-    type: 'PHYSICAL',
-    minStock: '10',
-    hasBatches: false,
-    currencyId: ID.usd,
-  }).onConflictDoUpdate({ target: products.sku, set: { name: 'Test Product' } });
+  await db
+    .insert(products)
+    .values({
+      id: ID.product,
+      sku: 'TEST-SKU-001',
+      name: 'Test Product',
+      description: 'Test product description',
+      categoryId: ID.productCategory,
+      cost: '60.00',
+      price: '100.00',
+      isExempt: false,
+      taxRate: '16.00',
+      type: 'PHYSICAL',
+      minStock: '10',
+      hasBatches: false,
+      currencyId: ID.usd,
+    })
+    .onConflictDoUpdate({ target: products.sku, set: { name: 'Test Product' } });
 
   // 11. Stock (1 unidad del producto en el warehouse)
-  await db.insert(stock).values({
-    warehouseId: ID.warehouse,
-    productId: ID.product,
-    batchId: null,
-    quantity: '1.0000',
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: [stock.warehouseId, stock.productId, stock.batchId],
-    set: { quantity: '1.0000' },
-  });
+  await db
+    .insert(stock)
+    .values({
+      warehouseId: ID.warehouse,
+      productId: ID.product,
+      batchId: null,
+      quantity: '1.0000',
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [stock.warehouseId, stock.productId, stock.batchId],
+      set: { quantity: '1.0000' },
+    });
 
   // 12. Asignar roles + branches
   const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'ADMIN')).limit(1);
   const [sellerRole] = await db.select().from(roles).where(eq(roles.name, 'SELLER')).limit(1);
 
   if (adminRole && sellerRole) {
-    await db.insert(usersRoles).values({ userId: ID.adminUser, roleId: adminRole.id }).onConflictDoNothing();
-    await db.insert(usersRoles).values({ userId: ID.sellerUser, roleId: sellerRole.id }).onConflictDoNothing();
-    await db.insert(usersBranches).values({ userId: ID.adminUser, branchId: ID.branch }).onConflictDoNothing();
-    await db.insert(usersBranches).values({ userId: ID.sellerUser, branchId: ID.branch }).onConflictDoNothing();
+    await db
+      .insert(usersRoles)
+      .values({ userId: ID.adminUser, roleId: adminRole.id })
+      .onConflictDoNothing();
+    await db
+      .insert(usersRoles)
+      .values({ userId: ID.sellerUser, roleId: sellerRole.id })
+      .onConflictDoNothing();
+    await db
+      .insert(usersBranches)
+      .values({ userId: ID.adminUser, branchId: ID.branch })
+      .onConflictDoNothing();
+    await db
+      .insert(usersBranches)
+      .values({ userId: ID.sellerUser, branchId: ID.branch })
+      .onConflictDoNothing();
   }
 
   // 13. Exchange rate
-  await db.insert(exchangeRates).values({
-    currencyId: ID.ves,
-    rate: '36.5000',
-    source: 'TEST',
-  }).onConflictDoNothing();
+  await db
+    .insert(exchangeRates)
+    .values({
+      currencyId: ID.ves,
+      rate: '36.5000',
+      source: 'TEST',
+    })
+    .onConflictDoNothing();
 
   console.log('Test data seeded. Running post-seed validation...');
 
@@ -1604,19 +1715,22 @@ async function validateInvariants() {
   // Bank balance invariant: currentBalance = sum(income) - sum(expense)
   const accounts = await db.select().from(bankAccounts);
   for (const acc of accounts) {
-    const accountPayments = await db.select()
+    const accountPayments = await db
+      .select()
       .from((await import('../schema')).payments)
       .where(eq((await import('../schema')).payments.bankAccountId, acc.id));
     const income = accountPayments
-      .filter((p) => p.type === 'INCOME')
+      .filter(p => p.type === 'INCOME')
       .reduce((sum, p) => sum + parseFloat(p.amount), 0);
     const expense = accountPayments
-      .filter((p) => p.type === 'EXPENSE')
+      .filter(p => p.type === 'EXPENSE')
       .reduce((sum, p) => sum + parseFloat(p.amount), 0);
     const expected = income - expense;
     const actual = parseFloat(acc.currentBalance);
     if (Math.abs(expected - actual) > 0.01) {
-      throw new Error(`Bank balance invariant violated for account ${acc.id}: expected ${expected}, got ${actual}`);
+      throw new Error(
+        `Bank balance invariant violated for account ${acc.id}: expected ${expected}, got ${actual}`
+      );
     }
   }
 
@@ -1627,7 +1741,9 @@ async function validateInvariants() {
     const expectedTax = Math.round(parseFloat(inv.totalBase) * 0.16 * 100) / 100;
     const actualTax = parseFloat(inv.totalTax);
     if (Math.abs(expectedTax - actualTax) > 0.01) {
-      throw new Error(`Fiscal invariant violated for invoice ${inv.code}: expected tax ${expectedTax}, got ${actualTax}`);
+      throw new Error(
+        `Fiscal invariant violated for invoice ${inv.code}: expected tax ${expectedTax}, got ${actualTax}`
+      );
     }
   }
 }
@@ -1639,7 +1755,7 @@ if (require.main === module) {
       await closeTestConnection();
       process.exit(0);
     })
-    .catch(async (err) => {
+    .catch(async err => {
       console.error('Seed-test failed:', err);
       await closeTestConnection();
       process.exit(1);
@@ -1650,12 +1766,14 @@ if (require.main === module) {
 - [ ] **Step 2: Verificar que el seed corre y pasa la validación**
 
 Levanta la DB:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose up -d postgres
 ```
 
 Espera 5 segundos y corre el seed:
+
 ```bash
 pnpm --filter database db:migrate
 pnpm --filter database db:seed:rbac
@@ -1663,6 +1781,7 @@ pnpm exec tsx --env-file=.env packages/database/src/scripts/seed-test.ts
 ```
 
 Expected output (resumido):
+
 ```
 Seeding test data (deterministic)...
 Seeding RBAC...
@@ -1731,6 +1850,7 @@ git commit -m "feat(database): add seed-test.ts with deterministic IDs and post-
 ### Task 9: Crear `apps/backend/src/modules/auth/auth.service.test.ts`
 
 **Files:**
+
 - Create: `apps/backend/src/modules/auth/auth.service.test.ts`
 
 - [ ] **Step 1: Verificar la estructura del AuthService**
@@ -1742,6 +1862,7 @@ Confirma los métodos: `login`, `validateUser`, `forgotPassword`, `resetPassword
 - [ ] **Step 2: Crear el archivo de test**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\src\modules\auth\auth.service.test.ts" -Force
 ```
@@ -1834,7 +1955,7 @@ describe('AuthService', () => {
           email: 'admin@test.local',
           roles: ['ADMIN'],
           permissions: ['dashboard:view'],
-        }),
+        })
       );
     });
 
@@ -1848,7 +1969,7 @@ describe('AuthService', () => {
       });
 
       await expect(
-        service.login({ email: 'nonexistent@test.local', password: 'any' }),
+        service.login({ email: 'nonexistent@test.local', password: 'any' })
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -1863,9 +1984,9 @@ describe('AuthService', () => {
       });
       (bcrypt.compare as any) = vi.fn().mockResolvedValue(false);
 
-      await expect(
-        service.login({ email: 'a@b.c', password: 'wrong' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'a@b.c', password: 'wrong' })).rejects.toThrow(
+        UnauthorizedException
+      );
     });
 
     it('payload includes multiple roles and their permissions', async () => {
@@ -1966,7 +2087,7 @@ describe('AuthService', () => {
   describe('resetPassword', () => {
     it('throws for invalid token', async () => {
       await expect(service.resetPassword('invalid-token', 'newpass')).rejects.toThrow(
-        UnauthorizedException,
+        UnauthorizedException
       );
     });
 
@@ -2010,11 +2131,13 @@ git commit -m "test(backend): add AuthService tests (12 cases)"
 ### Task 10: Crear `apps/backend/src/common/guards/jwt-auth.guard.test.ts`
 
 **Files:**
+
 - Create: `apps/backend/src/common/guards/jwt-auth.guard.test.ts`
 
 - [ ] **Step 1: Crear el archivo**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\src\common\guards\jwt-auth.guard.test.ts" -Force
 ```
@@ -2099,6 +2222,7 @@ git commit -m "test(backend): add JwtAuthGuard tests (3 cases)"
 ### Task 11: Crear fixture HTML y `apps/backend/src/modules/cron/cron.service.test.ts`
 
 **Files:**
+
 - Create: `apps/backend/src/modules/cron/__fixtures__/bcv-page.html`
 - Create: `apps/backend/src/modules/cron/cron.service.test.ts`
 
@@ -2111,6 +2235,7 @@ New-Item -ItemType Directory -Path "C:\Users\elchu\Documents\Proyectos\docker-pr
 - [ ] **Step 2: Crear el fixture HTML**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\src\modules\cron\__fixtures__\bcv-page.html" -Force
 ```
@@ -2120,33 +2245,34 @@ Edita con un snapshot representativo (sintético, no real, pero con la estructur
 ```html
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <title>Banco Central de Venezuela</title>
-</head>
-<body>
-  <div id="dolar">
-    <strong>36,50</strong>
-  </div>
-  <div id="euro">
-    <strong>38,20</strong>
-  </div>
-  <table>
-    <tr>
-      <td>Dolar</td>
-      <td>36,50</td>
-    </tr>
-  </table>
-  <script>
-    var valorDolar = "36.50";
-    var valorEuro = "38.20";
-  </script>
-</body>
+  <head>
+    <title>Banco Central de Venezuela</title>
+  </head>
+  <body>
+    <div id="dolar">
+      <strong>36,50</strong>
+    </div>
+    <div id="euro">
+      <strong>38,20</strong>
+    </div>
+    <table>
+      <tr>
+        <td>Dolar</td>
+        <td>36,50</td>
+      </tr>
+    </table>
+    <script>
+      var valorDolar = '36.50';
+      var valorEuro = '38.20';
+    </script>
+  </body>
 </html>
 ```
 
 - [ ] **Step 3: Crear el archivo de test**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\apps\backend\src\modules\cron\cron.service.test.ts" -Force
 ```
@@ -2227,7 +2353,9 @@ describe('CronService', () => {
 
   describe('parseBcvJsonData', () => {
     it('extracts from valid JSON', () => {
-      const data = { USD: { fecha: '2026-06-02', euro: '38,50', yuan: '5,00', lira: '1,00', rublo: '0,40' } };
+      const data = {
+        USD: { fecha: '2026-06-02', euro: '38,50', yuan: '5,00', lira: '1,00', rublo: '0,40' },
+      };
       // @ts-expect-error
       const result = service.parseBcvJsonData(data);
       expect(result).toBeGreaterThan(0);
@@ -2265,10 +2393,13 @@ describe('CronService', () => {
   describe('triggerBcvRateFetch', () => {
     it('returns success on happy path', async () => {
       const mockHtml = '<div id="dolar">36,50</div>';
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        text: () => Promise.resolve(mockHtml),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          text: () => Promise.resolve(mockHtml),
+        })
+      );
 
       (db.select as any).mockReturnValue({
         from: () => ({ where: () => ({ limit: () => [{ id: 'usd-id' }] }) }),
@@ -2303,6 +2434,7 @@ pnpm --filter backend test -- --run src/modules/cron/cron.service.test.ts
 ```
 
 Expected: 11 tests pasan. Si fallan:
+
 - Si "rejects out-of-range values" falla porque encontró otro pattern: ajustar el test para usar HTML que no tenga ningún valor válido.
 - Si "parses the full BCV fixture" falla: ajustar el fixture HTML.
 - Si los spy de métodos privados no funcionan con `@ts-expect-error`: convertir `parseBcvHtml` y `parseBcvJsonData` y `storeExchangeRate` a `protected` o exponer un test helper. **Decisión pragmática:** si los tests de métodos privados son problemáticos, exponerlos como `public` con un JSDoc `@internal` para que el linter no proteste.
@@ -2331,11 +2463,13 @@ git commit -m "test(backend): add CronService tests with BCV HTML fixture (11 ca
 ### Task 12: Crear `packages/database/tests/unit/schema.test.ts`
 
 **Files:**
+
 - Create: `packages/database/tests/unit/schema.test.ts`
 
 - [ ] **Step 1: Crear el archivo**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\tests\unit\schema.test.ts" -Force
 ```
@@ -2435,11 +2569,13 @@ git commit -m "test(database): add schema validation tests (6 cases)"
 ### Task 13: Crear `packages/database/tests/unit/relations.test.ts`
 
 **Files:**
+
 - Create: `packages/database/tests/unit/relations.test.ts`
 
 - [ ] **Step 1: Crear el archivo**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\tests\unit\relations.test.ts" -Force
 ```
@@ -2516,6 +2652,7 @@ git commit -m "test(database): add relations existence tests (6 cases)"
 ### Task 14: Crear `packages/database/tests/unit/seed.test.ts`
 
 **Files:**
+
 - Create: `packages/database/tests/unit/seed.test.ts`
 
 - [ ] **Step 1: Levantar la test DB y aplicar migraciones**
@@ -2536,6 +2673,7 @@ pnpm --filter database db:migrate
 - [ ] **Step 2: Crear el archivo de test**
 
 Run:
+
 ```bash
 New-Item -ItemType File -Path "C:\Users\elchu\Documents\Proyectos\docker-project-turbo\packages\database\tests\unit\seed.test.ts" -Force
 ```
@@ -2549,7 +2687,16 @@ import { testDb, cleanDatabase, closeTestConnection } from '../../src/test/datab
 import { seedRbac } from '../../src/scripts/seed-rbac';
 import { seedCoreData } from '../../src/scripts/seed-core';
 import { seedTestData } from '../../src/scripts/seed-test';
-import { roles, users, currencies, partners, bankAccounts, payments, invoices, permissions } from '../../src/schema';
+import {
+  roles,
+  users,
+  currencies,
+  partners,
+  bankAccounts,
+  payments,
+  invoices,
+  permissions,
+} from '../../src/schema';
 
 describe('Seed scripts', () => {
   beforeAll(async () => {
@@ -2594,7 +2741,10 @@ describe('Seed scripts', () => {
     it('does not duplicate admin user after 2 runs', async () => {
       await seedTestData();
       await seedTestData();
-      const adminUsers = await testDb.select().from(users).where(eq(users.email, 'test-admin@test.local'));
+      const adminUsers = await testDb
+        .select()
+        .from(users)
+        .where(eq(users.email, 'test-admin@test.local'));
       expect(adminUsers.length).toBe(1);
     });
   });
@@ -2603,14 +2753,17 @@ describe('Seed scripts', () => {
     it('rejects duplicate partner taxId', async () => {
       await seedRbac();
       await seedCoreData();
-      const [partner1] = await testDb.insert(partners).values({
-        name: 'P1',
-        taxId: 'J-UNIQUE-001',
-        type: 'CUSTOMER',
-        taxpayerType: 'ORDINARY',
-        retentionRate: '0',
-        creditLimit: '0',
-      }).returning();
+      const [partner1] = await testDb
+        .insert(partners)
+        .values({
+          name: 'P1',
+          taxId: 'J-UNIQUE-001',
+          type: 'CUSTOMER',
+          taxpayerType: 'ORDINARY',
+          retentionRate: '0',
+          creditLimit: '0',
+        })
+        .returning();
 
       expect(partner1).toBeDefined();
 
@@ -2622,7 +2775,7 @@ describe('Seed scripts', () => {
           taxpayerType: 'ORDINARY',
           retentionRate: '0',
           creditLimit: '0',
-        }),
+        })
       ).rejects.toThrow();
     });
   });
@@ -2653,7 +2806,10 @@ describe('Seed scripts', () => {
       // El balance debería aumentar en 100 (si recalc se hace automáticamente) o quedarse igual
       // Si no hay trigger de recálculo, el balance queda desincronizado
       // Este test verifica la INVARIANTE, no el trigger
-      const [updatedAccount] = await testDb.select().from(bankAccounts).where(eq(bankAccounts.id, account.id));
+      const [updatedAccount] = await testDb
+        .select()
+        .from(bankAccounts)
+        .where(eq(bankAccounts.id, account.id));
       const newBalance = parseFloat(updatedAccount.currentBalance);
 
       // Para que el invariant se cumpla, asumimos que algún mecanismo recalcula.
@@ -2669,21 +2825,24 @@ describe('Seed scripts', () => {
   describe('audit 12 §3.5 fiscal invariant', () => {
     it('totalTax = totalBase * 0.16 for posted invoices', async () => {
       // Insertar invoice con totalBase=1000, totalTax=160, status=POSTED
-      const [invoice] = await testDb.insert(invoices).values({
-        code: 'INV-FISCAL-TEST-001',
-        partnerId: '00000000-0000-4000-8000-000000000040',
-        branchId: '00000000-0000-4000-8000-000000000010',
-        currencyId: '00000000-0000-4000-8000-000000000020',
-        exchangeRate: '1.0000',
-        type: 'SALE',
-        status: 'POSTED',
-        fiscalStatus: 'CONFIRMED',
-        totalBase: '1000.00',
-        totalTax: '160.00',
-        totalIgtf: '0',
-        total: '1160.00',
-        date: new Date(),
-      }).returning();
+      const [invoice] = await testDb
+        .insert(invoices)
+        .values({
+          code: 'INV-FISCAL-TEST-001',
+          partnerId: '00000000-0000-4000-8000-000000000040',
+          branchId: '00000000-0000-4000-8000-000000000010',
+          currencyId: '00000000-0000-4000-8000-000000000020',
+          exchangeRate: '1.0000',
+          type: 'SALE',
+          status: 'POSTED',
+          fiscalStatus: 'CONFIRMED',
+          totalBase: '1000.00',
+          totalTax: '160.00',
+          totalIgtf: '0',
+          total: '1160.00',
+          date: new Date(),
+        })
+        .returning();
 
       // Verificar la invariante
       const expectedTax = Math.round(parseFloat(invoice.totalBase) * 0.16 * 100) / 100;
@@ -2727,6 +2886,7 @@ git commit -m "test(database): add seed idempotency and invariant tests (7 cases
 ### Task 15: Verificar todo el sub-proyecto
 
 **Files:**
+
 - (no file changes, solo verificación)
 
 - [ ] **Step 1: Ejecutar TODOS los tests del backend**
@@ -2750,6 +2910,7 @@ Expected: genera `apps/backend/coverage/index.html`. Ábrelo en navegador y veri
 - [ ] **Step 3: Ejecutar TODOS los tests del database package**
 
 Levanta la test DB:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose -f docker-compose.test.yml up -d
@@ -2758,6 +2919,7 @@ pnpm --filter database db:migrate
 ```
 
 Run:
+
 ```bash
 pnpm --filter database test -- --run
 ```
@@ -2773,6 +2935,7 @@ docker compose -f docker-compose.test.yml down
 - [ ] **Step 5: Verificar fresh seed completo**
 
 Levanta la DB de dev:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 docker compose up -d postgres
@@ -2780,6 +2943,7 @@ docker compose up -d postgres
 ```
 
 Aplica migraciones y seeds:
+
 ```bash
 pnpm --filter database db:migrate
 pnpm --filter database db:seed:rbac
@@ -2793,12 +2957,14 @@ Expected: cada comando exit 0. El último imprime "Test data seeding completed s
 - [ ] **Step 6: Verificar que login funciona con admin@test.local**
 
 Levanta el backend (en otra terminal o background):
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend dev
 ```
 
 En otra terminal:
+
 ```bash
 curl -X POST http://localhost:4000/v1/auth/login -H "Content-Type: application/json" -d '{\"email\":\"admin@test.local\",\"password\":\"admin123\"}'
 ```
@@ -2844,6 +3010,7 @@ git status
 ```
 
 Si hay cambios sin commitear:
+
 ```bash
 git add -A
 git commit -m "chore: end-to-end verification of MVP tests and seeds sub-project"

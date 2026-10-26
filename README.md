@@ -89,7 +89,7 @@ Este proyecto utiliza una arquitectura de **monorrepo** gestionada por **Turbore
 | **Turborepo**       | `2.11.10`                               | Orquestador de tareas |
 | **Next.js**         | `16.4.3`                                | Frontend (App Router) |
 | **React**           | `19.3.1`                                | Librería UI           |
-| **NestJS**          | `10.4.22`                               | Backend (API REST)    |
+| **NestJS**          | `12.2.0`                                | Backend (API REST)    |
 | **TypeScript**      | `6.0.3` (workspace), `5.9.3` (frontend) | Tipado estático       |
 | **Drizzle ORM**     | `0.45.4`                                | ORM                   |
 | **Drizzle Kit**     | `0.31.11`                               | CLI para migraciones  |
@@ -159,22 +159,29 @@ BCV_API_URL=https://www.bcv.org.ve
 ### Dev full con Docker (todos los servicios)
 
 ```bash
-pnpm dev:docker:up          # levanta los 5 servicios
+pnpm dev:docker:up          # levanta los servicios base (postgres, db-setup, backend, frontend)
 # o
-docker compose up
+docker compose up -d
+
+# herramientas opcionales (pgAdmin, Drizzle Studio, Prism Mock)
+pnpm dev:docker:tools
 ```
 
 Servicios que se levantan:
 
-| Servicio                                  | Contenedor      | Puerto host | URL                                                    |
-| ----------------------------------------- | --------------- | ----------- | ------------------------------------------------------ |
-| **PostgreSQL**                            | `mono-postgres` | 5432        | `localhost:5432`                                       |
-| **Backend** (NestJS + Swagger + DevTools) | `mono-backend`  | 4000, 8000  | `http://localhost:4000` · `http://localhost:4000/docs` |
-| **Frontend** (Next.js)                    | `mono-frontend` | 3000        | `http://localhost:3000`                                |
-| **Prism Mock**                            | `mono-mock`     | 4010        | `http://localhost:4010`                                |
-| **Drizzle Studio**                        | `mono-drizzle`  | 4983        | `https://local.drizzle.studio/?host=localhost:4983`    |
+| Servicio                              | Contenedor      | Puerto host | URL                                                    |
+| ------------------------------------- | --------------- | ----------- | ------------------------------------------------------ |
+| **PostgreSQL**                        | `mono-postgres` | 5432        | `localhost:5432`                                       |
+| **Backend** (NestJS + Swagger)        | `mono-backend`  | 4000        | `http://localhost:4000` · `http://localhost:4000/docs` |
+| **Frontend** (Next.js)                | `mono-frontend` | 3000        | `http://localhost:3000`                                |
+| **Prism Mock** (perfil `tools`)       | `mono-mock`     | 4010        | `http://localhost:4010`                                |
+| **Drizzle Studio** (perfil `tools`)   | `mono-drizzle`  | 4983        | `https://local.drizzle.studio/?host=localhost:4983`    |
+| **pgAdmin** (perfil `tools`)          | `mono-pgadmin`  | 5050        | `http://localhost:5050`                                |
+| **db-setup** (one-shot: migra + seed) | `mono-db-setup` | —           | termina con `exit 0`                                   |
 
-**Orden de arranque:** `postgres` (healthcheck) → `backend` (genera `openapi.json` en arranque) → `frontend`, `mock`, `drizzle-studio` en paralelo.
+**Orden de arranque:** `postgres` (healthcheck) → `db-setup` (migraciones + seed, termina) →
+`backend` (healthcheck `/health`) → `frontend` (healthcheck `/`). Las herramientas del perfil
+`tools` se levantan aparte con `pnpm dev:docker:tools`.
 
 **Conectividad entre servicios:**
 
@@ -236,7 +243,7 @@ pnpm --filter database db:generate
 pnpm --filter database db:migrate
 
 # Ejecutar seed de roles y permisos
-pnpm --filter database db:seed:rbac
+pnpm --filter database db:seed:core
 
 # Iniciar desarrollo
 pnpm turbo dev
@@ -263,19 +270,19 @@ docker run -d \
 
 ### Dentro del contenedor Docker
 
-Usa `docker compose exec monorepo` para ejecutar comandos dentro del contenedor:
+Usa `docker compose exec backend` para ejecutar comandos dentro del contenedor:
 
 ```bash
 # Shell interactivo
-docker compose exec monorepo sh
+docker compose exec backend sh
 
 # Turborepo
-docker compose exec monorepo pnpm turbo run build
-docker compose exec monorepo pnpm turbo run db:generate
+docker compose exec backend pnpm turbo run build
+docker compose exec backend pnpm turbo run db:generate
 
 # Tests
-docker compose exec monorepo pnpm --filter backend test
-docker compose exec monorepo pnpm --filter database test
+docker compose exec backend pnpm --filter backend test
+docker compose exec backend pnpm --filter database test
 ```
 
 ### En el host (desarrollo local)
@@ -304,12 +311,18 @@ pnpm sync:types      # Regenera packages/shared-types/src/api-types.ts
 # Database
 pnpm --filter database db:generate
 pnpm --filter database db:migrate
-pnpm --filter database db:seed:rbac
+pnpm --filter database db:seed:core
+
+# Calidad
+pnpm lint
+pnpm typecheck
+pnpm format:check
 
 # Testing
 pnpm test
 pnpm test --filter backend
 pnpm test --filter database
+pnpm test:e2e        # Playwright (levanta el frontend automáticamente)
 pnpm test:coverage
 
 # Linting
@@ -393,7 +406,7 @@ docker-project-turbo/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── backend/                # NestJS 10
+│   └── backend/                # NestJS 12
 │       ├── src/
 │       │   ├── modules/       # Módulosfeature
 │       │   │   ├── auth/      # Login, JWT
@@ -581,6 +594,30 @@ Todos los endpoints usan el prefijo `/v1/`:
 @Post()
 async create(@Body() dto: CreateInvoiceDto) { ... }
 ```
+
+---
+
+## 🔐 Autenticación y sesión
+
+La sesión viaja en una **cookie `httpOnly`** (`erp_token`, `SameSite=Lax`), no en `localStorage`.
+El JWT también se devuelve en el body por compatibilidad con clientes existentes.
+
+| Endpoint                        | Descripción                                            | Acceso     |
+| ------------------------------- | ------------------------------------------------------ | ---------- |
+| `POST /v1/auth/login`           | Devuelve el JWT **y** setea la cookie                  | Público    |
+| `GET /v1/auth/me`               | Perfil + permisos + sucursales del usuario autenticado | Con sesión |
+| `POST /v1/auth/logout`          | Borra la cookie                                        | Público    |
+| `POST /v1/auth/forgot-password` | Genera un token de recuperación (TTL 1 h, un solo uso) | Público    |
+| `POST /v1/auth/reset-password`  | Cambia la contraseña consumiendo el token              | Público    |
+
+- El backend acepta el token **por cookie o por `Authorization: Bearer`** (transición).
+- `forgot-password` envía un correo real si `SMTP_URL` está configurada (nodemailer); en desarrollo
+  sin SMTP devuelve además `mockUrl` con el enlace (el mismo se escribe en el log). En producción
+  **nunca** se devuelve el token por la API.
+- La página `/reset-password?token=...` (pública) permite fijar la nueva contraseña; el token es de
+  un solo uso y expira en 60 minutos.
+- Rate limiting: 5 req/min en login, 3 req/min en forgot/reset.
+- Todo endpoint es privado por defecto (`APP_GUARD`); lo público se marca con `@Public()`.
 
 ---
 

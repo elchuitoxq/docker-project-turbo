@@ -11,27 +11,27 @@
 
 ### 1.1 Estado actual verificado
 
-| Capa | Realidad |
-|---|---|
-| `apps/frontend/` | Solo scaffold Next.js 16 + React 19. `app/page.tsx` con H1. Cero shadcn, cero módulos, cero stores, cero api client. |
-| `apps/frontend/components/` | Subcarpetas vacías (`auth/`, `layout/`, `navigation/`, `ui/`). |
-| `apps/frontend/components.json` | **No existe.** |
-| `apps/frontend/package.json` | Sin shadcn, sin TanStack Query, sin Zustand, sin next-themes, sin zod. |
-| Backend (NestJS) | 19 módulos completos. Endpoints funcionales, RBAC, BCV, USD/VES, fiscalidad VE. |
-| Base de datos | `branches` con `name, taxId, address, phone, email, isActive`. **No existe** tabla `companies`. Multi-tenant actual = `users_branches` → `branches`. |
+| Capa                            | Realidad                                                                                                                                             |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/frontend/`                | Solo scaffold Next.js 16 + React 19. `app/page.tsx` con H1. Cero shadcn, cero módulos, cero stores, cero api client.                                 |
+| `apps/frontend/components/`     | Subcarpetas vacías (`auth/`, `layout/`, `navigation/`, `ui/`).                                                                                       |
+| `apps/frontend/components.json` | **No existe.**                                                                                                                                       |
+| `apps/frontend/package.json`    | Sin shadcn, sin TanStack Query, sin Zustand, sin next-themes, sin zod.                                                                               |
+| Backend (NestJS)                | 19 módulos completos. Endpoints funcionales, RBAC, BCV, USD/VES, fiscalidad VE.                                                                      |
+| Base de datos                   | `branches` con `name, taxId, address, phone, email, isActive`. **No existe** tabla `companies`. Multi-tenant actual = `users_branches` → `branches`. |
 
 ### 1.2 Decisiones cerradas
 
-| # | Decisión |
-|---|---|
-| D1 | Frontend completo end-to-end (14 módulos) en 6 sub-proyectos |
-| D2 | Foundation primero (1 sprint) |
-| D3 | Tema: toggle dark/light estándar shadcn, sin editor ni backend |
-| D4 | Header empresarial: CompanyContext, branch, search, favoritos, help, i18n |
-| D5 | API: openapi-typescript + openapi-codegen + fetch nativo + React Query v5 (sin axios) |
-| D6 | Estética: Linear/Vercel con shadcn `sidebar-07` |
-| D7 | Multi-tenant: Camino C — empresa lógica agrupada por RIF |
-| D8 | Ejecución: vertical slice en 9 días |
+| #   | Decisión                                                                              |
+| --- | ------------------------------------------------------------------------------------- |
+| D1  | Frontend completo end-to-end (14 módulos) en 6 sub-proyectos                          |
+| D2  | Foundation primero (1 sprint)                                                         |
+| D3  | Tema: toggle dark/light estándar shadcn, sin editor ni backend                        |
+| D4  | Header empresarial: CompanyContext, branch, search, favoritos, help, i18n             |
+| D5  | API: openapi-typescript + openapi-codegen + fetch nativo + React Query v5 (sin axios) |
+| D6  | Estética: Linear/Vercel con shadcn `sidebar-07`                                       |
+| D7  | Multi-tenant: Camino C — empresa lógica agrupada por RIF                              |
+| D8  | Ejecución: vertical slice en 9 días                                                   |
 
 ### 1.3 Métricas DoD Foundation
 
@@ -178,11 +178,11 @@ apps/frontend/
 
 ### 3.3 Layout responsive (regla §10)
 
-| Breakpoint | Rango | Sidebar | Header |
-|---|---|---|---|
-| (base) / sm | < 768px | Sheet drawer overlay | Hamburger + chip empresa compacto + menú ⋯ |
-| md | 768-1023px | Sidebar colapsado a iconos, abre como overlay | Ambos selectores inline + breadcrumb + i18n |
-| lg+ | ≥ 1024px | Sidebar expandido con variantes (default/inset) | Full: CompanyContext + breadcrumb + Help + i18n + Notif |
+| Breakpoint  | Rango      | Sidebar                                         | Header                                                  |
+| ----------- | ---------- | ----------------------------------------------- | ------------------------------------------------------- |
+| (base) / sm | < 768px    | Sheet drawer overlay                            | Hamburger + chip empresa compacto + menú ⋯              |
+| md          | 768-1023px | Sidebar colapsado a iconos, abre como overlay   | Ambos selectores inline + breadcrumb + i18n             |
+| lg+         | ≥ 1024px   | Sidebar expandido con variantes (default/inset) | Full: CompanyContext + breadcrumb + Help + i18n + Notif |
 
 ### 3.4 RBAC visual
 
@@ -227,15 +227,15 @@ export class CompanyResponseDto {
 
 ### 4.2 Endpoints consumidos (ya existentes)
 
-| Método | Path | Uso |
-|---|---|---|
-| POST | `/auth/login` | Login |
-| GET | `/auth/profile` | Perfil del usuario autenticado |
-| GET | `/branches` | Sucursales accesibles |
-| GET | `/branches/companies` | Empresas (RIF agrupados) — **NUEVO** |
-| GET | `/settings/exchange-rates/current` | Tasa BCV actual |
-| GET | `/search?q=` | Búsqueda global |
-| GET | `/audit/:entityTable/:entityId` | Historial de cambios |
+| Método | Path                               | Uso                                  |
+| ------ | ---------------------------------- | ------------------------------------ |
+| POST   | `/auth/login`                      | Login                                |
+| GET    | `/auth/profile`                    | Perfil del usuario autenticado       |
+| GET    | `/branches`                        | Sucursales accesibles                |
+| GET    | `/branches/companies`              | Empresas (RIF agrupados) — **NUEVO** |
+| GET    | `/settings/exchange-rates/current` | Tasa BCV actual                      |
+| GET    | `/search?q=`                       | Búsqueda global                      |
+| GET    | `/audit/:entityTable/:entityId`    | Historial de cambios                 |
 
 ---
 
@@ -285,15 +285,41 @@ export const PERMISSIONS = {
 
 ```typescript
 [
-  { title: 'Dashboard', url: '/dashboard', icon: 'LayoutDashboard', permission: PERMISSIONS.DASHBOARD.VIEW },
-  { title: 'Operaciones', icon: 'Briefcase', permission: PERMISSIONS.OPERATIONS.VIEW, items: [
-    { title: 'Clientes y Proveedores', url: '/dashboard/operations/partners', permission: PERMISSIONS.OPERATIONS.PARTNERS.VIEW },
-    { title: 'Ventas', url: '/dashboard/operations/sales', permission: PERMISSIONS.OPERATIONS.SALES.VIEW },
-    { title: 'Compras', url: '/dashboard/operations/purchases', permission: PERMISSIONS.OPERATIONS.PURCHASES.VIEW },
-    { title: 'Pedidos', url: '/dashboard/operations/orders', permission: PERMISSIONS.OPERATIONS.ORDERS.VIEW },
-  ]},
+  {
+    title: 'Dashboard',
+    url: '/dashboard',
+    icon: 'LayoutDashboard',
+    permission: PERMISSIONS.DASHBOARD.VIEW,
+  },
+  {
+    title: 'Operaciones',
+    icon: 'Briefcase',
+    permission: PERMISSIONS.OPERATIONS.VIEW,
+    items: [
+      {
+        title: 'Clientes y Proveedores',
+        url: '/dashboard/operations/partners',
+        permission: PERMISSIONS.OPERATIONS.PARTNERS.VIEW,
+      },
+      {
+        title: 'Ventas',
+        url: '/dashboard/operations/sales',
+        permission: PERMISSIONS.OPERATIONS.SALES.VIEW,
+      },
+      {
+        title: 'Compras',
+        url: '/dashboard/operations/purchases',
+        permission: PERMISSIONS.OPERATIONS.PURCHASES.VIEW,
+      },
+      {
+        title: 'Pedidos',
+        url: '/dashboard/operations/orders',
+        permission: PERMISSIONS.OPERATIONS.ORDERS.VIEW,
+      },
+    ],
+  },
   // ... mismo patrón para Inventory, Finance, HR, Settings
-]
+];
 ```
 
 ---
@@ -382,7 +408,11 @@ it('groups branches by taxId and returns aggregated company info', async () => {
 const API_BASE = env.NEXT_PUBLIC_API_URL;
 
 class ApiError extends Error {
-  constructor(public status: number, message: string, public body?: unknown) {
+  constructor(
+    public status: number,
+    message: string,
+    public body?: unknown
+  ) {
     super(message);
   }
 }
@@ -441,21 +471,23 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    set => ({
       token: null,
       user: null,
       isAuthenticated: false,
       hasHydrated: false,
       login: (token, user) => set({ token, user, isAuthenticated: true }),
       logout: () => set({ token: null, user: null, isAuthenticated: false }),
-      setHydrated: (v) => set({ hasHydrated: v }),
+      setHydrated: v => set({ hasHydrated: v }),
     }),
     {
       name: 'erp.auth',
       storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => { state?.setHydrated(true); },
-    },
-  ),
+      onRehydrateStorage: () => state => {
+        state?.setHydrated(true);
+      },
+    }
+  )
 );
 ```
 
@@ -480,12 +512,12 @@ export function CompanyContextSwitcher() {
   const { data: branches = [] } = useBranches();
 
   const currentCompany = useMemo(
-    () => companies.find((c) => c.taxId === currentCompanyTaxId) ?? null,
-    [companies, currentCompanyTaxId],
+    () => companies.find(c => c.taxId === currentCompanyTaxId) ?? null,
+    [companies, currentCompanyTaxId]
   );
   const availableBranches = useMemo(
-    () => branches.filter((b) => b.taxId === currentCompanyTaxId),
-    [branches, currentCompanyTaxId],
+    () => branches.filter(b => b.taxId === currentCompanyTaxId),
+    [branches, currentCompanyTaxId]
   );
 
   return (
@@ -494,14 +526,14 @@ export function CompanyContextSwitcher() {
         icon={Building2}
         placeholder="Empresa"
         value={currentCompanyTaxId}
-        options={companies.map((c) => ({
+        options={companies.map(c => ({
           value: c.taxId,
           label: c.name,
           sublabel: `RIF: ${c.taxId}`,
         }))}
-        onChange={(taxId) => {
+        onChange={taxId => {
           setCompany(taxId);
-          const firstBranch = branches.find((b) => b.taxId === taxId);
+          const firstBranch = branches.find(b => b.taxId === taxId);
           setBranch(firstBranch?.id ?? null);
         }}
         disabled={companies.length <= 1}
@@ -510,7 +542,7 @@ export function CompanyContextSwitcher() {
       <Combobox
         placeholder="Sucursal"
         value={currentBranchId}
-        options={availableBranches.map((b) => ({
+        options={availableBranches.map(b => ({
           value: b.id,
           label: b.name,
         }))}
@@ -563,26 +595,26 @@ export function CompanyContextSwitcher() {
 
 ## 9. Calendario de implementación (9 días)
 
-| Día | Entregable |
-|---|---|
-| 1 | shadcn init + sidebar-07 + tema dark/light + ThemeProvider |
-| 2 | Providers (TanStack Query, Toaster, i18n) + globals.css + ModeToggle |
-| 3 | apiClient + openapi-typescript + openapi-codegen + tipos generados |
-| 4 | Login page + AuthStore + AuthGuard + Logout |
-| 5 | Backend endpoint `/branches/companies` + CompanyContextSwitcher + BranchSwitcher |
-| 6 | NavMain + NavFavorites (drag&drop) + NavUser + CommandPalette + GlobalRateDisplay |
-| 7 | usePermission + PermissionsGate + lib/permissions.ts + lib/navigation.ts + §10 responsive |
-| 8 | 14 módulos stubs + pages wrappers |
-| 9 | E2E tests + build + lint + typecheck + coverage |
+| Día | Entregable                                                                                |
+| --- | ----------------------------------------------------------------------------------------- |
+| 1   | shadcn init + sidebar-07 + tema dark/light + ThemeProvider                                |
+| 2   | Providers (TanStack Query, Toaster, i18n) + globals.css + ModeToggle                      |
+| 3   | apiClient + openapi-typescript + openapi-codegen + tipos generados                        |
+| 4   | Login page + AuthStore + AuthGuard + Logout                                               |
+| 5   | Backend endpoint `/branches/companies` + CompanyContextSwitcher + BranchSwitcher          |
+| 6   | NavMain + NavFavorites (drag&drop) + NavUser + CommandPalette + GlobalRateDisplay         |
+| 7   | usePermission + PermissionsGate + lib/permissions.ts + lib/navigation.ts + §10 responsive |
+| 8   | 14 módulos stubs + pages wrappers                                                         |
+| 9   | E2E tests + build + lint + typecheck + coverage                                           |
 
 ---
 
 ## 10. Riesgos y mitigaciones
 
-| Riesgo | Mitigación |
-|---|---|
-| `npx shadcn@latest add` requiere red y puede fallar en contenedor | Documentar el fallback (instalación manual) en el plan |
-| Conflictos de versión Next 16 + shadcn reciente | Usar `--legacy-peer-deps` si es necesario |
-| Tests MSW con fetch wrapper requiere node-fetch polyfill en jsdom | Añadir `whatwg-fetch` o configurar Vitest con `environment: 'happy-dom'` |
-| Drag&drop con @dnd-kit/core en React 19 puede tener issues | Verificar compatibilidad antes de implementar; alternativa: HTML5 native drag&drop |
-| next-intl v3 vs v4 cambia API | Pin a versión conocida estable en package.json |
+| Riesgo                                                            | Mitigación                                                                         |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `npx shadcn@latest add` requiere red y puede fallar en contenedor | Documentar el fallback (instalación manual) en el plan                             |
+| Conflictos de versión Next 16 + shadcn reciente                   | Usar `--legacy-peer-deps` si es necesario                                          |
+| Tests MSW con fetch wrapper requiere node-fetch polyfill en jsdom | Añadir `whatwg-fetch` o configurar Vitest con `environment: 'happy-dom'`           |
+| Drag&drop con @dnd-kit/core en React 19 puede tener issues        | Verificar compatibilidad antes de implementar; alternativa: HTML5 native drag&drop |
+| next-intl v3 vs v4 cambia API                                     | Pin a versión conocida estable en package.json                                     |

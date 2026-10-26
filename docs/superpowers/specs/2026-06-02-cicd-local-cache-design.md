@@ -73,13 +73,13 @@ docs/
 
 ### 3.2 Triggers
 
-| Workflow | Trigger | Justificación |
-|---|---|---|
-| `ci.yml` | `pull_request` (cualquier rama) | Gate por PR |
-| `ci.yml` | `push` a `main` | Verificar que `main` sigue verde |
-| `ci.yml` | `workflow_dispatch` | Re-run manual con inputs custom |
+| Workflow       | Trigger                             | Justificación                               |
+| -------------- | ----------------------------------- | ------------------------------------------- |
+| `ci.yml`       | `pull_request` (cualquier rama)     | Gate por PR                                 |
+| `ci.yml`       | `push` a `main`                     | Verificar que `main` sigue verde            |
+| `ci.yml`       | `workflow_dispatch`                 | Re-run manual con inputs custom             |
 | `ci-smoke.yml` | `schedule` (cron diario, 06:00 UTC) | Detectar drift antes de que un dev lo sufra |
-| `ci-smoke.yml` | `workflow_dispatch` | Re-run manual |
+| `ci-smoke.yml` | `workflow_dispatch`                 | Re-run manual                               |
 
 ### 3.3 Concurrencia
 
@@ -146,11 +146,11 @@ Si Corepack no está disponible (versiones viejas de Node), fallback a `pnpm/act
 
 Tres jobs independientes que se ejecutan en paralelo tras `setup`:
 
-| Job | Comando | Falla si |
-|---|---|---|
-| `lint` | `pnpm turbo run lint --affected` | Cualquier error de ESLint |
-| `typecheck` | `pnpm turbo run typecheck --affected` | Cualquier error de `tsc --noEmit` |
-| `format:check` | `pnpm format:check` | Cualquier archivo mal formateado |
+| Job            | Comando                               | Falla si                          |
+| -------------- | ------------------------------------- | --------------------------------- |
+| `lint`         | `pnpm turbo run lint --affected`      | Cualquier error de ESLint         |
+| `typecheck`    | `pnpm turbo run typecheck --affected` | Cualquier error de `tsc --noEmit` |
+| `format:check` | `pnpm format:check`                   | Cualquier archivo mal formateado  |
 
 Nota: el comando `typecheck` se modela como un nuevo task en `turbo.json` (ver §4.7). Hoy no existe; se añade en este sub-proyecto.
 
@@ -286,6 +286,7 @@ runs:
 ```
 
 Notas:
+
 - `actions/setup-node@v4` ya añade `node_modules` al path (no hace falta cachearlo).
 - `pnpm install --frozen-lockfile` falla si `pnpm-lock.yaml` está desincronizado con `package.json`s. Es la política correcta.
 - Las `restore-keys` permiten fallback a una versión anterior del lockfile si la exacta no existe.
@@ -294,15 +295,15 @@ Notas:
 
 ## 6. Hardening
 
-| Medida | Implementación |
-|---|---|
-| Permissions mínimas | `permissions: { contents: read }` por default en cada workflow |
-| Pin de actions por SHA | `ci.yml` y `ci-smoke.yml` pinean `actions/checkout@v4`, `actions/setup-node@v4`, `actions/cache@v4`, `actions/upload-artifact@v4`, `pnpm/action-setup@v4` por SHA. SHAs exactos se eligen al momento de implementar desde `dependabot.yml` (que mantiene el archivo actualizado). |
-| Timeouts por job | `lint`: 10min, `typecheck`: 15min, `format:check`: 5min, `unit`: 15min, `integration`: 25min, `build`: 20min |
-| Concurrency groups | Sí (ver §3.3) |
-| Fail-fast | `continue-on-error: false` en todos los jobs (default) |
-| Matrix Node | 20 y 22 en `ci.yml`. Stage 1 y jobs de Quality y Test corren con ambos. Stage 4 (build) corre solo con Node 22 (el default actual del repo según `Dockerfile.dev`). |
-| Branch protection documentado | En `docs/CI.md`, sección "Configuración requerida en GitHub" |
+| Medida                        | Implementación                                                                                                                                                                                                                                                                    |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Permissions mínimas           | `permissions: { contents: read }` por default en cada workflow                                                                                                                                                                                                                    |
+| Pin de actions por SHA        | `ci.yml` y `ci-smoke.yml` pinean `actions/checkout@v4`, `actions/setup-node@v4`, `actions/cache@v4`, `actions/upload-artifact@v4`, `pnpm/action-setup@v4` por SHA. SHAs exactos se eligen al momento de implementar desde `dependabot.yml` (que mantiene el archivo actualizado). |
+| Timeouts por job              | `lint`: 10min, `typecheck`: 15min, `format:check`: 5min, `unit`: 15min, `integration`: 25min, `build`: 20min                                                                                                                                                                      |
+| Concurrency groups            | Sí (ver §3.3)                                                                                                                                                                                                                                                                     |
+| Fail-fast                     | `continue-on-error: false` en todos los jobs (default)                                                                                                                                                                                                                            |
+| Matrix Node                   | 20 y 22 en `ci.yml`. Stage 1 y jobs de Quality y Test corren con ambos. Stage 4 (build) corre solo con Node 22 (el default actual del repo según `Dockerfile.dev`).                                                                                                               |
+| Branch protection documentado | En `docs/CI.md`, sección "Configuración requerida en GitHub"                                                                                                                                                                                                                      |
 
 ### 6.1 Matrix Node: detalle
 
@@ -325,6 +326,7 @@ strategy:
 ### 6.2 Timeout values justificados
 
 Basado en la experiencia local con Docker (punto de referencia):
+
 - `pnpm install` cold: ~2-3 min, warm: ~10-30s
 - `lint` cold: ~30s, warm: ~10s
 - `typecheck` cold: ~3-5 min (56+ tablas, mucha inferencia), warm: ~30-60s
@@ -345,7 +347,7 @@ Corre una vez al día y verifica que el setup del CI sigue vivo. Es un subset m�
 name: CI Smoke
 on:
   schedule:
-    - cron: '0 6 * * *'  # 06:00 UTC diario
+    - cron: '0 6 * * *' # 06:00 UTC diario
   workflow_dispatch:
 
 jobs:
@@ -373,14 +375,14 @@ Solo actualiza workflows y actions. No toca dependencias de runtime (eso es otro
 ```yaml
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     groups:
       github-actions:
         patterns:
-          - "*"
+          - '*'
 ```
 
 Mantiene los SHAs de las actions actualizados, alertando al equipo de versiones nuevas.
@@ -482,15 +484,15 @@ Si algún tsconfig tiene `incremental: true`, hay que añadir outputs en `turbo.
 
 ## 13. Riesgos y mitigaciones
 
-| Riesgo | Mitigación |
-|---|---|
-| El composite action se rompe al cambiar versiones de actions | Dependabot semanal + smoke diario detecta drift |
-| Cache de pnpm se vuelve muy grande | `actions/cache@v4` con eviction automática. Si pasa de 10GB por repo, revisar. |
-| Service container de Postgres no levanta en runner | Health check explícito + retry; documentado en CI.md |
-| `typecheck` revela errores pre-existentes | Se permite PR dedicado para arreglar typecheck antes de mergear el CI. Documentar como "PR #0" en el plan. |
-| Matrix Node 22 vs 20 falla por incompatibilidad | `fail-fast: false` permite ver ambos resultados; fix es independiente |
-| Branch protection muy estricto bloquea hotfix | Documentar procedimiento de "skip-ci" label + bypass (ver §6.2 de `docs/CI.md`) |
-| SHAs de actions se quedan desactualizados | Dependabot semanal; PR auto-mergeable con un click |
+| Riesgo                                                       | Mitigación                                                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| El composite action se rompe al cambiar versiones de actions | Dependabot semanal + smoke diario detecta drift                                                            |
+| Cache de pnpm se vuelve muy grande                           | `actions/cache@v4` con eviction automática. Si pasa de 10GB por repo, revisar.                             |
+| Service container de Postgres no levanta en runner           | Health check explícito + retry; documentado en CI.md                                                       |
+| `typecheck` revela errores pre-existentes                    | Se permite PR dedicado para arreglar typecheck antes de mergear el CI. Documentar como "PR #0" en el plan. |
+| Matrix Node 22 vs 20 falla por incompatibilidad              | `fail-fast: false` permite ver ambos resultados; fix es independiente                                      |
+| Branch protection muy estricto bloquea hotfix                | Documentar procedimiento de "skip-ci" label + bypass (ver §6.2 de `docs/CI.md`)                            |
+| SHAs de actions se quedan desactualizados                    | Dependabot semanal; PR auto-mergeable con un click                                                         |
 
 ---
 

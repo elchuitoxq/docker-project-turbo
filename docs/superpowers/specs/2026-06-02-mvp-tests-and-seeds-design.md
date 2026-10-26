@@ -151,20 +151,20 @@ Misma transformación para: `createTestBranch`, `createTestUser`, `createTestPro
 
 **Casos a cubrir:**
 
-| Test | Setup | Assertion |
-|---|---|---|
-| `login` returns JWT for valid credentials | mock `db` retorna user con hash bcrypt válido, `bcrypt.compare` retorna true, `jwtService.sign` retorna `'jwt.token'` | retorna `{ accessToken: 'jwt.token', tokenType: 'Bearer', expiresIn: 604800 }` |
-| `login` throws `UnauthorizedException` for missing user | mock `db` retorna array vacío | throw `UnauthorizedException` |
-| `login` throws `UnauthorizedException` for wrong password | mock `db` retorna user, `bcrypt.compare` retorna false | throw `UnauthorizedException` |
-| `login` payload includes roles | user tiene 2 roles via usersRoles | payload.roles = `['ADMIN', 'SELLER']` |
-| `login` payload includes permissions | roles tienen permissions via rolesPermissions | payload.permissions = array de códigos |
-| `login` payload permissions is empty when user has no roles | usersRoles retorna array vacío | payload.permissions = `[]` |
-| `validateUser` returns user by id | mock `db` retorna user | retorna `{ id, email, name }` |
-| `validateUser` returns undefined for missing id | mock `db` retorna array vacío | retorna `undefined` |
-| `forgotPassword` returns generic message for missing user | mock `db` retorna array vacío | retorna message genérico, sin `mockUrl` |
-| `forgotPassword` returns mockUrl for existing user | mock `db` retorna user | retorna `{ message, mockUrl: 'http://localhost:3000/reset-password?token=mock-token-...' }` |
-| `resetPassword` throws for invalid token | token = `'invalid'` | throw `UnauthorizedException` |
-| `resetPassword` returns success for valid token | token = `'mock-token-xyz'` | retorna `{ message: 'Password has been reset successfully.' }` |
+| Test                                                        | Setup                                                                                                                 | Assertion                                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `login` returns JWT for valid credentials                   | mock `db` retorna user con hash bcrypt válido, `bcrypt.compare` retorna true, `jwtService.sign` retorna `'jwt.token'` | retorna `{ accessToken: 'jwt.token', tokenType: 'Bearer', expiresIn: 604800 }`              |
+| `login` throws `UnauthorizedException` for missing user     | mock `db` retorna array vacío                                                                                         | throw `UnauthorizedException`                                                               |
+| `login` throws `UnauthorizedException` for wrong password   | mock `db` retorna user, `bcrypt.compare` retorna false                                                                | throw `UnauthorizedException`                                                               |
+| `login` payload includes roles                              | user tiene 2 roles via usersRoles                                                                                     | payload.roles = `['ADMIN', 'SELLER']`                                                       |
+| `login` payload includes permissions                        | roles tienen permissions via rolesPermissions                                                                         | payload.permissions = array de códigos                                                      |
+| `login` payload permissions is empty when user has no roles | usersRoles retorna array vacío                                                                                        | payload.permissions = `[]`                                                                  |
+| `validateUser` returns user by id                           | mock `db` retorna user                                                                                                | retorna `{ id, email, name }`                                                               |
+| `validateUser` returns undefined for missing id             | mock `db` retorna array vacío                                                                                         | retorna `undefined`                                                                         |
+| `forgotPassword` returns generic message for missing user   | mock `db` retorna array vacío                                                                                         | retorna message genérico, sin `mockUrl`                                                     |
+| `forgotPassword` returns mockUrl for existing user          | mock `db` retorna user                                                                                                | retorna `{ message, mockUrl: 'http://localhost:3000/reset-password?token=mock-token-...' }` |
+| `resetPassword` throws for invalid token                    | token = `'invalid'`                                                                                                   | throw `UnauthorizedException`                                                               |
+| `resetPassword` returns success for valid token             | token = `'mock-token-xyz'`                                                                                            | retorna `{ message: 'Password has been reset successfully.' }`                              |
 
 **Patrón de mocks:** chainable DB mock (igual que `users.test.ts` ya usa). Mocks de `bcryptjs` y `JwtService` via `vi.mock`.
 
@@ -172,11 +172,11 @@ Misma transformación para: `createTestBranch`, `createTestUser`, `createTestPro
 
 **Casos a cubrir:**
 
-| Test | Setup | Assertion |
-|---|---|---|
-| `canActivate` returns true for valid token | mock `AuthGuard('jwt').canActivate` retorna true | retorna `true` |
-| `canActivate` propagates UnauthorizedException | mock `super.canActivate` lanza | propaga la excepción |
-| `canActivate` propagates any error | mock `super.canActivate` lanza `ForbiddenException` | propaga la excepción |
+| Test                                           | Setup                                               | Assertion            |
+| ---------------------------------------------- | --------------------------------------------------- | -------------------- |
+| `canActivate` returns true for valid token     | mock `AuthGuard('jwt').canActivate` retorna true    | retorna `true`       |
+| `canActivate` propagates UnauthorizedException | mock `super.canActivate` lanza                      | propaga la excepción |
+| `canActivate` propagates any error             | mock `super.canActivate` lanza `ForbiddenException` | propaga la excepción |
 
 **Nota:** `JwtAuthGuard` solo override `canActivate` llamando a `super.canActivate(context)`. Es una thin wrapper sobre `AuthGuard('jwt')` de `@nestjs/passport`. Los tests verifican que la delegación funciona. **No se re-testea la lógica interna de passport-jwt** (eso es responsabilidad de la librería).
 
@@ -186,19 +186,19 @@ Misma transformación para: `createTestBranch`, `createTestUser`, `createTestPro
 
 **Casos a cubrir:**
 
-| Test | Setup | Assertion |
-|---|---|---|
-| `triggerBcvRateFetch` returns success on happy path | mock `fetch` retorna HTML parseable, mock `storeExchangeRate` resuelve | retorna `{ success: true, rate: <number>, message: ... }` |
-| `triggerBcvRateFetch` returns failure when both sources fail | mock `fetch` rechaza con error de red | retorna `{ success: false, message: 'Failed to fetch BCV rate: ...' }` |
-| `parseBcvHtml` extracts USD from `dolar` id pattern | input HTML con `<div id="dolar">36,50</div>` | retorna `36.50` |
-| `parseBcvHtml` extracts USD from `Dolar` td pattern | input HTML con `<td>Dolar</td>...<td>36,50</td>` | retorna `36.50` |
-| `parseBcvHtml` extracts USD from `valorDolar` JS variable | input HTML con `valorDolar = "36.50"` | retorna `36.50` |
-| `parseBcvHtml` throws on unparseable HTML | input con texto sin rates | throw `Error('Could not parse USD rate from BCV page')` |
-| `parseBcvHtml` rejects out-of-range values | match retorna 5000 (rate inválida) | throw (ningún pattern acepta) |
-| `parseBcvJsonData` extracts from valid JSON | input `{ USD: { fecha: "2026-06-02", euro: "38,50" } }` | retorna `38.50` |
-| `parseBcvJsonData` throws on empty values | input con `USD: {}` | throw `Error('Invalid BCV JSON data structure')` |
-| `storeExchangeRate` inserts into DB | mock currencies retorna USD, mock insert resuelve | no throw; insert llamado con rate correcto |
-| `storeExchangeRate` throws if USD currency not found | mock currencies retorna array vacío | throw `InternalServerErrorException('USD currency not found...')` |
+| Test                                                         | Setup                                                                  | Assertion                                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `triggerBcvRateFetch` returns success on happy path          | mock `fetch` retorna HTML parseable, mock `storeExchangeRate` resuelve | retorna `{ success: true, rate: <number>, message: ... }`              |
+| `triggerBcvRateFetch` returns failure when both sources fail | mock `fetch` rechaza con error de red                                  | retorna `{ success: false, message: 'Failed to fetch BCV rate: ...' }` |
+| `parseBcvHtml` extracts USD from `dolar` id pattern          | input HTML con `<div id="dolar">36,50</div>`                           | retorna `36.50`                                                        |
+| `parseBcvHtml` extracts USD from `Dolar` td pattern          | input HTML con `<td>Dolar</td>...<td>36,50</td>`                       | retorna `36.50`                                                        |
+| `parseBcvHtml` extracts USD from `valorDolar` JS variable    | input HTML con `valorDolar = "36.50"`                                  | retorna `36.50`                                                        |
+| `parseBcvHtml` throws on unparseable HTML                    | input con texto sin rates                                              | throw `Error('Could not parse USD rate from BCV page')`                |
+| `parseBcvHtml` rejects out-of-range values                   | match retorna 5000 (rate inválida)                                     | throw (ningún pattern acepta)                                          |
+| `parseBcvJsonData` extracts from valid JSON                  | input `{ USD: { fecha: "2026-06-02", euro: "38,50" } }`                | retorna `38.50`                                                        |
+| `parseBcvJsonData` throws on empty values                    | input con `USD: {}`                                                    | throw `Error('Invalid BCV JSON data structure')`                       |
+| `storeExchangeRate` inserts into DB                          | mock currencies retorna USD, mock insert resuelve                      | no throw; insert llamado con rate correcto                             |
+| `storeExchangeRate` throws if USD currency not found         | mock currencies retorna array vacío                                    | throw `InternalServerErrorException('USD currency not found...')`      |
 
 **Mocks:** `vi.mock('drizzle-orm', ...)` para `eq`, mock de `global.fetch` (Vitest 2.x soporta `vi.stubGlobal`).
 
@@ -273,7 +273,7 @@ import { faker } from '@faker-js/faker';
 for (let i = 0; i < partnersCount; i++) {
   const rif = `J-${faker.string.numeric(9)}`;
   await db.insert(partners).values({
-    name: faker.company.name(),                              // "Grupo Acme C.A."
+    name: faker.company.name(), // "Grupo Acme C.A."
     email: faker.internet.email().toLowerCase(),
     taxId: rif,
     address: faker.location.streetAddress({ useFullAddress: true }),
@@ -342,6 +342,7 @@ export async function seedTestData() {
 ```
 
 **Datos clave:**
+
 - Admin: email `test-admin@test.local`, password `'Test1234!'` (hasheado).
 - Seller: email `test-seller@test.local`, password `'Test1234!'`.
 - Partner: name `'Test Partner C.A.'`, taxId `'J-12345678-9'`.
@@ -374,14 +375,14 @@ export async function seedTestData() {
 
 **Casos a cubrir:**
 
-| Test | Assertion |
-|---|---|
-| `users` table exists with UUID primary key | `users.id` is UUID column, not null, has `$defaultFn` |
-| `users.email` has unique constraint | `users.email` index/constraint es `unique: true` |
-| `invoices` table has `totalBase`, `totalTax`, `totalIgtf`, `total` columns | 4 columnas existen, todas `numeric`/`text` |
-| `exchangeRates` has `rate` column | existe, tipo numeric/text |
-| `partners` has `taxId` unique | existe unique constraint |
-| All HR tables have `createdAt` | `employees`, `payrollRuns`, `payrollItems` tienen `createdAt` |
+| Test                                                                       | Assertion                                                     |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `users` table exists with UUID primary key                                 | `users.id` is UUID column, not null, has `$defaultFn`         |
+| `users.email` has unique constraint                                        | `users.email` index/constraint es `unique: true`              |
+| `invoices` table has `totalBase`, `totalTax`, `totalIgtf`, `total` columns | 4 columnas existen, todas `numeric`/`text`                    |
+| `exchangeRates` has `rate` column                                          | existe, tipo numeric/text                                     |
+| `partners` has `taxId` unique                                              | existe unique constraint                                      |
+| All HR tables have `createdAt`                                             | `employees`, `payrollRuns`, `payrollItems` tienen `createdAt` |
 
 **Patrón:** importar las tablas desde `schema.ts` y usar `expect(table.id).toBeDefined()`, `expect(table.email.unique).toBe(true)`, etc. No requiere DB.
 
@@ -389,14 +390,14 @@ export async function seedTestData() {
 
 **Casos a cubrir:**
 
-| Test | Assertion |
-|---|---|
-| `usersRelations` declares relation to `usersRoles` | `usersRelations.one(usersRoles, ...)` existe |
-| `invoicesRelations` declares relation to `invoiceItems` | existe |
-| `invoicesRelations` declares relation to `partner` | existe via FK |
-| `ordersRelations` declares relation to `orderItems` | existe |
-| `employeesRelations` declares relation to `employeeContracts` | existe |
-| `payrollRunsRelations` declares relation to `payrollItems` | existe |
+| Test                                                          | Assertion                                    |
+| ------------------------------------------------------------- | -------------------------------------------- |
+| `usersRelations` declares relation to `usersRoles`            | `usersRelations.one(usersRoles, ...)` existe |
+| `invoicesRelations` declares relation to `invoiceItems`       | existe                                       |
+| `invoicesRelations` declares relation to `partner`            | existe via FK                                |
+| `ordersRelations` declares relation to `orderItems`           | existe                                       |
+| `employeesRelations` declares relation to `employeeContracts` | existe                                       |
+| `payrollRunsRelations` declares relation to `payrollItems`    | existe                                       |
 
 **Patrón:** importar las relations y verificar que están definidas. Inspección estática, no requiere DB.
 
@@ -406,21 +407,21 @@ export async function seedTestData() {
 
 **Idempotencia:**
 
-| Test | Assertion |
-|---|---|
-| `seedRbac()` corre 2 veces produce mismo número de roles | count(`roles`) === 5 después de 2 corridas |
-| `seedRbac()` corre 2 veces no duplica permissions | count(`permissions`) === 67 después de 2 corridas |
-| `seedCoreData()` corre 2 veces no duplica currencies | count(`currencies`) === 2 después de 2 corridas |
-| `seedTestData()` corre 2 veces no duplica users | count(users con email test-admin) === 1 |
+| Test                                                      | Assertion                                                 |
+| --------------------------------------------------------- | --------------------------------------------------------- |
+| `seedRbac()` corre 2 veces produce mismo número de roles  | count(`roles`) === 5 después de 2 corridas                |
+| `seedRbac()` corre 2 veces no duplica permissions         | count(`permissions`) === 67 después de 2 corridas         |
+| `seedCoreData()` corre 2 veces no duplica currencies      | count(`currencies`) === 2 después de 2 corridas           |
+| `seedTestData()` corre 2 veces no duplica users           | count(users con email test-admin) === 1                   |
 | `seedFaker()` corre 2 veces no duplica partners por taxId | intentar insertar mismo taxId falla con unique constraint |
 
 **Invariants de audit 12 §3:**
 
-| Test | Setup | Assertion |
-|---|---|---|
-| §3.4 bank balance invariant | seedTestData + manual insert de payments | `bankAccount.currentBalance === sum(income) - sum(expense)` para cada cuenta |
-| §3.5 fiscal: totalTax = totalBase * 0.16 | insert invoice con `totalBase=1000` | `totalTax === 160.00` (verifica que ningún código usa `Math.random()` para tax) |
-| §3.2 sequential codes (si aplica) | seedFaker crea 50 partners | códigos siguen patrón predefinido si existe |
+| Test                                     | Setup                                    | Assertion                                                                       |
+| ---------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| §3.4 bank balance invariant              | seedTestData + manual insert de payments | `bankAccount.currentBalance === sum(income) - sum(expense)` para cada cuenta    |
+| §3.5 fiscal: totalTax = totalBase * 0.16 | insert invoice con `totalBase=1000`      | `totalTax === 160.00` (verifica que ningún código usa `Math.random()` para tax) |
+| §3.2 sequential codes (si aplica)        | seedFaker crea 50 partners               | códigos siguen patrón predefinido si existe                                     |
 
 **Infraestructura:** usa `testDb` (de `apps/backend/src/test/database.ts`). **Decisión:** mover `testDb` y `cleanDatabase` a `packages/database/src/test/database.ts` (donde deberían vivir) y re-exportar desde `apps/backend/src/test/database.ts` para backward compat. O crear uno nuevo en `packages/database/src/test/`. **Decisión final:** crear `packages/database/src/test/database.ts` independiente (sin tocar backend). El de backend se queda como está.
 
@@ -448,7 +449,8 @@ async function validateBankBalanceInvariant() {
   const accounts = await db.select().from(bankAccounts);
   for (const acc of accounts) {
     // Sumar pagos directos a esta cuenta (no via allocations)
-    const accountPayments = await db.select()
+    const accountPayments = await db
+      .select()
       .from(payments)
       .where(eq(payments.bankAccountId, acc.id));
 
@@ -462,7 +464,9 @@ async function validateBankBalanceInvariant() {
     const expected = income - expense;
     const actual = parseFloat(acc.currentBalance);
     if (Math.abs(expected - actual) > 0.01) {
-      throw new Error(`Bank balance invariant violated for account ${acc.id}: expected ${expected}, got ${actual}`);
+      throw new Error(
+        `Bank balance invariant violated for account ${acc.id}: expected ${expected}, got ${actual}`
+      );
     }
   }
 }
@@ -482,7 +486,9 @@ async function validateFiscalInvariant() {
     const expectedTax = Math.round(parseFloat(inv.totalBase) * 0.16 * 100) / 100;
     const actualTax = parseFloat(inv.totalTax);
     if (Math.abs(expectedTax - actualTax) > 0.01) {
-      throw new Error(`Fiscal invariant violated for invoice ${inv.code}: expected tax ${expectedTax}, got ${actualTax}`);
+      throw new Error(
+        `Fiscal invariant violated for invoice ${inv.code}: expected tax ${expectedTax}, got ${actualTax}`
+      );
     }
   }
 }
@@ -496,11 +502,11 @@ En `seed-test.ts` este invariant se valida después de insertar una invoice de p
 
 Ya cubiertos en §4.3, §4.4, §4.5. Resumen:
 
-| Archivo | Tests | Mocks requeridos |
-|---|---:|---|
-| `auth.service.test.ts` | 11 (spec dijo 12, código tenía 11) | db (chainable), bcryptjs, JwtService |
-| `jwt-auth.guard.test.ts` | 3 | super.canActivate spy |
-| `cron.service.test.ts` | 12 (spec dijo 11, código tenía 12) | global.fetch, db (chainable) |
+| Archivo                  |                              Tests | Mocks requeridos                     |
+| ------------------------ | ---------------------------------: | ------------------------------------ |
+| `auth.service.test.ts`   | 11 (spec dijo 12, código tenía 11) | db (chainable), bcryptjs, JwtService |
+| `jwt-auth.guard.test.ts` |                                  3 | super.canActivate spy                |
+| `cron.service.test.ts`   | 12 (spec dijo 11, código tenía 12) | global.fetch, db (chainable)         |
 
 **Total tests nuevos backend:** 26
 
@@ -511,6 +517,7 @@ Ya cubiertos en §4.3, §4.4, §4.5. Resumen:
 ## 9. Archivos a crear/modificar (resumen final)
 
 **Creados (8):**
+
 1. `apps/backend/src/modules/auth/auth.service.test.ts`
 2. `apps/backend/src/modules/cron/cron.service.test.ts`
 3. `apps/backend/src/modules/cron/__fixtures__/bcv-page.html` (snapshot HTML para tests)
@@ -523,6 +530,7 @@ Ya cubiertos en §4.3, §4.4, §4.5. Resumen:
 10. `packages/database/src/test/database.ts` (testDb para tests de database package)
 
 **Modificados (6):**
+
 1. `apps/backend/package.json` (+@faker-js/faker, +@vitest/coverage-v8)
 2. `apps/backend/src/test/factories.ts` (Math.random → faker)
 3. `packages/database/package.json` (+@faker-js/faker, +script db:seed:test, posible +bcryptjs)
@@ -549,6 +557,7 @@ docker compose -f docker-compose.test.yml down
 ```
 
 Expected:
+
 - Backend: 708 + 26 = 734 tests, 100% pass. (Actualizado post-ejecución: auth 11 + guard 3 + cron 12 = 26 nuevos; total 734.)
 - Database: ~23 tests nuevos (1 smoke + 9 schema + 6 relations + 7 seed), 100% pass. (Actualizado post-ejecución: schema tiene 9 tests, no 6; smoke de T5 = 1; seed = 7; relations = 6. Total 23.)
 
@@ -605,16 +614,16 @@ Expected: imprime "Test data seeding completed!" sin errores. Si algún invarian
 
 ## 12. Riesgos y mitigaciones
 
-| Riesgo | Mitigación |
-|---|---|
-| `bcryptjs` no está en `packages/database` deps | Verificar en implementación; si falta, añadir a devDependencies (solo se usa en seed, no en runtime) |
-| `seed-test.ts` con UUIDs hardcoded colisiona con datos existentes | Documentar en CI.md: `seed-test` se asume sobre DB limpia. En tests usar `cleanDatabase()` antes |
-| Tests de `parseBcvHtml` con HTML real se rompen si BCV cambia formato | Los tests cubren 4 patterns + JSON; si BCV cambia, fallará loudly y se actualiza |
-| `@faker-js/faker` aumenta el bundle | Es devDep, no afecta el bundle de producción |
-| FALLBACK_API_URL corrupto en `cron.service.ts` | Tests no dependen del URL real (mockean `fetch`); el bug queda para otro sub-proyecto |
-| `seedFaker` con 200 productos tarda mucho | Ya era así; el script sigue funcionando, no introducimos regresión |
-| `crypto.randomUUID()` en seed-test vs `uuidv7()` mal nombrado | No afecta: seed-test usa IDs hardcoded que son v4-format, compatible con la convención actual |
-| Tests de `CronService` con `vi.stubGlobal('fetch', ...)` puede no limpiar bien | Usar `vi.unstubAllGlobals()` en `afterEach` |
+| Riesgo                                                                         | Mitigación                                                                                           |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| `bcryptjs` no está en `packages/database` deps                                 | Verificar en implementación; si falta, añadir a devDependencies (solo se usa en seed, no en runtime) |
+| `seed-test.ts` con UUIDs hardcoded colisiona con datos existentes              | Documentar en CI.md: `seed-test` se asume sobre DB limpia. En tests usar `cleanDatabase()` antes     |
+| Tests de `parseBcvHtml` con HTML real se rompen si BCV cambia formato          | Los tests cubren 4 patterns + JSON; si BCV cambia, fallará loudly y se actualiza                     |
+| `@faker-js/faker` aumenta el bundle                                            | Es devDep, no afecta el bundle de producción                                                         |
+| FALLBACK_API_URL corrupto en `cron.service.ts`                                 | Tests no dependen del URL real (mockean `fetch`); el bug queda para otro sub-proyecto                |
+| `seedFaker` con 200 productos tarda mucho                                      | Ya era así; el script sigue funcionando, no introducimos regresión                                   |
+| `crypto.randomUUID()` en seed-test vs `uuidv7()` mal nombrado                  | No afecta: seed-test usa IDs hardcoded que son v4-format, compatible con la convención actual        |
+| Tests de `CronService` con `vi.stubGlobal('fetch', ...)` puede no limpiar bien | Usar `vi.unstubAllGlobals()` en `afterEach`                                                          |
 
 ---
 

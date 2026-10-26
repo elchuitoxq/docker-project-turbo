@@ -25,6 +25,7 @@
 ## Estructura de archivos
 
 **Creados:**
+
 - `.github/actions/setup/action.yml` — composite action (pnpm + node + cache)
 - `.github/workflows/ci.yml` — pipeline principal (PR + push main)
 - `.github/workflows/ci-smoke.yml` — cron diario
@@ -32,6 +33,7 @@
 - `docs/CI.md` — troubleshooting + cómo añadir jobs
 
 **Modificados:**
+
 - `turbo.json` — añadir task `typecheck`
 - `apps/backend/package.json` — script `typecheck`
 - `apps/frontend/package.json` — script `typecheck`
@@ -42,6 +44,7 @@
 ## Task 1: Verificar entorno, inicializar git y crear estructura
 
 **Files:**
+
 - Create: `.github/` (directorio)
 - Create: `.github/actions/setup/` (directorio)
 - Create: `.github/workflows/` (directorio)
@@ -53,6 +56,7 @@ Run: `git -C "C:\Users\elchu\Documents\Proyectos\docker-project-turbo" rev-parse
 Si imprime "NO es repo git":
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 git init
@@ -65,6 +69,7 @@ Expected: repo inicializado, primer commit creado. Si ya era repo, salta este pa
 - [ ] **Step 2: Verificar herramientas**
 
 Run:
+
 ```bash
 gh --version
 pnpm --version
@@ -82,6 +87,7 @@ Si `gh` no está autenticado, el ingeniero debe correr `gh auth login` antes de 
 - [ ] **Step 3: Crear la estructura de directorios**
 
 Run (PowerShell):
+
 ```powershell
 New-Item -ItemType Directory -Path ".github\actions\setup" -Force | Out-Null
 New-Item -ItemType Directory -Path ".github\workflows" -Force | Out-Null
@@ -92,6 +98,7 @@ Expected: los dos directorios se crean sin error.
 - [ ] **Step 4: Verificar que las herramientas de validación YAML estén disponibles**
 
 Run:
+
 ```bash
 gh workflow --help | Select-String "list" 2>$null
 ```
@@ -105,6 +112,7 @@ Run: `git remote get-url origin`
 Expected: URL del tipo `https://github.com/<owner>/<repo>.git` o `git@github.com:<owner>/<repo>.git`.
 
 Si no hay remoto, el ingeniero debe añadirlo:
+
 ```bash
 git remote add origin https://github.com/<owner>/<repo>.git
 ```
@@ -117,6 +125,7 @@ git commit -m "chore(ci): scaffold .github directory structure"
 ```
 
 Expected: commit creado. Si `.github/` está vacío, git puede no commitear nada; en ese caso, añade un `.gitkeep`:
+
 ```bash
 echo "# GitHub workflows" > .github/workflows/.gitkeep
 echo "# Composite actions" > .github/actions/setup/.gitkeep
@@ -129,6 +138,7 @@ git commit -m "chore(ci): scaffold .github directory structure"
 ## Task 2: Añadir script `typecheck` a `apps/backend/package.json`
 
 **Files:**
+
 - Modify: `apps/backend/package.json` (campo `scripts`)
 
 - [ ] **Step 1: Leer el package.json actual para confirmar el formato**
@@ -166,17 +176,20 @@ Resultado: el objeto `scripts` debe verse así:
 - [ ] **Step 3: Verificar el script localmente**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter backend typecheck
 ```
 
-Expected: 
+Expected:
+
 - Exit code 0.
 - Output muestra el progreso de TypeScript.
 - Si hay errores de tipo en código existente, también los reporta (esto es esperado — se arreglarán en Task 4 o se documentan).
 
 Si falla con "tsc not found", verificar que `apps/backend/node_modules/.bin/tsc` existe:
+
 ```bash
 Test-Path "apps\backend\node_modules\.bin\tsc.exe"
 ```
@@ -195,6 +208,7 @@ git commit -m "feat(backend): add typecheck script"
 ## Task 3: Añadir script `typecheck` a `apps/frontend/package.json`
 
 **Files:**
+
 - Modify: `apps/frontend/package.json` (campo `scripts`)
 
 - [ ] **Step 1: Leer el package.json actual**
@@ -228,6 +242,7 @@ Resultado: el objeto `scripts` debe verse así:
 - [ ] **Step 3: Verificar el script localmente**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter frontend typecheck
@@ -254,6 +269,7 @@ git commit -m "feat(frontend): add typecheck script"
 ## Task 4: Añadir script `typecheck` a `packages/database/package.json`
 
 **Files:**
+
 - Modify: `packages/database/package.json` (campo `scripts`)
 
 - [ ] **Step 1: Leer el package.json actual**
@@ -287,6 +303,7 @@ Resultado: el objeto `scripts` debe verse así:
 - [ ] **Step 3: Verificar el script localmente**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm --filter database typecheck
@@ -306,6 +323,7 @@ git commit -m "feat(database): add typecheck script"
 ## Task 5: Añadir task `typecheck` a `turbo.json`
 
 **Files:**
+
 - Modify: `turbo.json` (objeto `tasks`)
 
 - [ ] **Step 1: Leer turbo.json actual**
@@ -325,6 +343,7 @@ Get-Content "packages\database\tsconfig.json" | Select-String "incremental"
 ```
 
 Expected:
+
 - backend: NO contiene `"incremental": true` (no genera `.tsbuildinfo`).
 - frontend: contiene `"incremental": true` (genera `.tsbuildinfo` junto al tsconfig).
 - database: NO contiene `"incremental": true`.
@@ -389,6 +408,7 @@ Resultado: el objeto `tasks` completo debe verse así:
 - [ ] **Step 4: Verificar localmente**
 
 Run:
+
 ```bash
 cd "C:\Users\elchu\Documents\Proyectos\docker-project-turbo"
 pnpm turbo run typecheck --filter=./apps/* --filter=./packages/*
@@ -401,6 +421,7 @@ Si el comando reporta errores de tipo en código pre-existente, anota cuáles so
 - [ ] **Step 5: Verificar que turbo puede usar el cache**
 
 Run (segunda vez, debería ser hit de cache):
+
 ```bash
 pnpm turbo run typecheck --filter=./apps/* --filter=./packages/*
 ```
@@ -419,6 +440,7 @@ git commit -m "feat(turbo): add typecheck task with incremental cache for fronte
 ## Task 6: Crear composite action `.github/actions/setup/action.yml`
 
 **Files:**
+
 - Create: `.github/actions/setup/action.yml`
 
 - [ ] **Step 1: Obtener los SHAs actuales de las actions (hardening)**
@@ -426,6 +448,7 @@ git commit -m "feat(turbo): add typecheck task with incremental cache for fronte
 Para pinear las actions por SHA (defensa contra supply-chain attacks), primero obtén el SHA de cada tag:
 
 Run (PowerShell):
+
 ```powershell
 # pnpm/action-setup
 gh api repos/pnpm/action-setup/git/refs/tags/v4 --jq '.object.sha'
@@ -495,6 +518,7 @@ Nota: usamos `@v4` (tags) en la composite action porque es referenciada por `use
 - [ ] **Step 3: Validar sintaxis YAML**
 
 Run (PowerShell):
+
 ```powershell
 $content = Get-Content -LiteralPath ".github\actions\setup\action.yml" -Raw
 try {
@@ -516,10 +540,12 @@ try {
 Expected: todos los checks "OK".
 
 Para validación más estricta, opcionalmente:
+
 ```bash
 # Si tienes actionlint instalado
 actionlint -version
 ```
+
 Si está disponible: `actionlint .github/actions/setup/action.yml` (debe pasar sin errores).
 
 - [ ] **Step 4: Commit**
@@ -534,6 +560,7 @@ git commit -m "feat(ci): add composite setup action with pnpm+node+cache"
 ## Task 7: Crear `ci.yml` con Stage 1 (setup) y Stage 2 (lint)
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 Esta es la primera versión del workflow: solo setup + lint. Vamos a iterar agregando más jobs en tasks posteriores.
@@ -541,6 +568,7 @@ Esta es la primera versión del workflow: solo setup + lint. Vamos a iterar agre
 - [ ] **Step 1: Obtener SHA de `actions/checkout@v4`**
 
 Run:
+
 ```powershell
 gh api repos/actions/checkout/git/refs/tags/v4 --jq '.object.sha'
 ```
@@ -598,6 +626,7 @@ Sustituye `<CHECKOUT_SHA>` por el SHA que obtuviste en el paso anterior (sin los
 - [ ] **Step 3: Validar YAML**
 
 Run (PowerShell, mismo patrón que Task 6):
+
 ```powershell
 $content = Get-Content -LiteralPath ".github\workflows\ci.yml" -Raw
 $checks = @(
@@ -626,6 +655,7 @@ if ($content.Contains("`t")) { Write-Host "WARN: contiene tabs" } else { Write-H
 Expected: todos los checks "OK".
 
 Opcional con actionlint:
+
 ```bash
 actionlint .github/workflows/ci.yml
 ```
@@ -642,6 +672,7 @@ Ve a GitHub → repo → Actions → workflow "CI" → run correspondiente al pu
 Expected: el job `lint` corre en Node 20 y Node 22 (matrix), ambos pasan en ~30-60s (warm cache) o ~3-5 min (cold).
 
 Si falla, revisa los logs del job. Los fallos más probables en esta fase:
+
 - "frozen-lockfile" inconsistente: ejecutar `pnpm install` localmente y commitear el lockfile actualizado.
 - "Setup Monorepo" falla: verificar que la composite action es referenciable (path correcto).
 
@@ -665,6 +696,7 @@ git commit -m "feat(ci): add ci.yml with lint job on Node 20+22 matrix"
 ```
 
 Borrar la rama de test si quedó:
+
 ```bash
 git branch -d test/ci-bootstrap-lint
 git push origin --delete test/ci-bootstrap-lint
@@ -675,6 +707,7 @@ git push origin --delete test/ci-bootstrap-lint
 ## Task 8: Extender `ci.yml` con jobs `typecheck` y `format:check`
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Leer el ci.yml actual**
@@ -686,53 +719,53 @@ Run: `Get-Content -LiteralPath ".github\workflows\ci.yml"`
 Edita `.github/workflows/ci.yml`. Después del job `lint:` (después de su último `run:` y antes de la línea final con solo `---` o cierre), añade:
 
 ```yaml
-  typecheck:
-    name: Typecheck (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22]
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<CHECKOUT_SHA>
-        with:
-          fetch-depth: 1
+typecheck:
+  name: Typecheck (Node ${{ matrix.node-version }})
+  runs-on: ubuntu-latest
+  strategy:
+    fail-fast: false
+    matrix:
+      node-version: [20, 22]
+  timeout-minutes: 15
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<CHECKOUT_SHA>
+      with:
+        fetch-depth: 1
 
-      - name: Setup Monorepo
-        uses: ./.github/actions/setup
-        with:
-          node-version: ${{ matrix.node-version }}
+    - name: Setup Monorepo
+      uses: ./.github/actions/setup
+      with:
+        node-version: ${{ matrix.node-version }}
 
-      - name: Run typecheck
-        run: pnpm turbo run typecheck --affected
+    - name: Run typecheck
+      run: pnpm turbo run typecheck --affected
 
-  format-check:
-    name: Format check
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<CHECKOUT_SHA>
-        with:
-          fetch-depth: 1
+format-check:
+  name: Format check
+  runs-on: ubuntu-latest
+  timeout-minutes: 5
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<CHECKOUT_SHA>
+      with:
+        fetch-depth: 1
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 10
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
 
-      - name: Run format check
-        run: pnpm format:check
+    - name: Run format check
+      run: pnpm format:check
 ```
 
 Sustituye `<CHECKOUT_SHA>` por el mismo SHA que usaste en Task 7.
@@ -777,6 +810,7 @@ Solo continúa al siguiente task si los 5 jobs pasaron en GitHub Actions. Si hay
 ## Task 9: Extender `ci.yml` con Stage 3 (test: unit + integration)
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Añadir el job `unit`**
@@ -784,27 +818,27 @@ Solo continúa al siguiente task si los 5 jobs pasaron en GitHub Actions. Si hay
 Edita `.github/workflows/ci.yml`. Después del job `format-check:` (después de su último `run:`), añade:
 
 ```yaml
-  unit:
-    name: Unit tests (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22]
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<CHECKOUT_SHA>
-        with:
-          fetch-depth: 1
+unit:
+  name: Unit tests (Node ${{ matrix.node-version }})
+  runs-on: ubuntu-latest
+  strategy:
+    fail-fast: false
+    matrix:
+      node-version: [20, 22]
+  timeout-minutes: 15
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<CHECKOUT_SHA>
+      with:
+        fetch-depth: 1
 
-      - name: Setup Monorepo
-        uses: ./.github/actions/setup
-        with:
-          node-version: ${{ matrix.node-version }}
+    - name: Setup Monorepo
+      uses: ./.github/actions/setup
+      with:
+        node-version: ${{ matrix.node-version }}
 
-      - name: Run unit tests
-        run: pnpm turbo run test --affected
+    - name: Run unit tests
+      run: pnpm turbo run test --affected
 ```
 
 Sustituye `<CHECKOUT_SHA>`.
@@ -814,69 +848,69 @@ Sustituye `<CHECKOUT_SHA>`.
 Después del job `unit:`, añade:
 
 ```yaml
-  integration:
-    name: Integration tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:18.4-alpine3.23
-        env:
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ci_pass
-          POSTGRES_DB: ci_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ci_user"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<CHECKOUT_SHA>
-        with:
-          fetch-depth: 1
+integration:
+  name: Integration tests
+  runs-on: ubuntu-latest
+  timeout-minutes: 25
+  services:
+    postgres:
+      image: postgres:18.4-alpine3.23
+      env:
+        POSTGRES_USER: ci_user
+        POSTGRES_PASSWORD: ci_pass
+        POSTGRES_DB: ci_db
+      ports:
+        - 5432:5432
+      options: >-
+        --health-cmd "pg_isready -U ci_user"
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
+  env:
+    DATABASE_URL: postgresql://ci_user:ci_pass@localhost:5432/ci_db
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<CHECKOUT_SHA>
+      with:
+        fetch-depth: 1
 
-      - name: Setup Monorepo
-        uses: ./.github/actions/setup
-        with:
-          node-version: '22'
+    - name: Setup Monorepo
+      uses: ./.github/actions/setup
+      with:
+        node-version: '22'
 
-      - name: Wait for Postgres
-        run: |
-          for i in {1..30}; do
-            if pg_isready -h localhost -p 5432 -U ci_user; then
-              echo "Postgres ready"
-              exit 0
-            fi
-            echo "Waiting for Postgres... ($i)"
-            sleep 2
-          done
-          echo "Postgres failed to start"
-          exit 1
+    - name: Wait for Postgres
+      run: |
+        for i in {1..30}; do
+          if pg_isready -h localhost -p 5432 -U ci_user; then
+            echo "Postgres ready"
+            exit 0
+          fi
+          echo "Waiting for Postgres... ($i)"
+          sleep 2
+        done
+        echo "Postgres failed to start"
+        exit 1
 
-      - name: Generate migrations
-        run: pnpm --filter database db:generate
+    - name: Generate migrations
+      run: pnpm --filter database db:generate
 
-      - name: Apply migrations
-        run: pnpm --filter database db:migrate
+    - name: Apply migrations
+      run: pnpm --filter database db:migrate
 
-      - name: Seed RBAC
-        run: pnpm --filter database db:seed:rbac
+    - name: Seed RBAC
+      run: pnpm --filter database db:seed:rbac
 
-      - name: Run integration tests
-        run: pnpm --filter backend test -- --run src/test/integration.test.ts
+    - name: Run integration tests
+      run: pnpm --filter backend test -- --run src/test/integration.test.ts
 
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: integration-coverage
-          path: apps/backend/coverage
-          retention-days: 7
+    - name: Upload coverage
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-coverage
+        path: apps/backend/coverage
+        retention-days: 7
 ```
 
 - [ ] **Step 3: Validar YAML**
@@ -912,14 +946,17 @@ git push origin main
 Ve a GitHub Actions.
 
 Expected: ahora hay 9 jobs totales. Los nuevos:
+
 - `unit` (2 instances, matrix Node 20+22) → ~1-2 min cada uno.
 - `integration` (1 instance) → ~3-5 min (incluye arrancar Postgres, generar/aplicar migraciones, seed, correr tests).
 
 Si el job `integration` falla con "ECONNREFUSED 127.0.0.1:5432":
+
 - El service container no está saludable. Verificar los logs: el step "Wait for Postgres" debe pasar antes de continuar.
 - Si los health checks fallan, verificar que la imagen `postgres:18.4-alpine3.23` existe (debería, es la misma que usa docker-compose).
 
 Si falla con "permission denied" en la creación de la DB:
+
 - Verificar que las credenciales en `services.postgres.env` coinciden con `env.DATABASE_URL`.
 
 - [ ] **Step 5: Confirmar verde**
@@ -931,6 +968,7 @@ Solo continúa si los 9 jobs pasan.
 ## Task 10: Extender `ci.yml` con Stage 4 (build) y `needs`
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Añadir el job `build`**
@@ -938,44 +976,45 @@ Solo continúa si los 9 jobs pasan.
 Edita `.github/workflows/ci.yml`. Después del job `integration:`, añade:
 
 ```yaml
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck, format-check, unit, integration]
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<CHECKOUT_SHA>
-        with:
-          fetch-depth: 1
+build:
+  name: Build
+  runs-on: ubuntu-latest
+  needs: [lint, typecheck, format-check, unit, integration]
+  timeout-minutes: 20
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<CHECKOUT_SHA>
+      with:
+        fetch-depth: 1
 
-      - name: Setup Monorepo
-        uses: ./.github/actions/setup
-        with:
-          node-version: '22'
+    - name: Setup Monorepo
+      uses: ./.github/actions/setup
+      with:
+        node-version: '22'
 
-      - name: Build all affected packages
-        run: pnpm turbo run build --affected
+    - name: Build all affected packages
+      run: pnpm turbo run build --affected
 
-      - name: Upload backend dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-dist
-          path: apps/backend/dist
-          retention-days: 7
+    - name: Upload backend dist
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-dist
+        path: apps/backend/dist
+        retention-days: 7
 
-      - name: Upload frontend .next
-        if: hashFiles('apps/frontend/.next/**') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-next
-          path: apps/frontend/.next
-          retention-days: 7
+    - name: Upload frontend .next
+      if: hashFiles('apps/frontend/.next/**') != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-next
+        path: apps/frontend/.next
+        retention-days: 7
 ```
 
 Sustituye `<CHECKOUT_SHA>`.
 
 Notas:
+
 - `build` corre solo con Node 22 (single-version, justificado en spec §6.1).
 - `needs:` referencia los nombres de jobs. Con matrix, se interpretan como "todas las instances de ese job".
 - El step de upload de frontend tiene un `if:` que evita fallar si Next.js no genera `.next/` (e.g. cuando `--affected` no incluye el frontend).
@@ -1010,6 +1049,7 @@ Ve a GitHub Actions.
 Expected: ahora 10 jobs (build corre después de los 9 anteriores; si alguno falla, build no se ejecuta gracias a `needs:`). El job `build` tarda ~3-5 min cold.
 
 Si `build` falla, los motivos más probables:
+
 - El paquete `frontend` aún no tiene nada que construir (es la fase 3 pendiente). Es esperable que `--affected` no lo incluya si no se ha tocado. La pipeline debería seguir verde.
 - Backend tiene errores de compilación. Revisar logs.
 
@@ -1022,6 +1062,7 @@ Solo continúa si los 10 jobs (build incluido) pasan. El pipeline completo cold 
 ## Task 11: Crear `ci-smoke.yml`
 
 **Files:**
+
 - Create: `.github/workflows/ci-smoke.yml`
 
 - [ ] **Step 1: Crear el archivo**
@@ -1035,7 +1076,7 @@ name: CI Smoke
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 06:00 UTC diario
+    - cron: '0 6 * * *' # 06:00 UTC diario
   workflow_dispatch:
 
 concurrency:
@@ -1099,6 +1140,7 @@ git push origin main
 ```
 
 Trigger manual:
+
 ```bash
 gh workflow run ci-smoke.yml
 ```
@@ -1114,6 +1156,7 @@ Solo continúa si el smoke pasa.
 ## Task 12: Crear `dependabot.yml`
 
 **Files:**
+
 - Create: `.github/dependabot.yml`
 
 - [ ] **Step 1: Crear el archivo**
@@ -1125,14 +1168,14 @@ Edita:
 ```yaml
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
+      interval: 'weekly'
     groups:
       github-actions:
         patterns:
-          - "*"
+          - '*'
 ```
 
 Nota: este dependabot solo actualiza actions (no toca dependencias npm; eso es otro sub-proyecto). El grupo `github-actions` agrupa todas las actualizaciones en un solo PR en vez de una por action.
@@ -1168,6 +1211,7 @@ Expected: en menos de 24h, dependabot abrirá un PR (o no, si no hay updates). N
 ## Task 13: Crear `docs/CI.md`
 
 **Files:**
+
 - Create: `docs/CI.md`
 
 - [ ] **Step 1: Crear el archivo**
@@ -1195,13 +1239,13 @@ Documentación operativa del pipeline de CI/CD con GitHub Actions.
 
 ## Tiempos esperados
 
-| Escenario | Duración aproximada |
-|---|---|
-| PR con cambios solo en `apps/backend` | ~5-8 min warm |
-| PR con cambios en `packages/database` | ~10-15 min (afecta todos los dependents) |
-| PR con cambios en `pnpm-lock.yaml` | ~12-18 min cold (reinstala deps) |
-| Pipeline completo en main (sin cambios recientes) | ~3-5 min warm |
-| Cold cache (primer run tras cache eviction) | ~15-20 min |
+| Escenario                                         | Duración aproximada                      |
+| ------------------------------------------------- | ---------------------------------------- |
+| PR con cambios solo en `apps/backend`             | ~5-8 min warm                            |
+| PR con cambios en `packages/database`             | ~10-15 min (afecta todos los dependents) |
+| PR con cambios en `pnpm-lock.yaml`                | ~12-18 min cold (reinstala deps)         |
+| Pipeline completo en main (sin cambios recientes) | ~3-5 min warm                            |
+| Cold cache (primer run tras cache eviction)       | ~15-20 min                               |
 
 ---
 
@@ -1254,25 +1298,25 @@ Hoy el pipeline no usa secrets. Si en el futuro se añade remote cache, los secr
 ### Plantilla mínima
 
 ```yaml
-  mi-job:
-    name: Mi job (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22]
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@<SHA>
-        with:
-          fetch-depth: 1
-      - name: Setup Monorepo
-        uses: ./.github/actions/setup
-        with:
-          node-version: ${{ matrix.node-version }}
-      - name: Mi paso
-        run: <comando>
+mi-job:
+  name: Mi job (Node ${{ matrix.node-version }})
+  runs-on: ubuntu-latest
+  strategy:
+    fail-fast: false
+    matrix:
+      node-version: [20, 22]
+  timeout-minutes: 10
+  steps:
+    - name: Checkout
+      uses: actions/checkout@<SHA>
+      with:
+        fetch-depth: 1
+    - name: Setup Monorepo
+      uses: ./.github/actions/setup
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: Mi paso
+      run: <comando>
 ```
 
 ---
@@ -1360,6 +1404,7 @@ git push origin main
 ## Task 14: Verificación end-to-end y branch protection
 
 **Files:**
+
 - (no file changes, solo configuración en GitHub UI)
 
 - [ ] **Step 1: Confirmar que el pipeline completo está verde**
@@ -1410,6 +1455,7 @@ gh pr create --title "Test branch protection" --body "Verifica que branch protec
 ```
 
 Ve a la PR. GitHub debe mostrar:
+
 - "Require status checks to pass before merging" requiere los 6 checks en verde.
 - Si el pipeline pasa, el botón "Merge" está habilitado (después de la aprobación).
 - Si falla (e.g. simulas un fallo añadiendo un error de lint), el botón está deshabilitado.
@@ -1444,6 +1490,7 @@ git push origin main
 ## Resumen de archivos tocados
 
 **Creados (9 archivos):**
+
 - `.github/actions/setup/action.yml`
 - `.github/workflows/ci.yml`
 - `.github/workflows/ci-smoke.yml`
@@ -1453,6 +1500,7 @@ git push origin main
 - `docs/superpowers/plans/2026-06-02-cicd-local-cache.md` (este archivo)
 
 **Modificados (4 archivos):**
+
 - `turbo.json` (nuevo task `typecheck`)
 - `apps/backend/package.json` (script `typecheck`)
 - `apps/frontend/package.json` (script `typecheck`)
