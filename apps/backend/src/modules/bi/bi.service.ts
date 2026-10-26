@@ -65,8 +65,18 @@ export interface ActivityResult {
 }
 
 const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ];
 
 @Injectable()
@@ -100,12 +110,7 @@ export class BiService {
         count: sql<number>`count(*)`,
       })
       .from(payrollRuns)
-      .where(
-        and(
-          sql`${payrollRuns.status} != 'PAID'`,
-          sql`${payrollRuns.status} != 'CANCELLED'`
-        )
-      );
+      .where(and(sql`${payrollRuns.status} != 'PAID'`, sql`${payrollRuns.status} != 'CANCELLED'`));
 
     const postedCreditNotes = await db
       .select({
@@ -182,7 +187,10 @@ export class BiService {
     }
   }
 
-  private formatMonthlyData(data: { month: number; total: string | number; count: number }[], year: number): MonthlyData[] {
+  private formatMonthlyData(
+    data: { month: number; total: string | number; count: number }[],
+    year: number
+  ): MonthlyData[] {
     const result: MonthlyData[] = [];
 
     for (let i = 1; i <= 12; i++) {
@@ -245,12 +253,13 @@ export class BiService {
         ...recentInvoicesRaw.map(i => i.partnerId),
         ...recentPaymentsRaw.map(p => p.partnerId),
         ...recentOrdersRaw.map(o => o.partnerId),
-      ])
+      ]),
     ];
 
-    const partnersRaw = partnerIds.length > 0
-      ? await db.select({ id: partners.id, name: partners.name }).from(partners)
-      : [];
+    const partnersRaw =
+      partnerIds.length > 0
+        ? await db.select({ id: partners.id, name: partners.name }).from(partners)
+        : [];
 
     const partnerMap = new Map(partnersRaw.map(p => [p.id, p.name]));
 

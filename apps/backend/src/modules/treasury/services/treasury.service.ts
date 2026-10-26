@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../../database';
 import {
   payments,
@@ -32,13 +28,7 @@ import {
   PaymentType,
 } from '../dto/treasury.dto';
 
-const PAYMENT_METHODS_BALANCE_AFFECTING = [
-  'CASH_USD',
-  'CASH_VES',
-  'POS',
-  'ZELLE',
-  'TRANSFER',
-];
+const PAYMENT_METHODS_BALANCE_AFFECTING = ['CASH_USD', 'CASH_VES', 'POS', 'ZELLE', 'TRANSFER'];
 
 @Injectable()
 export class TreasuryService {
@@ -67,11 +57,15 @@ export class TreasuryService {
     if (branchId) conditions.push(eq(payments.branchId, branchId));
     if (status) conditions.push(eq(payments.status, status));
 
-    const allPayments = conditions.length > 0
-      ? await db.select().from(payments).where(and(...conditions))
-      : await db.select().from(payments);
+    const allPayments =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(payments)
+            .where(and(...conditions))
+        : await db.select().from(payments);
 
-    return allPayments.map((p) => ({
+    return allPayments.map(p => ({
       ...p,
       amount: parseFloat(String(p.amount)),
     }));
@@ -226,9 +220,7 @@ export class TreasuryService {
         .where(eq(creditNoteUsages.creditNoteId, cn.id));
 
       if (usages.length > 0) {
-        throw new BadRequestException(
-          `Credit note ${cn.code} has been used. Revert usages first.`
-        );
+        throw new BadRequestException(`Credit note ${cn.code} has been used. Revert usages first.`);
       }
     }
 
@@ -265,14 +257,7 @@ export class TreasuryService {
 
     console.log(`[Treasury] Step 3: Releasing credit note usages`);
 
-    await db
-      .delete(creditNoteUsages)
-      .where(
-        eq(
-          creditNoteUsages.paymentId,
-          id
-        )
-      );
+    await db.delete(creditNoteUsages).where(eq(creditNoteUsages.paymentId, id));
 
     console.log(`[Treasury] Step 4: Deleting daughter credit notes`);
 
@@ -291,9 +276,7 @@ export class TreasuryService {
     const retentionIds = [...new Set(retentionLinesForPayment.map(l => l.retentionId))];
 
     if (retentionIds.length > 0) {
-      await db.delete(taxRetentionLines).where(
-        eq(taxRetentionLines.paymentId, id)
-      );
+      await db.delete(taxRetentionLines).where(eq(taxRetentionLines.paymentId, id));
 
       for (const retentionId of retentionIds) {
         const otherLines = await db
@@ -313,12 +296,9 @@ export class TreasuryService {
 
     console.log(`[Treasury] Step 7: Cleaning document links`);
 
-    await db.delete(documentLinks).where(
-      and(
-        eq(documentLinks.sourceId, id),
-        eq(documentLinks.sourceTable, 'payments')
-      )
-    );
+    await db
+      .delete(documentLinks)
+      .where(and(eq(documentLinks.sourceId, id), eq(documentLinks.sourceTable, 'payments')));
 
     console.log(`[Treasury] Step 8: Reopening invoices`);
 
@@ -339,25 +319,24 @@ export class TreasuryService {
 
     console.log(`[Treasury] Voiding payment record`);
 
-    await db
-      .update(payments)
-      .set({ status: PaymentStatus.VOID })
-      .where(eq(payments.id, id));
+    await db.update(payments).set({ status: PaymentStatus.VOID }).where(eq(payments.id, id));
 
     return this.findOne(id);
   }
 
   async getMethods(branchId?: string): Promise<PaymentMethodResponseDto[]> {
     const conditions = branchId ? [eq(paymentMethods.branchId, branchId)] : [];
-    const methods = conditions.length > 0
-      ? await db.select().from(paymentMethods).where(and(...conditions))
-      : await db.select().from(paymentMethods);
+    const methods =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(paymentMethods)
+            .where(and(...conditions))
+        : await db.select().from(paymentMethods);
     return methods;
   }
 
-  async createMethod(
-    createMethodDto: CreatePaymentMethodDto
-  ): Promise<PaymentMethodResponseDto> {
+  async createMethod(createMethodDto: CreatePaymentMethodDto): Promise<PaymentMethodResponseDto> {
     const [newMethod] = await db
       .insert(paymentMethods)
       .values({
@@ -375,11 +354,15 @@ export class TreasuryService {
 
   async getBankAccounts(branchId?: string): Promise<BankAccountResponseDto[]> {
     const conditions = branchId ? [eq(bankAccounts.branchId, branchId)] : [];
-    const accounts = conditions.length > 0
-      ? await db.select().from(bankAccounts).where(and(...conditions))
-      : await db.select().from(bankAccounts);
+    const accounts =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(bankAccounts)
+            .where(and(...conditions))
+        : await db.select().from(bankAccounts);
 
-    return accounts.map((acc) => ({
+    return accounts.map(acc => ({
       ...acc,
       currentBalance: parseFloat(String(acc.currentBalance)),
     }));
@@ -409,11 +392,7 @@ export class TreasuryService {
   }
 
   async getPartnerStatement(partnerId: string): Promise<PartnerStatementDto> {
-    const [partner] = await db
-      .select()
-      .from(partners)
-      .where(eq(partners.id, partnerId))
-      .limit(1);
+    const [partner] = await db.select().from(partners).where(eq(partners.id, partnerId)).limit(1);
 
     if (!partner) {
       throw new NotFoundException(`Partner with ID ${partnerId} not found`);
@@ -461,7 +440,7 @@ export class TreasuryService {
       totalPaid: Math.round(totalPaid * 100) / 100,
       totalOutstanding: Math.round(totalOutstanding * 100) / 100,
       creditBalance: Math.round((totalPaid - totalOutstanding) * 100) / 100,
-      recentPayments: partnerPayments.slice(0, 10).map((p) => ({
+      recentPayments: partnerPayments.slice(0, 10).map(p => ({
         ...p,
         amount: parseFloat(String(p.amount)),
       })),
@@ -476,9 +455,7 @@ export class TreasuryService {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const conditions = [
-      eq(payments.status, PaymentStatus.POSTED),
-    ];
+    const conditions = [eq(payments.status, PaymentStatus.POSTED)];
 
     if (branchId) {
       conditions.push(eq(payments.branchId, branchId));
@@ -559,12 +536,7 @@ export class TreasuryService {
     const creditNotesList = await db
       .select()
       .from(creditNotes)
-      .where(
-        and(
-          eq(creditNotes.partnerId, partnerId),
-          eq(creditNotes.status, 'POSTED')
-        )
-      );
+      .where(and(eq(creditNotes.partnerId, partnerId), eq(creditNotes.status, 'POSTED')));
 
     const available: any[] = [];
 

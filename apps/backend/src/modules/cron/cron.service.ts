@@ -47,7 +47,7 @@ export class CronService {
         return rate;
       } catch (fallbackError) {
         throw new InternalServerErrorException(
-          `Both BCV sources failed. Primary: ${primaryError instanceof Error ? primaryError.message : 'Unknown'}, Fallback: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown'}`,
+          `Both BCV sources failed. Primary: ${primaryError instanceof Error ? primaryError.message : 'Unknown'}, Fallback: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown'}`
         );
       }
     }
@@ -57,8 +57,9 @@ export class CronService {
     const response = await fetch(this.BCV_API_URL, {
       method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es-VE,es;q=0.9,en;q=0.8',
       },
       signal: AbortSignal.timeout(10000),
@@ -129,8 +130,8 @@ export class CronService {
       throw new Error(`Fallback source returned status ${response.status}`);
     }
 
-    const data = await response.json() as { rate?: number | string; price?: number | string };
-    
+    const data = (await response.json()) as { rate?: number | string; price?: number | string };
+
     let rate: number;
     if (typeof data.rate === 'string') {
       rate = parseFloat(data.rate);
@@ -159,7 +160,9 @@ export class CronService {
       .limit(1);
 
     if (!usdCurrency) {
-      throw new InternalServerErrorException('USD currency not found in database. Please create it first.');
+      throw new InternalServerErrorException(
+        'USD currency not found in database. Please create it first.'
+      );
     }
 
     await db.insert(exchangeRates).values({

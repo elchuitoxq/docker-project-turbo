@@ -8,6 +8,9 @@ import * as bcrypt from 'bcryptjs';
 vi.mock('../../database', () => ({
   db: {
     select: vi.fn(),
+    insert: vi.fn(() => ({ values: vi.fn().mockResolvedValue(undefined) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })) })),
+    delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
   },
 }));
 
@@ -15,9 +18,11 @@ vi.mock('../../database', () => ({
 vi.mock('bcryptjs', () => ({
   default: {
     compare: vi.fn(),
+    hash: vi.fn(() => Promise.resolve('hashed-password')),
     hashSync: vi.fn(),
   },
   compare: vi.fn(),
+  hash: vi.fn(() => Promise.resolve('hashed-password')),
   hashSync: vi.fn(),
 }));
 
@@ -26,12 +31,20 @@ const mockJwtService = {
   sign: vi.fn(() => 'jwt.token'),
 };
 
+const mockConfigService = {
+  get: vi.fn((key: string) => (key === 'JWT_EXPIRES_IN' ? '7d' : undefined)),
+};
+
+const mockNotifier = {
+  send: vi.fn(() => Promise.resolve('http://localhost:3000/reset-password?token=abc123')),
+};
+
 describe('AuthService', () => {
   let service: AuthService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new AuthService(mockJwtService as any);
+    service = new AuthService(mockJwtService as any, mockConfigService as any, mockNotifier as any);
   });
 
   describe('login', () => {
@@ -220,7 +233,7 @@ describe('AuthService', () => {
   });
 
   describe('forgotPassword', () => {
-    it('returns generic message for missing user', async () => {
+    it('returns generic message and creates no token for unknown user', async () => {
       (db.select as any).mockReturnValueOnce({
         from: () => ({ where: () => ({ limit: () => [] }) }),
       });
@@ -229,9 +242,10 @@ describe('AuthService', () => {
 
       expect(result.message).toContain('If an account exists');
       expect(result.mockUrl).toBeUndefined();
+      expect(db.insert).not.toHaveBeenCalled();
     });
 
-    it('returns mockUrl for existing user', async () => {
+    it('crea un token hasheado y devuelve el enlace solo en desarrollo', async () => {
       const mockUser = { id: 'u1', email: 'a@b.c' };
       (db.select as any).mockReturnValueOnce({
         from: () => ({ where: () => ({ limit: () => [mockUser] }) }),
@@ -240,21 +254,41 @@ describe('AuthService', () => {
       const result = await service.forgotPassword('a@b.c');
 
       expect(result.message).toContain('If an account exists');
-      expect(result.mockUrl).toMatch(/^http:\/\/localhost:3000\/reset-password\?token=mock-token-/);
+      expect(result.mockUrl).toBe('http://localhost:3000/reset-password?token=abc123');
+      expect(db.delete).toHaveBeenCalled();
+      expect(db.insert).toHaveBeenCalled();
+      expect(mockNotifier.send).toHaveBeenCalledWith(
+        'a@b.c',
+        expect.stringMatching(/^[a-f0-9]{64}$/)
+      );
+      // El token crudo nunca se persiste.
+      const insertedValues = (db.insert as any).mock.results[0].value.values.mock.calls[0][0];
+      expect(insertedValues.tokenHash).toMatch(/^[a-f0-9]{64}$/);
+      expect(insertedValues.tokenHash).not.toBe('abc123');
     });
   });
 
   describe('resetPassword', () => {
-    it('throws for invalid token', async () => {
-      await expect(service.resetPassword('invalid-token', 'newpass')).rejects.toThrow(
+    it('throws for invalid or expired token', async () => {
+      (db.select as any).mockReturnValueOnce({
+        from: () => ({ where: () => ({ limit: () => [] }) }),
+      });
+
+      await expect(service.resetPassword('invalid-token', 'newpass123')).rejects.toThrow(
         UnauthorizedException
       );
+      expect(db.update).not.toHaveBeenCalled();
     });
 
-    it('returns success for valid token', async () => {
-      const result = await service.resetPassword('mock-token-xyz', 'newpass');
+    it('updates the password and marks the token as used', async () => {
+      (db.select as any).mockReturnValueOnce({
+        from: () => ({ where: () => ({ limit: () => [{ id: 't1', userId: 'u1' }] }) }),
+      });
+
+      const result = await service.resetPassword('valid-token', 'newpass123');
 
       expect(result.message).toBe('Password has been reset successfully.');
+      expect(db.update).toHaveBeenCalledTimes(2);
     });
   });
 });

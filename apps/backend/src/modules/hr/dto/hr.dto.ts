@@ -1,12 +1,4 @@
-import {
-  IsString,
-  IsNumber,
-  IsOptional,
-  IsUUID,
-  IsEnum,
-  IsDateString,
-  Min,
-} from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsUUID, IsEnum, IsDateString, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum EmployeeStatus {
@@ -226,7 +218,7 @@ export class EmployeeResponseDto {
   @ApiPropertyOptional({ example: 'Voluntary resignation' })
   terminationReason?: string;
 
-  @ApiProperty({ example: 1500.00 })
+  @ApiProperty({ example: 1500.0 })
   baseSalary: number;
 
   @ApiPropertyOptional({ example: 'BIWEEKLY' })
@@ -335,7 +327,7 @@ export class PayrollRunResponseDto {
   @ApiPropertyOptional({ example: '2026-05-31T00:00:00.000Z' })
   endDate?: Date | null;
 
-  @ApiProperty({ example: 15000.00 })
+  @ApiProperty({ example: 15000.0 })
   totalAmount: number;
 
   @ApiPropertyOptional({ example: 'DRAFT' })
@@ -358,16 +350,16 @@ export class PayrollItemResponseDto {
   @ApiProperty({ example: 'Juan Pérez' })
   employeeName?: string;
 
-  @ApiProperty({ example: 1500.00 })
+  @ApiProperty({ example: 1500.0 })
   baseAmount: number;
 
-  @ApiProperty({ example: 200.00 })
+  @ApiProperty({ example: 200.0 })
   bonuses: number;
 
-  @ApiProperty({ example: 150.00 })
+  @ApiProperty({ example: 150.0 })
   deductions: number;
 
-  @ApiProperty({ example: 1550.00 })
+  @ApiProperty({ example: 1550.0 })
   netTotal: number;
 
   @ApiPropertyOptional({ type: [Object] })
@@ -425,7 +417,7 @@ export class PayslipDto {
   @ApiProperty({ example: '2026-05-31' })
   periodEnd: string;
 
-  @ApiProperty({ example: 1500.00 })
+  @ApiProperty({ example: 1500.0 })
   baseSalary: number;
 
   @ApiProperty({ type: [Object] })
@@ -442,12 +434,12 @@ export class PayslipDto {
     amount: number;
   }[];
 
-  @ApiProperty({ example: 200.00 })
+  @ApiProperty({ example: 200.0 })
   totalIncome: number;
 
-  @ApiProperty({ example: 150.00 })
+  @ApiProperty({ example: 150.0 })
   totalDeductions: number;
 
-  @ApiProperty({ example: 1550.00 })
+  @ApiProperty({ example: 1550.0 })
   netSalary: number;
 }

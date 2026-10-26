@@ -52,7 +52,7 @@ export class TreasuryController {
   })
   async findAllPayments(
     @Query('branchId') branchId?: string,
-    @Query('status') status?: PaymentStatus,
+    @Query('status') status?: PaymentStatus
   ): Promise<PaymentResponseDto[]> {
     return this.treasuryService.findAll(branchId, status);
   }
@@ -85,7 +85,7 @@ export class TreasuryController {
   })
   async createPayment(
     @Body() createPaymentDto: CreatePaymentDto,
-    @CurrentUser() user: CurrentUserData,
+    @CurrentUser() user: CurrentUserData
   ): Promise<PaymentResponseDto> {
     return this.treasuryService.create(createPaymentDto, user.id);
   }
@@ -94,7 +94,8 @@ export class TreasuryController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Void a payment',
-    description: 'Executes the 8-step void process: validates CN, reverses bank, frees usages, deletes NCs, cleans retentions, removes allocations, cleans links, reopens invoices',
+    description:
+      'Executes the 8-step void process: validates CN, reverses bank, frees usages, deletes NCs, cleans retentions, removes allocations, cleans links, reopens invoices',
   })
   @ApiResponse({
     status: 200,
@@ -118,9 +119,7 @@ export class TreasuryController {
     description: 'List of payment methods',
     type: [PaymentMethodResponseDto],
   })
-  async getMethods(
-    @Query('branchId') branchId?: string,
-  ): Promise<PaymentMethodResponseDto[]> {
+  async getMethods(@Query('branchId') branchId?: string): Promise<PaymentMethodResponseDto[]> {
     return this.treasuryService.getMethods(branchId);
   }
 
@@ -136,7 +135,7 @@ export class TreasuryController {
     type: PaymentMethodResponseDto,
   })
   async createMethod(
-    @Body() createMethodDto: CreatePaymentMethodDto,
+    @Body() createMethodDto: CreatePaymentMethodDto
   ): Promise<PaymentMethodResponseDto> {
     return this.treasuryService.createMethod(createMethodDto);
   }
@@ -152,9 +151,7 @@ export class TreasuryController {
     description: 'List of bank accounts',
     type: [BankAccountResponseDto],
   })
-  async getBankAccounts(
-    @Query('branchId') branchId?: string,
-  ): Promise<BankAccountResponseDto[]> {
+  async getBankAccounts(@Query('branchId') branchId?: string): Promise<BankAccountResponseDto[]> {
     return this.treasuryService.getBankAccounts(branchId);
   }
 
@@ -170,7 +167,7 @@ export class TreasuryController {
     type: BankAccountResponseDto,
   })
   async createBankAccount(
-    @Body() createBankAccountDto: CreateBankAccountDto,
+    @Body() createBankAccountDto: CreateBankAccountDto
   ): Promise<BankAccountResponseDto> {
     return this.treasuryService.createBankAccount(createBankAccountDto);
   }
@@ -186,9 +183,7 @@ export class TreasuryController {
     type: PartnerStatementDto,
   })
   @ApiResponse({ status: 404, description: 'Partner not found' })
-  async getPartnerStatement(
-    @Param('partnerId') partnerId: string,
-  ): Promise<PartnerStatementDto> {
+  async getPartnerStatement(@Param('partnerId') partnerId: string): Promise<PartnerStatementDto> {
     return this.treasuryService.getPartnerStatement(partnerId);
   }
 
@@ -206,7 +201,7 @@ export class TreasuryController {
   })
   async getDailyClose(
     @Query('date') date: string,
-    @Query('branchId') branchId?: string,
+    @Query('branchId') branchId?: string
   ): Promise<DailyCloseDto> {
     return this.treasuryService.getDailyClose(date, branchId);
   }
@@ -218,9 +213,7 @@ export class TreasuryController {
   })
   @ApiQuery({ name: 'partnerId', required: true })
   @ApiResponse({ status: 200, description: 'List of available credit notes' })
-  async getAvailableCreditNotes(
-    @Query('partnerId') partnerId: string,
-  ): Promise<any[]> {
+  async getAvailableCreditNotes(@Query('partnerId') partnerId: string): Promise<any[]> {
     return this.treasuryService.getAvailableCreditNotes(partnerId);
   }
 }

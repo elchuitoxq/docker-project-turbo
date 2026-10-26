@@ -1,16 +1,8 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../../database';
 import { banks } from '../../../schema';
 import { eq } from 'drizzle-orm';
-import {
-  CreateBankDto,
-  UpdateBankDto,
-  BankResponseDto,
-} from './dto/banks.dto';
+import { CreateBankDto, UpdateBankDto, BankResponseDto } from './dto/banks.dto';
 
 @Injectable()
 export class BanksService {
@@ -52,10 +44,7 @@ export class BanksService {
     return this.toResponseDto(newBank);
   }
 
-  async update(
-    id: string,
-    updateBankDto: UpdateBankDto,
-  ): Promise<BankResponseDto> {
+  async update(id: string, updateBankDto: UpdateBankDto): Promise<BankResponseDto> {
     const [existing] = await db.select().from(banks).where(eq(banks.id, id)).limit(1);
 
     if (!existing) {
@@ -94,10 +83,7 @@ export class BanksService {
       throw new NotFoundException(`Bank with ID ${id} not found`);
     }
 
-    await db
-      .update(banks)
-      .set({ isActive: !existing.isActive })
-      .where(eq(banks.id, id));
+    await db.update(banks).set({ isActive: !existing.isActive }).where(eq(banks.id, id));
 
     return this.findOne(id);
   }

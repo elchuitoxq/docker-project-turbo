@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import {
   creditNotes,
@@ -29,10 +25,7 @@ import {
 
 @Injectable()
 export class CreditNotesService {
-  async findAll(
-    partnerId?: string,
-    status?: string,
-  ): Promise<CreditNoteListResponseDto[]> {
+  async findAll(partnerId?: string, status?: string): Promise<CreditNoteListResponseDto[]> {
     const conditions = [];
 
     if (partnerId) {
@@ -43,9 +36,14 @@ export class CreditNotesService {
       conditions.push(eq(creditNotes.status, status as CreditNoteStatus));
     }
 
-    const query = conditions.length > 0
-      ? db.select().from(creditNotes).where(and(...conditions)).orderBy(desc(creditNotes.createdAt))
-      : db.select().from(creditNotes).orderBy(desc(creditNotes.createdAt));
+    const query =
+      conditions.length > 0
+        ? db
+            .select()
+            .from(creditNotes)
+            .where(and(...conditions))
+            .orderBy(desc(creditNotes.createdAt))
+        : db.select().from(creditNotes).orderBy(desc(creditNotes.createdAt));
 
     const allCreditNotes = await query;
 
@@ -56,10 +54,7 @@ export class CreditNotesService {
         .from(creditNoteUsages)
         .where(eq(creditNoteUsages.creditNoteId, cn.id));
 
-      const totalUsed = usages.reduce(
-        (sum, u) => sum + Number(u.amount),
-        0,
-      );
+      const totalUsed = usages.reduce((sum, u) => sum + Number(u.amount), 0);
       const availableAmount = Number(cn.total) - totalUsed;
 
       result.push({
@@ -78,11 +73,7 @@ export class CreditNotesService {
   }
 
   async findOne(id: string): Promise<CreditNoteResponseDto> {
-    const [creditNote] = await db
-      .select()
-      .from(creditNotes)
-      .where(eq(creditNotes.id, id))
-      .limit(1);
+    const [creditNote] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!creditNote) {
       throw new NotFoundException(`Credit note with ID ${id} not found`);
@@ -98,10 +89,7 @@ export class CreditNotesService {
       .from(creditNoteUsages)
       .where(eq(creditNoteUsages.creditNoteId, id));
 
-    const totalUsed = usages.reduce(
-      (sum, u) => sum + Number(u.amount),
-      0,
-    );
+    const totalUsed = usages.reduce((sum, u) => sum + Number(u.amount), 0);
     const availableAmount = Number(creditNote.total) - totalUsed;
 
     return {
@@ -130,7 +118,7 @@ export class CreditNotesService {
 
   async create(
     createCreditNoteDto: CreateCreditNoteDto,
-    userId?: string,
+    userId?: string
   ): Promise<CreditNoteResponseDto> {
     const code = await this.generateCode();
 
@@ -139,7 +127,7 @@ export class CreditNotesService {
     let totalIgtf = 0;
     let total = 0;
 
-    const itemsWithTotals = createCreditNoteDto.items.map((item) => {
+    const itemsWithTotals = createCreditNoteDto.items.map(item => {
       const itemTotal = item.quantity * item.price;
       totalBase += itemTotal;
       total += itemTotal;
@@ -186,13 +174,9 @@ export class CreditNotesService {
 
   async update(
     id: string,
-    updateCreditNoteDto: UpdateCreditNoteDto,
+    updateCreditNoteDto: UpdateCreditNoteDto
   ): Promise<CreditNoteResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(creditNotes)
-      .where(eq(creditNotes.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Credit note with ID ${id} not found`);
@@ -216,29 +200,20 @@ export class CreditNotesService {
       updateData.date = updateCreditNoteDto.date;
     }
 
-    await db
-      .update(creditNotes)
-      .set(updateData)
-      .where(eq(creditNotes.id, id));
+    await db.update(creditNotes).set(updateData).where(eq(creditNotes.id, id));
 
     return this.findOne(id);
   }
 
   async post(id: string): Promise<PostCreditNoteResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(creditNotes)
-      .where(eq(creditNotes.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Credit note with ID ${id} not found`);
     }
 
     if (existing.status !== 'DRAFT') {
-      throw new BadRequestException(
-        'Only DRAFT credit notes can be posted',
-      );
+      throw new BadRequestException('Only DRAFT credit notes can be posted');
     }
 
     await db
@@ -257,11 +232,7 @@ export class CreditNotesService {
   }
 
   async void(id: string): Promise<VoidCreditNoteResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(creditNotes)
-      .where(eq(creditNotes.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Credit note with ID ${id} not found`);
@@ -272,9 +243,7 @@ export class CreditNotesService {
     }
 
     if (existing.status === 'APPLIED') {
-      throw new BadRequestException(
-        'Cannot void an APPLIED credit note.要先 applied credit note.',
-      );
+      throw new BadRequestException('Cannot void an APPLIED credit note.要先 applied credit note.');
     }
 
     await db
@@ -295,7 +264,7 @@ export class CreditNotesService {
   async apply(
     creditNoteId: string,
     invoiceId: string,
-    applyDto: ApplyCreditNoteDto,
+    applyDto: ApplyCreditNoteDto
   ): Promise<ApplyCreditNoteResponseDto> {
     const [creditNote] = await db
       .select()
@@ -304,26 +273,18 @@ export class CreditNotesService {
       .limit(1);
 
     if (!creditNote) {
-      throw new NotFoundException(
-        `Credit note with ID ${creditNoteId} not found`,
-      );
+      throw new NotFoundException(`Credit note with ID ${creditNoteId} not found`);
     }
 
     if (creditNote.status === 'DRAFT') {
-      throw new BadRequestException(
-        'Cannot apply a DRAFT credit note. Post it first.',
-      );
+      throw new BadRequestException('Cannot apply a DRAFT credit note. Post it first.');
     }
 
     if (creditNote.status === 'VOIDED') {
       throw new BadRequestException('Cannot apply a voided credit note');
     }
 
-    const [invoice] = await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, invoiceId))
-      .limit(1);
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1);
 
     if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
@@ -334,9 +295,7 @@ export class CreditNotesService {
     }
 
     if (creditNote.partnerId !== invoice.partnerId) {
-      throw new BadRequestException(
-        'Credit note and invoice must belong to the same partner',
-      );
+      throw new BadRequestException('Credit note and invoice must belong to the same partner');
     }
 
     const usages = await db
@@ -344,15 +303,12 @@ export class CreditNotesService {
       .from(creditNoteUsages)
       .where(eq(creditNoteUsages.creditNoteId, creditNoteId));
 
-    const totalUsed = usages.reduce(
-      (sum, u) => sum + Number(u.amount),
-      0,
-    );
+    const totalUsed = usages.reduce((sum, u) => sum + Number(u.amount), 0);
     const availableAmount = Number(creditNote.total) - totalUsed;
 
     if (applyDto.amount > availableAmount) {
       throw new BadRequestException(
-        `Amount ${applyDto.amount} exceeds available amount ${availableAmount}`,
+        `Amount ${applyDto.amount} exceeds available amount ${availableAmount}`
       );
     }
 
@@ -441,9 +397,7 @@ export class CreditNotesService {
     return `${prefix}${nextNum.toString().padStart(4, '0')}`;
   }
 
-  private toItemResponseDto(
-    item: typeof creditNoteItems.$inferSelect,
-  ): CreditNoteItemResponseDto {
+  private toItemResponseDto(item: typeof creditNoteItems.$inferSelect): CreditNoteItemResponseDto {
     return {
       id: item.id,
       creditNoteId: item.creditNoteId,
@@ -455,7 +409,7 @@ export class CreditNotesService {
   }
 
   private toUsageResponseDto(
-    usage: typeof creditNoteUsages.$inferSelect,
+    usage: typeof creditNoteUsages.$inferSelect
   ): CreditNoteUsageResponseDto {
     return {
       id: usage.id,

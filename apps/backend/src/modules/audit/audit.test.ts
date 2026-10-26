@@ -99,7 +99,10 @@ describe('AuditService', () => {
     it('should return empty array when no audit logs found for entity', async () => {
       setupSelectMock([]);
 
-      const result = await service.findByEntity('nonexistent', '550e8400-e29b-41d4-a716-446655440999');
+      const result = await service.findByEntity(
+        'nonexistent',
+        '550e8400-e29b-41d4-a716-446655440999'
+      );
 
       expect(result).toHaveLength(0);
     });

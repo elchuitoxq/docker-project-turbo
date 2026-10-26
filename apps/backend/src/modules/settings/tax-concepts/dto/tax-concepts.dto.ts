@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsNumber,
-  IsBoolean,
-  IsOptional,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTaxConceptDto {

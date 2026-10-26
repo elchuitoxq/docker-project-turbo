@@ -13,12 +13,14 @@ const mocks = vi.hoisted(() => {
   const mockInsert = vi.fn();
   const mockUpdate = vi.fn();
   const mockDelete = vi.fn();
-  
+
   function createIterableResult(returnValue: any) {
     return {
       then: (resolve: any) => resolve(returnValue),
       map: (fn: (item: any) => any) => createIterableResult(returnValue.map(fn)),
-      [Symbol.iterator]: function* () { for (const v of returnValue) yield v; },
+      [Symbol.iterator]: function* () {
+        for (const v of returnValue) yield v;
+      },
     };
   }
 
@@ -26,16 +28,18 @@ const mocks = vi.hoisted(() => {
     const iterableResult = createIterableResult(returnValue);
     const mockLimit = vi.fn().mockResolvedValue(returnValue);
     const mockOrderBy = vi.fn().mockReturnValue({ limit: mockLimit, ...iterableResult });
-    const mockWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy, limit: mockLimit, ...iterableResult });
+    const mockWhere = vi
+      .fn()
+      .mockReturnValue({ orderBy: mockOrderBy, limit: mockLimit, ...iterableResult });
     const mockFrom = vi.fn().mockReturnValue({
       where: mockWhere,
       orderBy: mockOrderBy,
       limit: mockLimit,
       ...iterableResult,
     });
-    
+
     mockSelect.mockReturnValue({ from: mockFrom });
-    
+
     return { mockFrom, mockWhere, mockOrderBy, mockLimit };
   }
 
@@ -168,7 +172,9 @@ describe('TreasuryService', () => {
     it('should throw NotFoundException when payment not found', async () => {
       mocks.setupChain([]);
 
-      await expect(service.findOne('nonexistent')).rejects.toThrow('Payment with ID nonexistent not found');
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        'Payment with ID nonexistent not found'
+      );
     });
   });
 
@@ -208,9 +214,7 @@ describe('TreasuryService', () => {
       const voidPayment = { ...mockPayment, status: 'VOID' };
       mocks.setupChain([voidPayment]);
 
-      await expect(service.voidPayment('payment-1')).rejects.toThrow(
-        'Payment is already void'
-      );
+      await expect(service.voidPayment('payment-1')).rejects.toThrow('Payment is already void');
     });
   });
 
@@ -324,7 +328,7 @@ describe('TreasuryService', () => {
         { ...mockPayment, type: 'INCOME', amount: '500.00' },
         { ...mockPayment, id: 'payment-2', type: 'EXPENSE', amount: '200.00' },
       ];
-      
+
       mocks.setupChain(mockPayments);
 
       const result = await service.getDailyClose('2026-06-01');
@@ -335,5 +339,4 @@ describe('TreasuryService', () => {
       expect(result.netBalance).toBe(300);
     });
   });
-
 });

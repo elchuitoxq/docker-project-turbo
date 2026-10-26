@@ -11,7 +11,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { PartnersService } from './partners.service';
 import {
   CreatePartnerDto,
@@ -104,7 +111,7 @@ export class PartnersController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a partner',
-    description: 'Updates an existing partner\'s information',
+    description: "Updates an existing partner's information",
   })
   @ApiParam({
     name: 'id',
@@ -126,7 +133,7 @@ export class PartnersController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updatePartnerDto: UpdatePartnerDto,
+    @Body() updatePartnerDto: UpdatePartnerDto
   ): Promise<PartnerResponseDto> {
     return this.partnersService.update(id, updatePartnerDto);
   }

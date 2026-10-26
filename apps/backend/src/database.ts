@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-
-const queryClient = postgres(process.env.DATABASE_URL!);
-export const db = drizzle(queryClient);
+/**
+ * Cliente de base de datos único del monorepo (definido en `packages/database`).
+ * Evita dos pools distintos entre migraciones, seeds y API.
+ */
+export { db, closeDatabase } from 'database';

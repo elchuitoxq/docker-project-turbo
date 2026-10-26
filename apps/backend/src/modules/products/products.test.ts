@@ -21,7 +21,7 @@ vi.mock('drizzle-orm', () => ({
   and: vi.fn((...conditions) => ({ conditions, op: 'and' })),
   or: vi.fn((...conditions) => ({ conditions, op: 'or' })),
   like: vi.fn((field, pattern) => ({ field, pattern, op: 'like' })),
-  sql: vi.fn((template) => ({ template, op: 'sql' })),
+  sql: vi.fn(template => ({ template, op: 'sql' })),
   relations: vi.fn(),
 }));
 
@@ -137,7 +137,13 @@ describe('ProductsService', () => {
         currencyId: mockProduct.currencyId,
       };
 
-      const newProduct = { ...mockProduct, ...createDto, cost: '100', price: '199.99', minStock: '5' };
+      const newProduct = {
+        ...mockProduct,
+        ...createDto,
+        cost: '100',
+        price: '199.99',
+        minStock: '5',
+      };
 
       const productChain = createChain([]);
       const categoryChain = createChain([mockCategory]);
@@ -229,9 +235,7 @@ describe('ProductsService', () => {
         const categoryChain = createChain([]);
         mockDb.select.mockReturnValue(categoryChain);
 
-        await expect(
-          service.findOneCategory('non-existent-id')
-        ).rejects.toThrow(NotFoundException);
+        await expect(service.findOneCategory('non-existent-id')).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -372,9 +376,9 @@ describe('ProductsService', () => {
       const price = 1000;
       const taxRates = [8, 10, 12, 16, 20];
 
-      taxRates.forEach((rate) => {
+      taxRates.forEach(rate => {
         const taxAmount = price * (rate / 100);
-        expect(taxAmount).toBe(price * rate / 100);
+        expect(taxAmount).toBe((price * rate) / 100);
       });
     });
 
@@ -416,7 +420,8 @@ describe('ProductsService', () => {
       ];
 
       const totalTax = items.reduce(
-        (sum, item) => sum + (item.isExempt ? 0 : item.price * item.quantity * (item.taxRate / 100)),
+        (sum, item) =>
+          sum + (item.isExempt ? 0 : item.price * item.quantity * (item.taxRate / 100)),
         0
       );
 
@@ -441,20 +446,14 @@ describe('ProductsService', () => {
         { batchNumber: 'B002', quantity: 5, cost: 55 },
       ];
 
-      const totalValue = batches.reduce(
-        (sum, batch) => sum + batch.quantity * batch.cost,
-        0
-      );
+      const totalValue = batches.reduce((sum, batch) => sum + batch.quantity * batch.cost, 0);
 
       expect(totalValue).toBe(775);
     });
 
     it('should handle empty batches', () => {
       const batches: { batchNumber: string; quantity: number; cost: number }[] = [];
-      const totalValue = batches.reduce(
-        (sum, batch) => sum + batch.quantity * batch.cost,
-        0
-      );
+      const totalValue = batches.reduce((sum, batch) => sum + batch.quantity * batch.cost, 0);
 
       expect(totalValue).toBe(0);
     });
@@ -474,10 +473,7 @@ describe('ProductsService', () => {
 
     it('should handle single batch', () => {
       const batches = [{ quantity: 100, cost: 25 }];
-      const totalValue = batches.reduce(
-        (sum, batch) => sum + batch.quantity * batch.cost,
-        0
-      );
+      const totalValue = batches.reduce((sum, batch) => sum + batch.quantity * batch.cost, 0);
 
       expect(totalValue).toBe(2500);
     });

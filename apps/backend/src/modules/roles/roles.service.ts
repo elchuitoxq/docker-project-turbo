@@ -13,7 +13,7 @@ import { CreateRoleDto, RoleResponseDto, UpdateRoleDto } from './dto/role.dto';
 export class RolesService {
   async findAll(): Promise<RoleResponseDto[]> {
     const allRoles = await db.select().from(roles).orderBy(asc(roles.name));
-    return Promise.all(allRoles.map((role) => this.toResponse(role)));
+    return Promise.all(allRoles.map(role => this.toResponse(role)));
   }
 
   async findPermissions() {
@@ -29,7 +29,7 @@ export class RolesService {
   async create(dto: CreateRoleDto): Promise<RoleResponseDto> {
     await this.assertNameAvailable(dto.name);
     const permissionIds = this.uniquePermissionIds(dto.permissionIds ?? []);
-    const role = await db.transaction(async (tx) => {
+    const role = await db.transaction(async tx => {
       if (permissionIds.length) {
         await this.assertPermissionsExist(tx, permissionIds);
       }
@@ -38,10 +38,12 @@ export class RolesService {
         .values({ name: dto.name, description: dto.description, isSystem: false })
         .returning();
       if (permissionIds.length) {
-        await tx.insert(rolesPermissions).values(permissionIds.map((permissionId) => ({
-          roleId: created.id,
-          permissionId,
-        })));
+        await tx.insert(rolesPermissions).values(
+          permissionIds.map(permissionId => ({
+            roleId: created.id,
+            permissionId,
+          }))
+        );
       }
       return created;
     });
@@ -60,15 +62,17 @@ export class RolesService {
     const permissionIds =
       dto.permissionIds === undefined ? undefined : this.uniquePermissionIds(dto.permissionIds);
 
-    await db.transaction(async (tx) => {
+    await db.transaction(async tx => {
       if (permissionIds !== undefined) {
         await this.assertPermissionsExist(tx, permissionIds);
         await tx.delete(rolesPermissions).where(eq(rolesPermissions.roleId, id));
         if (permissionIds.length) {
-          await tx.insert(rolesPermissions).values(permissionIds.map((permissionId) => ({
-            roleId: id,
-            permissionId,
-          })));
+          await tx.insert(rolesPermissions).values(
+            permissionIds.map(permissionId => ({
+              roleId: id,
+              permissionId,
+            }))
+          );
         }
       }
       if (dto.name !== undefined || dto.description !== undefined) {
@@ -137,9 +141,10 @@ export class RolesService {
     tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
     ids: string[]
   ): Promise<void> {
-    const found = await tx.select({ id: permissions.id }).from(permissions).where(
-      inArray(permissions.id, ids)
-    );
+    const found = await tx
+      .select({ id: permissions.id })
+      .from(permissions)
+      .where(inArray(permissions.id, ids));
     if (found.length !== ids.length) {
       throw new BadRequestException('One or more permission IDs do not exist');
     }

@@ -16,7 +16,8 @@ vi.mock('../../database', () => ({
 }));
 
 const makeAwaitable = (value: any) => ({
-  then: (resolve: (val: any) => any, reject?: (err: any) => any) => Promise.resolve(value).then(resolve, reject),
+  then: (resolve: (val: any) => any, reject?: (err: any) => any) =>
+    Promise.resolve(value).then(resolve, reject),
   [Symbol.toStringTag]: 'Promise',
 });
 
@@ -179,7 +180,13 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        const mockInsertResult = { ...mockCurrency, code: 'JPY', name: 'Japanese Yen', symbol: '¥', isBase: false };
+        const mockInsertResult = {
+          ...mockCurrency,
+          code: 'JPY',
+          name: 'Japanese Yen',
+          symbol: '¥',
+          isBase: false,
+        };
         vi.mocked(db).insert.mockReturnValue({
           values: vi.fn().mockReturnValue({
             returning: vi.fn().mockReturnValue(makeAwaitable([mockInsertResult])),
@@ -317,7 +324,9 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        await expect(service.addRate('nonexistent-id', createRateDto)).rejects.toThrow(NotFoundException);
+        await expect(service.addRate('nonexistent-id', createRateDto)).rejects.toThrow(
+          NotFoundException
+        );
       });
 
       it('should use MANUAL as default source when not provided', async () => {
@@ -339,7 +348,10 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        const result = await service.addRate(createRateDto.currencyId, { currencyId: createRateDto.currencyId, rate: 1.5 });
+        const result = await service.addRate(createRateDto.currencyId, {
+          currencyId: createRateDto.currencyId,
+          rate: 1.5,
+        });
 
         expect(result.source).toBe('MANUAL');
       });
@@ -466,7 +478,12 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        const mockInsertResult = { ...mockBank, name: 'Banco Mercantil', code: '0105', isActive: true };
+        const mockInsertResult = {
+          ...mockBank,
+          name: 'Banco Mercantil',
+          code: '0105',
+          isActive: true,
+        };
         vi.mocked(db).insert.mockReturnValue({
           values: vi.fn().mockReturnValue({
             returning: vi.fn().mockReturnValue(makeAwaitable([mockInsertResult])),
@@ -486,8 +503,8 @@ describe('Settings Module', () => {
       };
 
       it('should update bank fields successfully', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockBank])),
@@ -523,14 +540,16 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        await expect(service.update('nonexistent-id', updateDto)).rejects.toThrow(NotFoundException);
+        await expect(service.update('nonexistent-id', updateDto)).rejects.toThrow(
+          NotFoundException
+        );
       });
 
       it('should throw ConflictException when changing to existing code', async () => {
         const anotherBank = { ...mockBank, id: 'another-id', code: '0103' };
 
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockBank])),
@@ -545,12 +564,14 @@ describe('Settings Module', () => {
             }),
           } as any);
 
-        await expect(service.update(mockBank.id, { code: '0103' })).rejects.toThrow(ConflictException);
+        await expect(service.update(mockBank.id, { code: '0103' })).rejects.toThrow(
+          ConflictException
+        );
       });
 
       it('should allow updating to same code', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockBank])),
@@ -594,8 +615,8 @@ describe('Settings Module', () => {
 
     describe('toggle', () => {
       it('should toggle bank active status from true to false', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockBank])),
@@ -624,8 +645,8 @@ describe('Settings Module', () => {
       it('should toggle bank active status from false to true', async () => {
         const inactiveBank = { ...mockBank, isActive: false };
 
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([inactiveBank])),
@@ -635,7 +656,9 @@ describe('Settings Module', () => {
           .mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue(makeAwaitable([{ ...inactiveBank, isActive: true }])),
+                limit: vi
+                  .fn()
+                  .mockReturnValue(makeAwaitable([{ ...inactiveBank, isActive: true }])),
               }),
             }),
           } as any);
@@ -804,7 +827,11 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        const result = await service.create({ code: 'ISLR-003', name: 'Nuevo Concepto', retentionPercentage: 5 });
+        const result = await service.create({
+          code: 'ISLR-003',
+          name: 'Nuevo Concepto',
+          retentionPercentage: 5,
+        });
 
         expect(result.baseMin).toBe(0);
         expect(result.sustraendo).toBe(0);
@@ -831,7 +858,11 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        const result = await service.create({ code: 'ISLR-004', name: 'Otro Concepto', retentionPercentage: 10 });
+        const result = await service.create({
+          code: 'ISLR-004',
+          name: 'Otro Concepto',
+          retentionPercentage: 10,
+        });
 
         expect(result.isEnabled).toBe(true);
       });
@@ -844,8 +875,8 @@ describe('Settings Module', () => {
       };
 
       it('should update tax concept fields successfully', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -855,7 +886,9 @@ describe('Settings Module', () => {
           .mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockTaxConcept, ...updateDto }])),
+                limit: vi
+                  .fn()
+                  .mockReturnValue(makeAwaitable([{ ...mockTaxConcept, ...updateDto }])),
               }),
             }),
           } as any);
@@ -882,14 +915,16 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        await expect(service.update('nonexistent-id', updateDto)).rejects.toThrow(NotFoundException);
+        await expect(service.update('nonexistent-id', updateDto)).rejects.toThrow(
+          NotFoundException
+        );
       });
 
       it('should throw ConflictException when changing to existing code', async () => {
         const anotherConcept = { ...mockTaxConcept, id: 'another-id', code: 'ISLR-999' };
 
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -904,12 +939,14 @@ describe('Settings Module', () => {
             }),
           } as any);
 
-        await expect(service.update(mockTaxConcept.id, { code: 'ISLR-999' })).rejects.toThrow(ConflictException);
+        await expect(service.update(mockTaxConcept.id, { code: 'ISLR-999' })).rejects.toThrow(
+          ConflictException
+        );
       });
 
       it('should allow updating to same code', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -951,8 +988,8 @@ describe('Settings Module', () => {
       });
 
       it('should update baseMin correctly', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -962,7 +999,9 @@ describe('Settings Module', () => {
           .mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockTaxConcept, baseMin: '1000' }])),
+                limit: vi
+                  .fn()
+                  .mockReturnValue(makeAwaitable([{ ...mockTaxConcept, baseMin: '1000' }])),
               }),
             }),
           } as any);
@@ -979,8 +1018,8 @@ describe('Settings Module', () => {
       });
 
       it('should update sustraendo correctly', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -990,7 +1029,9 @@ describe('Settings Module', () => {
           .mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockTaxConcept, sustraendo: '500' }])),
+                limit: vi
+                  .fn()
+                  .mockReturnValue(makeAwaitable([{ ...mockTaxConcept, sustraendo: '500' }])),
               }),
             }),
           } as any);
@@ -1007,8 +1048,8 @@ describe('Settings Module', () => {
       });
 
       it('should update isEnabled status', async () => {
-        vi.mocked(db).select
-          .mockReturnValueOnce({
+        vi.mocked(db)
+          .select.mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
                 limit: vi.fn().mockReturnValue(makeAwaitable([mockTaxConcept])),
@@ -1018,7 +1059,9 @@ describe('Settings Module', () => {
           .mockReturnValueOnce({
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockTaxConcept, isEnabled: false }])),
+                limit: vi
+                  .fn()
+                  .mockReturnValue(makeAwaitable([{ ...mockTaxConcept, isEnabled: false }])),
               }),
             }),
           } as any);

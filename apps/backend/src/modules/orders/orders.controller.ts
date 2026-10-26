@@ -60,7 +60,7 @@ export class OrdersController {
   })
   async findAll(
     @Query('status') status?: OrderStatus,
-    @Query('partnerId') partnerId?: string,
+    @Query('partnerId') partnerId?: string
   ): Promise<OrderResponseDto[]> {
     return this.ordersService.findAll(status, partnerId);
   }
@@ -123,7 +123,7 @@ export class OrdersController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update an order',
-    description: 'Updates an existing order\'s information',
+    description: "Updates an existing order's information",
   })
   @ApiParam({
     name: 'id',
@@ -145,7 +145,7 @@ export class OrdersController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateOrderDto: UpdateOrderDto,
+    @Body() updateOrderDto: UpdateOrderDto
   ): Promise<OrderResponseDto> {
     return this.ordersService.update(id, updateOrderDto);
   }

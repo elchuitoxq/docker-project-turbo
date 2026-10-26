@@ -72,7 +72,9 @@ describe('UsersService', () => {
         }),
       })),
       delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
-      update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })) })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+      })),
     };
     mockDb.transaction.mockImplementation((callback: (tx: typeof transaction) => unknown) =>
       callback(transaction)
@@ -122,9 +124,7 @@ describe('UsersService', () => {
 
     expect(db.transaction).toHaveBeenCalledOnce();
     expect(transaction.delete).toHaveBeenCalledWith(usersBranches);
-    expect(insertedBranchAssignments).toEqual([
-      { userId: mockUser.id, branchId, isDefault: true },
-    ]);
+    expect(insertedBranchAssignments).toEqual([{ userId: mockUser.id, branchId, isDefault: true }]);
   });
 
   it('rejects a default branch that is not among the assigned branches', async () => {

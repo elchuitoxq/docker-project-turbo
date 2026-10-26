@@ -58,7 +58,7 @@ export class BillingController {
   })
   async findAll(
     @Query('branchId') branchId?: string,
-    @Query('status') status?: InvoiceStatus,
+    @Query('status') status?: InvoiceStatus
   ): Promise<InvoiceResponseDto[]> {
     return this.billingService.findAll(branchId, status);
   }
@@ -117,7 +117,7 @@ export class BillingController {
   })
   async create(
     @Body() createInvoiceDto: CreateInvoiceDto,
-    @CurrentUser() user: CurrentUserData,
+    @CurrentUser() user: CurrentUserData
   ): Promise<InvoiceResponseDto> {
     return this.billingService.create(createInvoiceDto, user.id);
   }
@@ -143,7 +143,7 @@ export class BillingController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateInvoiceDto: UpdateInvoiceDto,
+    @Body() updateInvoiceDto: UpdateInvoiceDto
   ): Promise<InvoiceResponseDto> {
     return this.billingService.update(id, updateInvoiceDto);
   }

@@ -41,7 +41,7 @@ describe('RolesService', () => {
     vi.mocked(db.select).mockReturnValue(query([systemRole]) as never);
 
     await expect(service.update(systemRole.id, { name: 'CUSTOM_ADMIN' })).rejects.toThrow(
-      BadRequestException,
+      BadRequestException
     );
   });
 
@@ -53,7 +53,9 @@ describe('RolesService', () => {
 
   it('keeps assigned custom roles instead of deleting them', async () => {
     vi.mocked(db.select)
-      .mockReturnValueOnce(query([{ ...systemRole, name: 'CUSTOM_ROLE', isSystem: false }]) as never)
+      .mockReturnValueOnce(
+        query([{ ...systemRole, name: 'CUSTOM_ROLE', isSystem: false }]) as never
+      )
       .mockReturnValueOnce(query([{ userId: 'user-1' }]) as never);
 
     await expect(service.remove(systemRole.id)).rejects.toThrow(ConflictException);

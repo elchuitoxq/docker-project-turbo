@@ -65,7 +65,7 @@ export class BranchesController {
   @RequirePermissions('settings:companies:manage')
   async updateCompany(
     @Param('id') id: string,
-    @Body() dto: UpdateCompanyDto,
+    @Body() dto: UpdateCompanyDto
   ): Promise<CompanyResponseDto> {
     return this.branchesService.updateCompany(id, dto);
   }
@@ -136,7 +136,7 @@ export class BranchesController {
   @RequirePermissions('settings:branches:manage')
   @ApiOperation({
     summary: 'Update a branch',
-    description: 'Updates an existing branch\'s information',
+    description: "Updates an existing branch's information",
   })
   @ApiParam({
     name: 'id',
@@ -154,7 +154,7 @@ export class BranchesController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateBranchDto: UpdateBranchDto,
+    @Body() updateBranchDto: UpdateBranchDto
   ): Promise<BranchResponseDto> {
     return this.branchesService.update(id, updateBranchDto);
   }

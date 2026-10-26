@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import { orders, orderItems } from '../../schema';
 import { eq, sql, and, like } from 'drizzle-orm';
@@ -19,10 +15,7 @@ import {
 
 @Injectable()
 export class OrdersService {
-  async findAll(
-    status?: OrderStatus,
-    partnerId?: string,
-  ): Promise<OrderResponseDto[]> {
+  async findAll(status?: OrderStatus, partnerId?: string): Promise<OrderResponseDto[]> {
     let query = db.select().from(orders);
 
     const conditions = [];
@@ -40,7 +33,7 @@ export class OrdersService {
     }
 
     const allOrders = await query;
-    return Promise.all(allOrders.map((order) => this.toResponseDto(order)));
+    return Promise.all(allOrders.map(order => this.toResponseDto(order)));
   }
 
   async findOne(id: string): Promise<OrderResponseDto> {
@@ -64,10 +57,7 @@ export class OrdersService {
       throw new BadRequestException(`Order with code ${createOrderDto.code} already exists`);
     }
 
-    const total = createOrderDto.items.reduce(
-      (sum, item) => sum + item.quantity * item.price,
-      0,
-    );
+    const total = createOrderDto.items.reduce((sum, item) => sum + item.quantity * item.price, 0);
 
     const [newOrder] = await db
       .insert(orders)
@@ -110,9 +100,11 @@ export class OrdersService {
     }
 
     if (existing.status !== OrderStatus.DRAFT) {
-      if (updateOrderDto.status !== undefined ||
-          updateOrderDto.exchangeRate !== undefined ||
-          updateOrderDto.currencyId !== undefined) {
+      if (
+        updateOrderDto.status !== undefined ||
+        updateOrderDto.exchangeRate !== undefined ||
+        updateOrderDto.currencyId !== undefined
+      ) {
         throw new BadRequestException('Can only update warehouseId and date for non-draft orders');
       }
     }
@@ -279,7 +271,7 @@ export class OrdersService {
 
   private async toResponseDto(
     order: typeof orders.$inferSelect,
-    includeItems = false,
+    includeItems = false
   ): Promise<OrderResponseDto> {
     const response: OrderResponseDto = {
       id: order.id,
@@ -299,20 +291,15 @@ export class OrdersService {
     };
 
     if (includeItems) {
-      const items = await db
-        .select()
-        .from(orderItems)
-        .where(eq(orderItems.orderId, order.id));
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
 
-      response.items = items.map((item) => this.toItemResponseDto(item));
+      response.items = items.map(item => this.toItemResponseDto(item));
     }
 
     return response;
   }
 
-  private toItemResponseDto(
-    item: typeof orderItems.$inferSelect,
-  ): OrderItemResponseDto {
+  private toItemResponseDto(item: typeof orderItems.$inferSelect): OrderItemResponseDto {
     return {
       id: item.id,
       orderId: item.orderId,

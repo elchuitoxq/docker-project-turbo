@@ -1,10 +1,13 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../../database';
-import { invoices, invoiceItems, partners, currencies, exchangeRates, products } from '../../../schema';
+import {
+  invoices,
+  invoiceItems,
+  partners,
+  currencies,
+  exchangeRates,
+  products,
+} from '../../../schema';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -101,17 +104,18 @@ export class BillingService {
     if (branchId) conditions.push(eq(invoices.branchId, branchId));
     if (status) conditions.push(eq(invoices.status, status));
 
-    const allInvoices = conditions.length > 0
-      ? await db.select().from(invoices).where(and(...conditions))
-      : await db.select().from(invoices);
+    const allInvoices =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(invoices)
+            .where(and(...conditions))
+        : await db.select().from(invoices);
 
     const invoicesWithItems: InvoiceResponseDto[] = [];
 
     for (const inv of allInvoices) {
-      const items = await db
-        .select()
-        .from(invoiceItems)
-        .where(eq(invoiceItems.invoiceId, inv.id));
+      const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, inv.id));
 
       invoicesWithItems.push({
         ...inv,
@@ -119,7 +123,7 @@ export class BillingService {
         totalTax: parseFloat(String(inv.totalTax)),
         totalIgtf: parseFloat(String(inv.totalIgtf)),
         total: parseFloat(String(inv.total)),
-        items: items.map((item) => ({
+        items: items.map(item => ({
           ...item,
           quantity: parseFloat(String(item.quantity)),
           price: parseFloat(String(item.price)),
@@ -139,10 +143,7 @@ export class BillingService {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
-    const items = await db
-      .select()
-      .from(invoiceItems)
-      .where(eq(invoiceItems.invoiceId, id));
+    const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
 
     return {
       ...invoice,
@@ -150,7 +151,7 @@ export class BillingService {
       totalTax: parseFloat(String(invoice.totalTax)),
       totalIgtf: parseFloat(String(invoice.totalIgtf)),
       total: parseFloat(String(invoice.total)),
-      items: items.map((item) => ({
+      items: items.map(item => ({
         ...item,
         quantity: parseFloat(String(item.quantity)),
         price: parseFloat(String(item.price)),
@@ -177,21 +178,20 @@ export class BillingService {
       currencyId = usd.id;
     }
 
-    const exchangeRate = createInvoiceDto.exchangeRate || await this.getExchangeRate(currencyId);
+    const exchangeRate = createInvoiceDto.exchangeRate || (await this.getExchangeRate(currencyId));
     const code = await this.getNextInvoiceCode(createInvoiceDto.branchId);
 
-    const productIds = createInvoiceDto.items.map((item) => item.productId);
-    const productRecords = productIds.length > 0
-      ? await db.select().from(products).where(
-          inArray(products.id, productIds)
-        )
-      : [];
+    const productIds = createInvoiceDto.items.map(item => item.productId);
+    const productRecords =
+      productIds.length > 0
+        ? await db.select().from(products).where(inArray(products.id, productIds))
+        : [];
 
-    const productMap = new Map(productRecords.map((p) => [p.id, p]));
+    const productMap = new Map(productRecords.map(p => [p.id, p]));
 
     const applyIgtf = partner.type === 'CUSTOMER' && exchangeRate > 1;
 
-    const itemCalculations = createInvoiceDto.items.map((item) => {
+    const itemCalculations = createInvoiceDto.items.map(item => {
       const product = productMap.get(item.productId);
       const isExempt = product?.isExempt || false;
       const taxRate = item.taxRate ?? (product?.taxRate ? parseFloat(product.taxRate) : 16);
@@ -294,15 +294,14 @@ export class BillingService {
     if (updateInvoiceDto.items) {
       await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));
 
-      const productIds = updateInvoiceDto.items.map((item) => item.productId);
-      const productRecords = productIds.length > 0
-        ? await db.select().from(products).where(
-            inArray(products.id, productIds)
-          )
-        : [];
-      const productMap = new Map(productRecords.map((p) => [p.id, p]));
+      const productIds = updateInvoiceDto.items.map(item => item.productId);
+      const productRecords =
+        productIds.length > 0
+          ? await db.select().from(products).where(inArray(products.id, productIds))
+          : [];
+      const productMap = new Map(productRecords.map(p => [p.id, p]));
 
-      const itemCalculations = updateInvoiceDto.items.map((item) => {
+      const itemCalculations = updateInvoiceDto.items.map(item => {
         const product = productMap.get(item.productId);
         const isExempt = product?.isExempt || false;
         const taxRate = item.taxRate ?? (product?.taxRate ? parseFloat(product.taxRate) : 16);
@@ -317,16 +316,19 @@ export class BillingService {
 
       const totals = this.calculateInvoiceTotals(itemCalculations, applyIgtf, exchangeRate);
 
-      await db.update(invoices).set({
-        partnerId: updateInvoiceDto.partnerId || invoice.partnerId,
-        exchangeRate: String(exchangeRate),
-        totalBase: String(totals.totalBase),
-        totalTax: String(totals.totalTax),
-        totalIgtf: String(totals.totalIgtf),
-        total: String(totals.total),
-        dueDate: updateInvoiceDto.dueDate ? new Date(updateInvoiceDto.dueDate) : invoice.dueDate,
-        updatedAt: new Date(),
-      }).where(eq(invoices.id, id));
+      await db
+        .update(invoices)
+        .set({
+          partnerId: updateInvoiceDto.partnerId || invoice.partnerId,
+          exchangeRate: String(exchangeRate),
+          totalBase: String(totals.totalBase),
+          totalTax: String(totals.totalTax),
+          totalIgtf: String(totals.totalIgtf),
+          total: String(totals.total),
+          dueDate: updateInvoiceDto.dueDate ? new Date(updateInvoiceDto.dueDate) : invoice.dueDate,
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, id));
 
       for (const item of itemCalculations) {
         await db.insert(invoiceItems).values({
@@ -356,11 +358,14 @@ export class BillingService {
       throw new BadRequestException('Only DRAFT invoices can be posted');
     }
 
-    await db.update(invoices).set({
-      status: InvoiceStatus.POSTED,
-      fiscalStatus: 'SENT',
-      updatedAt: new Date(),
-    }).where(eq(invoices.id, id));
+    await db
+      .update(invoices)
+      .set({
+        status: InvoiceStatus.POSTED,
+        fiscalStatus: 'SENT',
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, id));
 
     return this.findOne(id);
   }
@@ -376,10 +381,13 @@ export class BillingService {
       throw new BadRequestException('Invoice is already void');
     }
 
-    await db.update(invoices).set({
-      status: InvoiceStatus.VOID,
-      updatedAt: new Date(),
-    }).where(eq(invoices.id, id));
+    await db
+      .update(invoices)
+      .set({
+        status: InvoiceStatus.VOID,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, id));
 
     return this.findOne(id);
   }
@@ -387,9 +395,13 @@ export class BillingService {
   async getStats(branchId?: string): Promise<InvoiceStatsDto> {
     const conditions = branchId ? [eq(invoices.branchId, branchId)] : [];
 
-    const allInvoices = conditions.length > 0
-      ? await db.select().from(invoices).where(and(...conditions))
-      : await db.select().from(invoices);
+    const allInvoices =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(invoices)
+            .where(and(...conditions))
+        : await db.select().from(invoices);
 
     let totalAmount = 0;
     let draftCount = 0;

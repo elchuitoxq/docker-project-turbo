@@ -10,13 +10,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { TaxConceptsService } from './tax-concepts.service';
 import {
   CreateTaxConceptDto,
@@ -83,16 +77,14 @@ export class TaxConceptsController {
     status: 409,
     description: 'Tax concept with this code already exists',
   })
-  async create(
-    @Body() createTaxConceptDto: CreateTaxConceptDto,
-  ): Promise<TaxConceptResponseDto> {
+  async create(@Body() createTaxConceptDto: CreateTaxConceptDto): Promise<TaxConceptResponseDto> {
     return this.taxConceptsService.create(createTaxConceptDto);
   }
 
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a tax concept',
-    description: 'Updates an existing tax concept\'s information',
+    description: "Updates an existing tax concept's information",
   })
   @ApiParam({
     name: 'id',
@@ -114,7 +106,7 @@ export class TaxConceptsController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateTaxConceptDto: UpdateTaxConceptDto,
+    @Body() updateTaxConceptDto: UpdateTaxConceptDto
   ): Promise<TaxConceptResponseDto> {
     return this.taxConceptsService.update(id, updateTaxConceptDto);
   }

@@ -40,6 +40,8 @@ const createChain = (resolvedData: any[]) => {
     where: vi.fn().mockReturnValue(queryResult),
     orderBy: vi.fn().mockReturnValue(queryResult),
     limit: vi.fn().mockReturnValue(queryResult),
+    innerJoin: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
     then: (resolve: Function) => resolve(resolvedData),
   };
 
@@ -245,11 +247,11 @@ describe('ReportsService', () => {
     });
 
     it('should return number as-is', () => {
-      expect((service as any)['parseNumeric'](100.50)).toBe(100.50);
+      expect((service as any)['parseNumeric'](100.5)).toBe(100.5);
     });
 
     it('should parse string to number', () => {
-      expect((service as any)['parseNumeric']('100.50')).toBe(100.50);
+      expect((service as any)['parseNumeric']('100.50')).toBe(100.5);
     });
 
     it('should return 0 for invalid string', () => {
@@ -401,8 +403,20 @@ describe('ReportsService', () => {
 
     it('should sum multiple invoices correctly', async () => {
       const invoicesWithValues = [
-        { ...mockInvoice, id: 'inv-1', totalBase: '1000.00', totalTax: '160.00', totalIgtf: '30.00' },
-        { ...mockInvoice, id: 'inv-2', totalBase: '2000.00', totalTax: '320.00', totalIgtf: '60.00' },
+        {
+          ...mockInvoice,
+          id: 'inv-1',
+          totalBase: '1000.00',
+          totalTax: '160.00',
+          totalIgtf: '30.00',
+        },
+        {
+          ...mockInvoice,
+          id: 'inv-2',
+          totalBase: '2000.00',
+          totalTax: '320.00',
+          totalIgtf: '60.00',
+        },
       ];
 
       let callCount = 0;
@@ -424,7 +438,13 @@ describe('ReportsService', () => {
 
     it('should round totals to 2 decimal places', async () => {
       const invoicesWithDecimals = [
-        { ...mockInvoice, id: 'inv-1', totalBase: '1000.555', totalTax: '160.088', totalIgtf: '30.011' },
+        {
+          ...mockInvoice,
+          id: 'inv-1',
+          totalBase: '1000.555',
+          totalTax: '160.088',
+          totalIgtf: '30.011',
+        },
       ];
 
       let callCount = 0;
@@ -910,7 +930,7 @@ describe('ReportsService', () => {
 
     it('should handle negative numeric values in parseNumeric', () => {
       expect((service as any)['parseNumeric'](-100)).toBe(-100);
-      expect((service as any)['parseNumeric']('-100.50')).toBe(-100.50);
+      expect((service as any)['parseNumeric']('-100.50')).toBe(-100.5);
     });
 
     it('should handle string numeric values with spaces', () => {

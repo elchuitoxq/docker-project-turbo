@@ -126,7 +126,7 @@ export class InventoryMoveLineDto {
 
   @ApiPropertyOptional({
     description: 'Cost',
-    example: 25.50,
+    example: 25.5,
   })
   cost: string | null;
 }
@@ -164,7 +164,7 @@ export class InventoryMoveLineResponseDto {
 
   @ApiPropertyOptional({
     description: 'Cost',
-    example: 25.50,
+    example: 25.5,
   })
   cost: string | null;
 }

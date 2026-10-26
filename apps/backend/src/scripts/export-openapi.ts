@@ -19,7 +19,7 @@ async function exportOpenApi(): Promise<void> {
   await app.close();
 }
 
-exportOpenApi().catch((err) => {
+exportOpenApi().catch(err => {
   console.error('[openapi] Failed to export document', err);
   process.exit(1);
 });

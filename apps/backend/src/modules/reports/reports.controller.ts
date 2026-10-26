@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Res,
-  UseGuards,
-  Header,
-} from '@nestjs/common';
+import { Controller, Get, Query, Res, UseGuards, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ReportsService } from './reports.service';
@@ -47,16 +40,16 @@ export class ReportsController {
   async getRetencionesIvaTxt(
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Res() res?: Response,
+    @Res() res?: Response
   ) {
     const content = await this.reportsService.getRetencionesIvaTxt(dateFrom, dateTo);
-    
+
     if (res) {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="retenciones_iva.txt"');
       return res.send(content);
     }
-    
+
     return content;
   }
 
@@ -82,7 +75,8 @@ export class ReportsController {
       'application/xml': {
         schema: {
           type: 'string',
-          example: '<?xml version="1.0" encoding="UTF-8"?><RelacionRetencionesISLR>...</RelacionRetencionesISLR>',
+          example:
+            '<?xml version="1.0" encoding="UTF-8"?><RelacionRetencionesISLR>...</RelacionRetencionesISLR>',
         },
       },
     },
@@ -90,16 +84,16 @@ export class ReportsController {
   async getRetencionesIslrXml(
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Res() res?: Response,
+    @Res() res?: Response
   ) {
     const content = await this.reportsService.getRetencionesIslrXml(dateFrom, dateTo);
-    
+
     if (res) {
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="retenciones_islr.xml"');
       return res.send(content);
     }
-    
+
     return content;
   }
 
@@ -125,21 +119,18 @@ export class ReportsController {
       example: {
         totalInvoices: 100,
         totalCreditNotes: 5,
-        totalRetencionesIva: 15000.00,
-        totalRetencionesIslr: 8000.00,
-        totalBaseImponible: 500000.00,
-        totalIva: 80000.00,
-        totalIgtf: 15000.00,
-        totalCreditNotesAmount: 25000.00,
+        totalRetencionesIva: 15000.0,
+        totalRetencionesIslr: 8000.0,
+        totalBaseImponible: 500000.0,
+        totalIva: 80000.0,
+        totalIgtf: 15000.0,
+        totalCreditNotesAmount: 25000.0,
         dateFrom: '2024-01-01',
         dateTo: '2024-01-31',
       },
     },
   })
-  async getFiscalSummary(
-    @Query('dateFrom') dateFrom?: string,
-    @Query('dateTo') dateTo?: string,
-  ) {
+  async getFiscalSummary(@Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
     return this.reportsService.getFiscalSummary(dateFrom, dateTo);
   }
 
@@ -165,7 +156,8 @@ export class ReportsController {
       'text/csv': {
         schema: {
           type: 'string',
-          example: 'Fecha|N° Factura|N° Control|RifCliente|Nompre|Total|Exento|Base Imponible|IVA|...',
+          example:
+            'Fecha|N° Factura|N° Control|RifCliente|Nompre|Total|Exento|Base Imponible|IVA|...',
         },
       },
     },
@@ -173,16 +165,16 @@ export class ReportsController {
   async getLibroVentas(
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Res() res?: Response,
+    @Res() res?: Response
   ) {
     const content = await this.reportsService.getLibroVentas(dateFrom, dateTo);
-    
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="libro_ventas.csv"');
       return res.send(content);
     }
-    
+
     return content;
   }
 
@@ -208,7 +200,8 @@ export class ReportsController {
       'text/csv': {
         schema: {
           type: 'string',
-          example: 'Fecha|N° Factura|N° Control|RifProveedor|Nompre|Total|Exento|Base Imponible|IVA|...',
+          example:
+            'Fecha|N° Factura|N° Control|RifProveedor|Nompre|Total|Exento|Base Imponible|IVA|...',
         },
       },
     },
@@ -216,16 +209,16 @@ export class ReportsController {
   async getLibroCompras(
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Res() res?: Response,
+    @Res() res?: Response
   ) {
     const content = await this.reportsService.getLibroCompras(dateFrom, dateTo);
-    
+
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', 'attachment; filename="libro_compras.csv"');
       return res.send(content);
     }
-    
+
     return content;
   }
 }

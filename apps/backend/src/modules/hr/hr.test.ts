@@ -1,14 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  EmployeeStatus,
-  PayrollRunStatus,
-  PayFrequency,
-} from './dto/hr.dto';
+import { EmployeeStatus, PayrollRunStatus, PayFrequency } from './dto/hr.dto';
 
 const SSO_EMP_RATE = 0.04;
 const FAOV_EMP_RATE = 0.01;
 const PIE_EMP_RATE = 0.005;
-const SSO_PAT_RATE = 0.10;
+const SSO_PAT_RATE = 0.1;
 const FAOV_PAT_RATE = 0.02;
 const PIE_PAT_RATE = 0.02;
 const CESTATICKET_USD = 40.0;
@@ -457,8 +453,8 @@ describe('Payroll Item Lines', () => {
       { conceptCode: 'PIE_EMP', category: 'DEDUCTION', amount: pieEmp },
     ];
 
-    const incomeLines = lines.filter((l) => l.category === 'INCOME');
-    const deductionLines = lines.filter((l) => l.category === 'DEDUCTION');
+    const incomeLines = lines.filter(l => l.category === 'INCOME');
+    const deductionLines = lines.filter(l => l.category === 'DEDUCTION');
 
     expect(incomeLines).toHaveLength(2);
     expect(deductionLines).toHaveLength(3);
@@ -508,7 +504,7 @@ describe('Active Employee Filtering', () => {
       { ...mockEmployee, id: 'emp-3', status: 'TERMINATED' },
     ];
 
-    const activeEmployees = employees.filter((e) => e.status === 'ACTIVE');
+    const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
     expect(activeEmployees).toHaveLength(1);
     expect(activeEmployees[0].id).toBe('emp-123');
   });
@@ -534,7 +530,7 @@ describe('Edge Cases', () => {
   });
 
   it('should handle payroll run with no active employees', () => {
-    const activeEmployees: typeof mockEmployee[] = [];
+    const activeEmployees: (typeof mockEmployee)[] = [];
     const totalAmount = activeEmployees.reduce((sum, emp) => sum + 0, 0);
 
     expect(totalAmount).toBe(0);
@@ -684,11 +680,11 @@ describe('DTO Validation', () => {
       const validSalaries = [0, 100, 500.5, 10000];
       const invalidSalaries = [-1, -100];
 
-      validSalaries.forEach((salary) => {
+      validSalaries.forEach(salary => {
         expect(salary).toBeGreaterThanOrEqual(0);
       });
 
-      invalidSalaries.forEach((salary) => {
+      invalidSalaries.forEach(salary => {
         expect(salary).toBeLessThan(0);
       });
     });
@@ -717,7 +713,7 @@ describe('Payroll Settings Constants', () => {
   });
 
   it('should have correct employer contribution rates', () => {
-    expect(SSO_PAT_RATE).toBe(0.10);
+    expect(SSO_PAT_RATE).toBe(0.1);
     expect(FAOV_PAT_RATE).toBe(0.02);
     expect(PIE_PAT_RATE).toBe(0.02);
   });

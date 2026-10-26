@@ -120,7 +120,7 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({
     description: 'Product cost',
-    example: 500.00,
+    example: 500.0,
   })
   @IsOptional()
   @IsNumber()
@@ -146,7 +146,7 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({
     description: 'Tax rate percentage',
-    example: 16.00,
+    example: 16.0,
   })
   @IsOptional()
   @IsNumber()
@@ -224,7 +224,7 @@ export class UpdateProductDto {
 
   @ApiPropertyOptional({
     description: 'Product cost',
-    example: 550.00,
+    example: 550.0,
   })
   @IsOptional()
   @IsNumber()
@@ -250,7 +250,7 @@ export class UpdateProductDto {
 
   @ApiPropertyOptional({
     description: 'Tax rate percentage',
-    example: 16.00,
+    example: 16.0,
   })
   @IsOptional()
   @IsNumber()
@@ -326,7 +326,7 @@ export class ProductResponseDto {
 
   @ApiProperty({
     description: 'Product cost',
-    example: 500.00,
+    example: 500.0,
   })
   cost: number;
 
@@ -344,7 +344,7 @@ export class ProductResponseDto {
 
   @ApiProperty({
     description: 'Tax rate percentage',
-    example: 16.00,
+    example: 16.0,
   })
   taxRate: number;
 

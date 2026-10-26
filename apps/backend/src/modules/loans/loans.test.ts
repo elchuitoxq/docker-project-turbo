@@ -4,13 +4,7 @@ import { LoansService } from './loans.service';
 import { db } from '../../database';
 import { loans, loanItems, partners } from '../../schema';
 import { eq } from 'drizzle-orm';
-import {
-  CreateLoanDto,
-  UpdateLoanDto,
-  PayLoanDto,
-  LoanStatus,
-  LoanType,
-} from './dto/loans.dto';
+import { CreateLoanDto, UpdateLoanDto, PayLoanDto, LoanStatus, LoanType } from './dto/loans.dto';
 
 vi.mock('../../database', () => ({
   db: {
@@ -170,8 +164,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(itemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
@@ -183,9 +177,7 @@ describe('LoansService', () => {
     it('should throw NotFoundException when loan not found', async () => {
       createMockSelectQuery([]);
 
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -259,8 +251,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -334,8 +326,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -353,9 +345,7 @@ describe('LoansService', () => {
     it('should throw NotFoundException when partner not found', async () => {
       createMockSelectQuery([]);
 
-      await expect(service.create(createLoanDto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.create(createLoanDto)).rejects.toThrow(NotFoundException);
     });
 
     it('should create loan with null dueDate when not provided', async () => {
@@ -381,7 +371,12 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      const newLoan = { ...mockLoan, id: 'new-loan-id-3', code: dtoWithoutDueDate.code, dueDate: null };
+      const newLoan = {
+        ...mockLoan,
+        id: 'new-loan-id-3',
+        code: dtoWithoutDueDate.code,
+        dueDate: null,
+      };
 
       const loanQueryBuilder = {
         from: vi.fn().mockReturnValue({
@@ -417,8 +412,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -473,8 +468,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(originalQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(originalQueryBuilder as any)
         .mockReturnValueOnce(updatedQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -526,8 +521,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(originalQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(originalQueryBuilder as any)
         .mockReturnValueOnce(updatedQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -578,8 +573,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(originalQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(originalQueryBuilder as any)
         .mockReturnValueOnce(updatedQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -630,8 +625,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(originalQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(originalQueryBuilder as any)
         .mockReturnValueOnce(updatedQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -665,9 +660,9 @@ describe('LoansService', () => {
 
       vi.mocked(db).select.mockReturnValue(emptyQueryBuilder as any);
 
-      await expect(
-        service.update('non-existent-id', { notes: 'test' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('non-existent-id', { notes: 'test' })).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('should not update when no fields provided', async () => {
@@ -738,8 +733,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(findQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(findQueryBuilder as any)
         .mockReturnValueOnce(afterApproveQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -758,17 +753,13 @@ describe('LoansService', () => {
 
       createMockSelectQuery([activeLoan]);
 
-      await expect(service.approve(mockLoan.id)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.approve(mockLoan.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when loan not found', async () => {
       createMockSelectQuery([]);
 
-      await expect(service.approve('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.approve('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -811,8 +802,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(findQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(findQueryBuilder as any)
         .mockReturnValueOnce(afterRejectQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -831,17 +822,13 @@ describe('LoansService', () => {
 
       createMockSelectQuery([activeLoan]);
 
-      await expect(service.reject(mockLoan.id)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.reject(mockLoan.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when loan not found', async () => {
       createMockSelectQuery([]);
 
-      await expect(service.reject('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.reject('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -877,8 +864,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(findQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(findQueryBuilder as any)
         .mockReturnValueOnce(findQueryBuilder as any);
 
       vi.mocked(db).insert.mockReturnValue({
@@ -897,9 +884,7 @@ describe('LoansService', () => {
 
       createMockSelectQuery([pendingLoan]);
 
-      await expect(service.pay(mockLoan.id, payLoanDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.pay(mockLoan.id, payLoanDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when payment items are empty', async () => {
@@ -907,17 +892,13 @@ describe('LoansService', () => {
 
       createMockSelectQuery([activeLoan]);
 
-      await expect(
-        service.pay(mockLoan.id, { items: [] }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.pay(mockLoan.id, { items: [] })).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException when loan not found', async () => {
       createMockSelectQuery([]);
 
-      await expect(service.pay('non-existent-id', payLoanDto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.pay('non-existent-id', payLoanDto)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -963,8 +944,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
@@ -1014,8 +995,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
@@ -1065,8 +1046,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
@@ -1114,8 +1095,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(findQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(findQueryBuilder as any)
         .mockReturnValueOnce(afterApproveQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -1167,8 +1148,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(findQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(findQueryBuilder as any)
         .mockReturnValueOnce(afterRejectQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -1187,9 +1168,7 @@ describe('LoansService', () => {
 
       createMockSelectQuery([activeLoan]);
 
-      await expect(service.approve(mockLoan.id)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.approve(mockLoan.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should not allow reject on already REJECTED loan', async () => {
@@ -1197,9 +1176,7 @@ describe('LoansService', () => {
 
       createMockSelectQuery([rejectedLoan]);
 
-      await expect(service.reject(mockLoan.id)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.reject(mockLoan.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should not allow pay on PENDING loan', async () => {
@@ -1211,9 +1188,7 @@ describe('LoansService', () => {
         items: [{ productId: 'prod-1', quantity: 1 }],
       };
 
-      await expect(service.pay(mockLoan.id, payDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.pay(mockLoan.id, payDto)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -1256,8 +1231,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(originalQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(originalQueryBuilder as any)
         .mockReturnValueOnce(updatedQueryBuilder as any);
 
       vi.mocked(db).update.mockReturnValue({
@@ -1313,17 +1288,15 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
 
       expect(result.dueDate).toBeInstanceOf(Date);
       expect(result.returnDate).toBeInstanceOf(Date);
-      expect(result.returnDate!.getTime()).toBeLessThan(
-        result.dueDate!.getTime(),
-      );
+      expect(result.returnDate!.getTime()).toBeLessThan(result.dueDate!.getTime());
     });
 
     it('should handle early return (return before due date)', async () => {
@@ -1368,15 +1341,13 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
 
-      expect(result.returnDate!.getTime()).toBeLessThan(
-        result.dueDate!.getTime(),
-      );
+      expect(result.returnDate!.getTime()).toBeLessThan(result.dueDate!.getTime());
     });
 
     it('should handle late return (return after due date)', async () => {
@@ -1421,15 +1392,13 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);
 
-      expect(result.returnDate!.getTime()).toBeGreaterThan(
-        result.dueDate!.getTime(),
-      );
+      expect(result.returnDate!.getTime()).toBeGreaterThan(result.dueDate!.getTime());
     });
   });
 
@@ -1502,8 +1471,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -1578,8 +1547,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -1654,8 +1623,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(partnerQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(partnerQueryBuilder as any)
         .mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
@@ -1724,8 +1693,8 @@ describe('LoansService', () => {
         [Symbol.toStringTag]: 'Promise',
       };
 
-      vi.mocked(db).select
-        .mockReturnValueOnce(loanQueryBuilder as any)
+      vi.mocked(db)
+        .select.mockReturnValueOnce(loanQueryBuilder as any)
         .mockReturnValueOnce(emptyItemsQueryBuilder as any);
 
       const result = await service.findOne(mockLoan.id);

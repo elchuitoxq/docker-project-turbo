@@ -9,19 +9,9 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { BanksService } from './banks.service';
-import {
-  CreateBankDto,
-  UpdateBankDto,
-  BankResponseDto,
-} from './dto/banks.dto';
+import { CreateBankDto, UpdateBankDto, BankResponseDto } from './dto/banks.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
 @ApiTags('settings-banks')
@@ -66,7 +56,7 @@ export class BanksController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a bank',
-    description: 'Updates an existing bank\'s information',
+    description: "Updates an existing bank's information",
   })
   @ApiParam({
     name: 'id',
@@ -88,7 +78,7 @@ export class BanksController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateBankDto: UpdateBankDto,
+    @Body() updateBankDto: UpdateBankDto
   ): Promise<BankResponseDto> {
     return this.banksService.update(id, updateBankDto);
   }

@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { CronService } from './cron.service';
 
 @ApiTags('cron')
-@Controller('cron')
+@Controller('v1/cron')
 export class CronController {
   constructor(private readonly cronService: CronService) {}
 
@@ -32,7 +32,10 @@ export class CronController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: false },
-        message: { type: 'string', example: 'Failed to fetch BCV rate: Could not parse USD rate from BCV page' },
+        message: {
+          type: 'string',
+          example: 'Failed to fetch BCV rate: Could not parse USD rate from BCV page',
+        },
       },
     },
   })

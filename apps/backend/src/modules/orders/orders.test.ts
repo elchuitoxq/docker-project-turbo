@@ -19,7 +19,12 @@ const createMockQueryBuilder = (returnValue: any) => ({
       limit: vi.fn().mockReturnValue({
         groupBy: vi.fn().mockReturnValue(returnValue),
       }),
-      ...(Array.isArray(returnValue) ? { then: (resolve: any) => Promise.resolve(returnValue).then(resolve), [Symbol.toStringTag]: 'Promise' } : {}),
+      ...(Array.isArray(returnValue)
+        ? {
+            then: (resolve: any) => Promise.resolve(returnValue).then(resolve),
+            [Symbol.toStringTag]: 'Promise',
+          }
+        : {}),
     }),
     groupBy: vi.fn().mockReturnValue({
       then: (resolve: any) => Promise.resolve(returnValue).then(resolve),
@@ -157,8 +162,8 @@ describe('OrdersService', () => {
 
   describe('findOne', () => {
     it('should return order with items when found', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -203,7 +208,11 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      const [order] = await db.select().from(orders).where(() => true as any).limit(1);
+      const [order] = await db
+        .select()
+        .from(orders)
+        .where(() => true as any)
+        .limit(1);
       expect(order).toBeDefined();
     });
   });
@@ -218,8 +227,8 @@ describe('OrdersService', () => {
       currencyId: '550e8400-e29b-41d4-a716-446655440005',
       exchangeRate: 1.0,
       items: [
-        { productId: '550e8400-e29b-41d4-a716-446655440001', quantity: 10, price: 25.50 },
-        { productId: '550e8400-e29b-41d4-a716-446655440002', quantity: 5, price: 100.00 },
+        { productId: '550e8400-e29b-41d4-a716-446655440001', quantity: 10, price: 25.5 },
+        { productId: '550e8400-e29b-41d4-a716-446655440002', quantity: 5, price: 100.0 },
       ],
     };
 
@@ -245,8 +254,8 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -268,7 +277,7 @@ describe('OrdersService', () => {
       const result = await service.create(createOrderDto);
 
       expect(db.insert).toHaveBeenCalledWith(orders);
-      expect(result.total).toBe(755.00);
+      expect(result.total).toBe(755.0);
     });
 
     it('should throw BadRequestException when order code already exists', async () => {
@@ -310,8 +319,8 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -359,8 +368,8 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -387,8 +396,8 @@ describe('OrdersService', () => {
 
   describe('update', () => {
     it('should update warehouseId for draft order', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -402,7 +411,10 @@ describe('OrdersService', () => {
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
-                then: (resolve: any) => Promise.resolve([{ ...mockOrder, warehouseId: 'new-warehouse-id' }]).then(resolve),
+                then: (resolve: any) =>
+                  Promise.resolve([{ ...mockOrder, warehouseId: 'new-warehouse-id' }]).then(
+                    resolve
+                  ),
                 [Symbol.toStringTag]: 'Promise',
               }),
             }),
@@ -436,7 +448,9 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      await expect(service.update('nonexistent-id', { warehouseId: 'new-warehouse-id' })).rejects.toThrow(NotFoundException);
+      await expect(
+        service.update('nonexistent-id', { warehouseId: 'new-warehouse-id' })
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw BadRequestException when updating cancelled order', async () => {
@@ -452,7 +466,9 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      await expect(service.update(mockOrder.id, { warehouseId: 'new-warehouse-id' })).rejects.toThrow(BadRequestException);
+      await expect(
+        service.update(mockOrder.id, { warehouseId: 'new-warehouse-id' })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when updating status for non-draft order', async () => {
@@ -468,7 +484,9 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      await expect(service.update(mockOrder.id, { status: OrderStatus.PROCESSING })).rejects.toThrow(BadRequestException);
+      await expect(
+        service.update(mockOrder.id, { status: OrderStatus.PROCESSING })
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when updating exchangeRate for non-draft order', async () => {
@@ -484,7 +502,9 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      await expect(service.update(mockOrder.id, { exchangeRate: 2.0 })).rejects.toThrow(BadRequestException);
+      await expect(service.update(mockOrder.id, { exchangeRate: 2.0 })).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('should throw BadRequestException when updating currencyId for non-draft order', async () => {
@@ -500,13 +520,15 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      await expect(service.update(mockOrder.id, { currencyId: 'new-currency-id' })).rejects.toThrow(BadRequestException);
+      await expect(service.update(mockOrder.id, { currencyId: 'new-currency-id' })).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('should allow updating warehouseId and date for non-draft orders', async () => {
       const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -542,8 +564,8 @@ describe('OrdersService', () => {
     });
 
     it('should update status for draft order', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -557,7 +579,8 @@ describe('OrdersService', () => {
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
-                then: (resolve: any) => Promise.resolve([{ ...mockOrder, status: OrderStatus.PROCESSING }]).then(resolve),
+                then: (resolve: any) =>
+                  Promise.resolve([{ ...mockOrder, status: OrderStatus.PROCESSING }]).then(resolve),
                 [Symbol.toStringTag]: 'Promise',
               }),
             }),
@@ -873,17 +896,18 @@ describe('OrdersService', () => {
 
   describe('getStats', () => {
     it('should return correct statistics', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             groupBy: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([
-                { status: 'DRAFT', count: 5, total_sum: '1000.00' },
-                { status: 'CONFIRMED', count: 3, total_sum: '500.00' },
-                { status: 'PROCESSING', count: 2, total_sum: '300.00' },
-                { status: 'COMPLETED', count: 10, total_sum: '5000.00' },
-                { status: 'CANCELLED', count: 1, total_sum: '100.00' },
-              ]).then(resolve),
+              then: (resolve: any) =>
+                Promise.resolve([
+                  { status: 'DRAFT', count: 5, total_sum: '1000.00' },
+                  { status: 'CONFIRMED', count: 3, total_sum: '500.00' },
+                  { status: 'PROCESSING', count: 2, total_sum: '300.00' },
+                  { status: 'COMPLETED', count: 10, total_sum: '5000.00' },
+                  { status: 'CANCELLED', count: 1, total_sum: '100.00' },
+                ]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
@@ -911,8 +935,8 @@ describe('OrdersService', () => {
     });
 
     it('should return zeros when no orders exist', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             groupBy: vi.fn().mockReturnValue({
               then: (resolve: any) => Promise.resolve([]).then(resolve),
@@ -941,11 +965,12 @@ describe('OrdersService', () => {
     });
 
     it('should handle orders with null status', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             groupBy: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([{ status: null, count: 2, total_sum: '200.00' }]).then(resolve),
+              then: (resolve: any) =>
+                Promise.resolve([{ status: null, count: 2, total_sum: '200.00' }]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
@@ -966,11 +991,14 @@ describe('OrdersService', () => {
     });
 
     it('should handle orders with lowercase status', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             groupBy: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([{ status: 'confirmed', count: 3, total_sum: '300.00' }]).then(resolve),
+              then: (resolve: any) =>
+                Promise.resolve([{ status: 'confirmed', count: 3, total_sum: '300.00' }]).then(
+                  resolve
+                ),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
@@ -1076,13 +1104,13 @@ describe('OrdersService', () => {
         partnerId: '550e8400-e29b-41d4-a716-446655440000',
         branchId: '550e8400-e29b-41d4-a716-446655440003',
         items: [
-          { productId: '550e8400-e29b-41d4-a716-446655440001', quantity: 2, price: 100.00 },
-          { productId: '550e8400-e29b-41d4-a716-446655440002', quantity: 3, price: 50.00 },
-          { productId: '550e8400-e29b-41d4-a716-446655440003', quantity: 1, price: 250.00 },
+          { productId: '550e8400-e29b-41d4-a716-446655440001', quantity: 2, price: 100.0 },
+          { productId: '550e8400-e29b-41d4-a716-446655440002', quantity: 3, price: 50.0 },
+          { productId: '550e8400-e29b-41d4-a716-446655440003', quantity: 1, price: 250.0 },
         ],
       };
 
-      const expectedTotal = 2 * 100.00 + 3 * 50.00 + 1 * 250.00;
+      const expectedTotal = 2 * 100.0 + 3 * 50.0 + 1 * 250.0;
 
       vi.mocked(db).select.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
@@ -1110,8 +1138,8 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -1174,8 +1202,8 @@ describe('OrdersService', () => {
         }),
       } as any);
 
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -1202,12 +1230,13 @@ describe('OrdersService', () => {
 
   describe('edge cases', () => {
     it('should handle order with large total value', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
-                then: (resolve: any) => Promise.resolve([{ ...mockOrder, total: '9999999999.99' }]).then(resolve),
+                then: (resolve: any) =>
+                  Promise.resolve([{ ...mockOrder, total: '9999999999.99' }]).then(resolve),
                 [Symbol.toStringTag]: 'Promise',
               }),
             }),
@@ -1228,8 +1257,8 @@ describe('OrdersService', () => {
     });
 
     it('should handle update with no changes', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -1256,8 +1285,8 @@ describe('OrdersService', () => {
     });
 
     it('should handle order item with null batchId', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -1270,7 +1299,8 @@ describe('OrdersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([{ ...mockOrderItem, batchId: null }]).then(resolve),
+              then: (resolve: any) =>
+                Promise.resolve([{ ...mockOrderItem, batchId: null }]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
@@ -1282,8 +1312,8 @@ describe('OrdersService', () => {
     });
 
     it('should handle order item with null quantity string', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
@@ -1296,7 +1326,8 @@ describe('OrdersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([{ ...mockOrderItem, quantity: null }]).then(resolve),
+              then: (resolve: any) =>
+                Promise.resolve([{ ...mockOrderItem, quantity: null }]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),

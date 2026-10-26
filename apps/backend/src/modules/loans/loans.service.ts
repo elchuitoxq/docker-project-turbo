@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import { loans, loanItems, partners } from '../../schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -17,10 +13,7 @@ import {
 
 @Injectable()
 export class LoansService {
-  async findAll(filters: {
-    employeeId?: string;
-    status?: string;
-  }): Promise<LoanResponseDto[]> {
+  async findAll(filters: { employeeId?: string; status?: string }): Promise<LoanResponseDto[]> {
     let query = db.select().from(loans);
 
     const conditions = [];
@@ -34,19 +27,18 @@ export class LoansService {
     }
 
     if (conditions.length > 0) {
-      query = db.select().from(loans).where(and(...conditions)) as any;
+      query = db
+        .select()
+        .from(loans)
+        .where(and(...conditions)) as any;
     }
 
     const allLoans = await query;
-    return Promise.all(allLoans.map((loan) => this.toResponseDto(loan)));
+    return Promise.all(allLoans.map(loan => this.toResponseDto(loan)));
   }
 
   async findOne(id: string): Promise<LoanResponseDto> {
-    const [loan] = await db
-      .select()
-      .from(loans)
-      .where(eq(loans.id, id))
-      .limit(1);
+    const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
@@ -63,9 +55,7 @@ export class LoansService {
       .limit(1);
 
     if (!existingPartner) {
-      throw new NotFoundException(
-        `Partner with ID ${createLoanDto.partnerId} not found`,
-      );
+      throw new NotFoundException(`Partner with ID ${createLoanDto.partnerId} not found`);
     }
 
     const [newLoan] = await db
@@ -74,22 +64,20 @@ export class LoansService {
         code: createLoanDto.code,
         partnerId: createLoanDto.partnerId,
         status: LoanStatus.PENDING,
-        dueDate: createLoanDto.dueDate
-          ? new Date(createLoanDto.dueDate)
-          : null,
+        dueDate: createLoanDto.dueDate ? new Date(createLoanDto.dueDate) : null,
         notes: createLoanDto.notes,
       })
       .returning();
 
     if (createLoanDto.items && createLoanDto.items.length > 0) {
       await db.insert(loanItems).values(
-        createLoanDto.items.map((item) => ({
+        createLoanDto.items.map(item => ({
           loanId: newLoan.id,
           productId: item.productId,
           quantity: item.quantity.toString(),
           serialNumber: item.serialNumber,
           condition: item.condition || 'GOOD',
-        })),
+        }))
       );
     }
 
@@ -97,11 +85,7 @@ export class LoansService {
   }
 
   async update(id: string, updateLoanDto: UpdateLoanDto): Promise<LoanResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(loans)
-      .where(eq(loans.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
@@ -130,11 +114,7 @@ export class LoansService {
   }
 
   async approve(id: string): Promise<LoanResponseDto> {
-    const [loan] = await db
-      .select()
-      .from(loans)
-      .where(eq(loans.id, id))
-      .limit(1);
+    const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
@@ -142,7 +122,7 @@ export class LoansService {
 
     if (loan.status !== LoanStatus.PENDING) {
       throw new BadRequestException(
-        `Loan must be PENDING to approve. Current status: ${loan.status}`,
+        `Loan must be PENDING to approve. Current status: ${loan.status}`
       );
     }
 
@@ -155,11 +135,7 @@ export class LoansService {
   }
 
   async reject(id: string): Promise<LoanResponseDto> {
-    const [loan] = await db
-      .select()
-      .from(loans)
-      .where(eq(loans.id, id))
-      .limit(1);
+    const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
@@ -167,24 +143,17 @@ export class LoansService {
 
     if (loan.status !== LoanStatus.PENDING) {
       throw new BadRequestException(
-        `Loan must be PENDING to reject. Current status: ${loan.status}`,
+        `Loan must be PENDING to reject. Current status: ${loan.status}`
       );
     }
 
-    await db
-      .update(loans)
-      .set({ status: LoanStatus.REJECTED })
-      .where(eq(loans.id, id));
+    await db.update(loans).set({ status: LoanStatus.REJECTED }).where(eq(loans.id, id));
 
     return this.findOne(id);
   }
 
   async pay(id: string, payLoanDto: PayLoanDto): Promise<LoanResponseDto> {
-    const [loan] = await db
-      .select()
-      .from(loans)
-      .where(eq(loans.id, id))
-      .limit(1);
+    const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
@@ -192,7 +161,7 @@ export class LoansService {
 
     if (loan.status !== LoanStatus.ACTIVE) {
       throw new BadRequestException(
-        `Loan must be ACTIVE to record payment. Current status: ${loan.status}`,
+        `Loan must be ACTIVE to record payment. Current status: ${loan.status}`
       );
     }
 
@@ -201,13 +170,13 @@ export class LoansService {
     }
 
     await db.insert(loanItems).values(
-      payLoanDto.items.map((item) => ({
+      payLoanDto.items.map(item => ({
         loanId: id,
         productId: item.productId,
         quantity: item.quantity.toString(),
         serialNumber: item.serialNumber,
         condition: item.condition || 'GOOD',
-      })),
+      }))
     );
 
     return this.findOne(id);
@@ -215,7 +184,7 @@ export class LoansService {
 
   private async toResponseDto(
     loan: typeof loans.$inferSelect,
-    includeItems = false,
+    includeItems = false
   ): Promise<LoanResponseDto> {
     const response: LoanResponseDto = {
       id: loan.id,
@@ -230,20 +199,15 @@ export class LoansService {
     };
 
     if (includeItems) {
-      const items = await db
-        .select()
-        .from(loanItems)
-        .where(eq(loanItems.loanId, loan.id));
+      const items = await db.select().from(loanItems).where(eq(loanItems.loanId, loan.id));
 
-      response.items = items.map((item) => this.toItemResponseDto(item));
+      response.items = items.map(item => this.toItemResponseDto(item));
     }
 
     return response;
   }
 
-  private toItemResponseDto(
-    item: typeof loanItems.$inferSelect,
-  ): LoanItemResponseDto {
+  private toItemResponseDto(item: typeof loanItems.$inferSelect): LoanItemResponseDto {
     return {
       id: item.id,
       loanId: item.loanId,

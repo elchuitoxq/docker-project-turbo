@@ -10,7 +10,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { LoansService } from './loans.service';
 import {
   CreateLoanDto,
@@ -51,7 +58,7 @@ export class LoansController {
   })
   async findAll(
     @Query('employeeId') employeeId?: string,
-    @Query('status') status?: string,
+    @Query('status') status?: string
   ): Promise<LoanResponseDto[]> {
     return this.loansService.findAll({ employeeId, status });
   }
@@ -100,7 +107,7 @@ export class LoansController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a loan',
-    description: 'Updates an existing loan\'s information',
+    description: "Updates an existing loan's information",
   })
   @ApiParam({
     name: 'id',
@@ -118,7 +125,7 @@ export class LoansController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateLoanDto: UpdateLoanDto,
+    @Body() updateLoanDto: UpdateLoanDto
   ): Promise<LoanResponseDto> {
     return this.loansService.update(id, updateLoanDto);
   }
@@ -203,10 +210,7 @@ export class LoansController {
     status: 404,
     description: 'Loan not found',
   })
-  async pay(
-    @Param('id') id: string,
-    @Body() payLoanDto: PayLoanDto,
-  ): Promise<LoanResponseDto> {
+  async pay(@Param('id') id: string, @Body() payLoanDto: PayLoanDto): Promise<LoanResponseDto> {
     return this.loansService.pay(id, payLoanDto);
   }
 }

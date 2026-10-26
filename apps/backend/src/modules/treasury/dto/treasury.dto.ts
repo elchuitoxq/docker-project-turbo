@@ -53,7 +53,7 @@ export class CreatePaymentDto {
 
   @ApiProperty({
     description: 'Payment amount',
-    example: 1000.00,
+    example: 1000.0,
   })
   @IsNumber()
   @Min(0.01)
@@ -130,7 +130,7 @@ export class PaymentResponseDto {
   @ApiPropertyOptional({ example: 'INCOME' })
   type?: string | null;
 
-  @ApiProperty({ example: 1000.00 })
+  @ApiProperty({ example: 1000.0 })
   amount: number;
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440005' })
@@ -194,7 +194,7 @@ export class BankAccountResponseDto {
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440002' })
   branchId?: string | null;
 
-  @ApiProperty({ example: 5000.00 })
+  @ApiProperty({ example: 5000.0 })
   currentBalance: number;
 
   @ApiPropertyOptional({ example: true })
@@ -264,13 +264,13 @@ export class PartnerStatementDto {
   @ApiProperty({ example: 'J-123456789' })
   partnerTaxId: string;
 
-  @ApiProperty({ example: 5000.00 })
+  @ApiProperty({ example: 5000.0 })
   totalPaid: number;
 
-  @ApiProperty({ example: 3500.00 })
+  @ApiProperty({ example: 3500.0 })
   totalOutstanding: number;
 
-  @ApiProperty({ example: 1500.00 })
+  @ApiProperty({ example: 1500.0 })
   creditBalance: number;
 
   @ApiProperty({ type: [PaymentResponseDto] })
@@ -291,13 +291,13 @@ export class DailyCloseDto {
   @ApiProperty({ example: '2026-06-01' })
   date: string;
 
-  @ApiProperty({ example: 15000.00 })
+  @ApiProperty({ example: 15000.0 })
   totalIncome: number;
 
-  @ApiProperty({ example: 5000.00 })
+  @ApiProperty({ example: 5000.0 })
   totalExpense: number;
 
-  @ApiProperty({ example: 10000.00 })
+  @ApiProperty({ example: 10000.0 })
   netBalance: number;
 
   @ApiProperty({ type: [Object] })

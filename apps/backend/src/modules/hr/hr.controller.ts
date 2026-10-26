@@ -69,7 +69,7 @@ export class HrController {
   @ApiResponse({ status: 404, description: 'Employee not found' })
   async updateEmployee(
     @Param('id') id: string,
-    @Body() updateEmployeeDto: UpdateEmployeeDto,
+    @Body() updateEmployeeDto: UpdateEmployeeDto
   ): Promise<EmployeeResponseDto> {
     return this.hrService.updateEmployee(id, updateEmployeeDto);
   }
@@ -124,13 +124,14 @@ export class HrController {
   @Post('payroll/generate')
   @ApiOperation({
     summary: 'Generate payroll',
-    description: 'Creates a new payroll run with calculated deductions (SSO, FAOV, PIE) per Venezuela LOTTT',
+    description:
+      'Creates a new payroll run with calculated deductions (SSO, FAOV, PIE) per Venezuela LOTTT',
   })
   @ApiBody({ type: CreatePayrollRunDto })
   @ApiResponse({ status: 201, description: 'Payroll generated', type: PayrollRunResponseDto })
   async generatePayroll(
     @Body() createPayrollRunDto: CreatePayrollRunDto,
-    @CurrentUser() user: CurrentUserData,
+    @CurrentUser() user: CurrentUserData
   ): Promise<PayrollRunResponseDto> {
     return this.hrService.generatePayroll(createPayrollRunDto, user.id);
   }
@@ -149,7 +150,7 @@ export class HrController {
   @ApiResponse({ status: 200, description: 'Payslip data', type: PayslipDto })
   async getPayslip(
     @Param('runId') runId: string,
-    @Param('itemId') itemId: string,
+    @Param('itemId') itemId: string
   ): Promise<PayslipDto> {
     return this.hrService.getPayslip(runId, itemId);
   }

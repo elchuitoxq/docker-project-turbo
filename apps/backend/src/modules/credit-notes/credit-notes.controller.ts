@@ -10,7 +10,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { CreditNotesService } from './credit-notes.service';
 import {
   CreateCreditNoteDto,
@@ -55,7 +62,7 @@ export class CreditNotesController {
   })
   async findAll(
     @Query('partnerId') partnerId?: string,
-    @Query('status') status?: string,
+    @Query('status') status?: string
   ): Promise<CreditNoteListResponseDto[]> {
     return this.creditNotesService.findAll(partnerId, status);
   }
@@ -95,12 +102,9 @@ export class CreditNotesController {
   })
   async create(
     @Body() createCreditNoteDto: CreateCreditNoteDto,
-    @CurrentUser() user?: { userId: string },
+    @CurrentUser() user?: { userId: string }
   ): Promise<CreditNoteResponseDto> {
-    return this.creditNotesService.create(
-      createCreditNoteDto,
-      user?.userId,
-    );
+    return this.creditNotesService.create(createCreditNoteDto, user?.userId);
   }
 
   @Patch(':id')
@@ -128,7 +132,7 @@ export class CreditNotesController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateCreditNoteDto: UpdateCreditNoteDto,
+    @Body() updateCreditNoteDto: UpdateCreditNoteDto
   ): Promise<CreditNoteResponseDto> {
     return this.creditNotesService.update(id, updateCreditNoteDto);
   }
@@ -221,7 +225,7 @@ export class CreditNotesController {
   async apply(
     @Param('id') id: string,
     @Param('invoiceId') invoiceId: string,
-    @Body() applyDto: ApplyCreditNoteDto,
+    @Body() applyDto: ApplyCreditNoteDto
   ): Promise<ApplyCreditNoteResponseDto> {
     return this.creditNotesService.apply(id, invoiceId, applyDto);
   }

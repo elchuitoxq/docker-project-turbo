@@ -1,11 +1,12 @@
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { AuditService, AuditLogResponseDto, AuditLogFilters } from './audit.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -51,7 +52,7 @@ export class AuditController {
     @Query('userId') userId?: string,
     @Query('entityTable') entityTable?: string,
     @Query('from') from?: string,
-    @Query('to') to?: string,
+    @Query('to') to?: string
   ): Promise<AuditLogResponseDto[]> {
     const filters: AuditLogFilters = {};
 
@@ -84,7 +85,7 @@ export class AuditController {
   })
   async findByEntity(
     @Param('entityTable') entityTable: string,
-    @Param('entityId') entityId: string,
+    @Param('entityId') entityId: string
   ): Promise<AuditLogResponseDto[]> {
     return this.auditService.findByEntity(entityTable, entityId);
   }

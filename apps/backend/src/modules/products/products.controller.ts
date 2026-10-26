@@ -11,7 +11,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import {
   CreateProductDto,
@@ -115,7 +122,7 @@ export class ProductsController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a product',
-    description: 'Updates an existing product\'s information',
+    description: "Updates an existing product's information",
   })
   @ApiParam({
     name: 'id',
@@ -184,7 +191,7 @@ export class ProductsController {
   @Patch('categories/:id')
   @ApiOperation({
     summary: 'Update a product category',
-    description: 'Updates an existing product category\'s information',
+    description: "Updates an existing product category's information",
   })
   @ApiParam({
     name: 'id',

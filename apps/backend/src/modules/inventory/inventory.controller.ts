@@ -10,7 +10,14 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { InventoryService } from './inventory.service';
 import {
   CreateWarehouseDto,
@@ -186,8 +193,7 @@ export class InventoryController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve an inventory move',
-    description:
-      'Approves an inventory move with EN_TRAMITE status and updates stock accordingly',
+    description: 'Approves an inventory move with EN_TRAMITE status and updates stock accordingly',
   })
   @ApiParam({
     name: 'id',
@@ -207,9 +213,7 @@ export class InventoryController {
     status: 404,
     description: 'Move not found',
   })
-  async approveMove(
-    @Param('id') id: string
-  ): Promise<InventoryMoveResponseDto> {
+  async approveMove(@Param('id') id: string): Promise<InventoryMoveResponseDto> {
     return this.inventoryService.approveMove(id);
   }
 

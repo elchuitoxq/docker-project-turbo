@@ -86,9 +86,7 @@ export class AccountingController {
     status: 400,
     description: 'Invalid request data or account code already exists',
   })
-  async createAccount(
-    @Body() createAccountDto: CreateAccountDto,
-  ): Promise<AccountResponseDto> {
+  async createAccount(@Body() createAccountDto: CreateAccountDto): Promise<AccountResponseDto> {
     return this.accountingService.createAccount(createAccountDto);
   }
 
@@ -123,7 +121,7 @@ export class AccountingController {
   async findAllEntries(
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
-    @Query('accountId') accountId?: string,
+    @Query('accountId') accountId?: string
   ): Promise<EntryResponseDto[]> {
     return this.accountingService.findAllEntries({ dateFrom, dateTo, accountId });
   }
@@ -165,9 +163,7 @@ export class AccountingController {
     status: 400,
     description: 'Invalid request data or entry lines do not sum to zero',
   })
-  async createEntry(
-    @Body() createEntryDto: CreateEntryDto,
-  ): Promise<EntryResponseDto> {
+  async createEntry(@Body() createEntryDto: CreateEntryDto): Promise<EntryResponseDto> {
     return this.accountingService.createEntry(createEntryDto);
   }
 
@@ -194,9 +190,7 @@ export class AccountingController {
     status: 400,
     description: 'No accounting map found for this invoice type',
   })
-  async createEntryFromInvoice(
-    @Param('invoiceId') invoiceId: string,
-  ): Promise<EntryResponseDto> {
+  async createEntryFromInvoice(@Param('invoiceId') invoiceId: string): Promise<EntryResponseDto> {
     return this.accountingService.createEntryFromInvoice(invoiceId);
   }
 
@@ -223,9 +217,7 @@ export class AccountingController {
     status: 400,
     description: 'No accounting map found for this payment type',
   })
-  async createEntryFromPayment(
-    @Param('paymentId') paymentId: string,
-  ): Promise<EntryResponseDto> {
+  async createEntryFromPayment(@Param('paymentId') paymentId: string): Promise<EntryResponseDto> {
     return this.accountingService.createEntryFromPayment(paymentId);
   }
 
@@ -253,7 +245,7 @@ export class AccountingController {
   })
   async findAllMaps(
     @Query('module') module?: string,
-    @Query('branchId') branchId?: string,
+    @Query('branchId') branchId?: string
   ): Promise<MapResponseDto[]> {
     return this.accountingService.findAllMaps({ module, branchId });
   }
@@ -280,7 +272,8 @@ export class AccountingController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Apply map to transaction',
-    description: 'Applies an accounting map to a transaction (invoice or payment) to generate an entry',
+    description:
+      'Applies an accounting map to a transaction (invoice or payment) to generate an entry',
   })
   @ApiParam({
     name: 'id',
@@ -307,7 +300,7 @@ export class AccountingController {
   })
   async applyMapToTransaction(
     @Param('id') id: string,
-    @Param('transactionId') transactionId: string,
+    @Param('transactionId') transactionId: string
   ): Promise<AccountingMapApplyResponseDto> {
     return this.accountingService.applyMapToTransaction(id, transactionId);
   }

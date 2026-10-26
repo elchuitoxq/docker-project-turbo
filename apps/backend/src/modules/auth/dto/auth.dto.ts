@@ -107,8 +107,9 @@ export class ForgotPasswordResponseDto {
   message: string;
 
   @ApiProperty({
-    description: 'Mock reset URL for development',
-    example: 'http://localhost:3000/reset-password?token=mock-token-123',
+    description: 'Enlace de recuperación. Solo se incluye fuera de producción (desarrollo local).',
+    example: 'http://localhost:3000/reset-password?token=2f1c...',
+    required: false,
   })
   mockUrl?: string;
 }

@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, eq, inArray } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { db } from '../../database';
@@ -9,7 +14,7 @@ import { CreateUserDto, UpdateUserDto, UserResponseDto } from './dto/user.dto';
 export class UsersService {
   async findAll(): Promise<UserResponseDto[]> {
     const allUsers = await db.select().from(users);
-    return Promise.all(allUsers.map((user) => this.toResponse(user)));
+    return Promise.all(allUsers.map(user => this.toResponse(user)));
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
@@ -21,14 +26,18 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, dto.email)).limit(1);
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, dto.email))
+      .limit(1);
     if (existing) {
       throw new ConflictException('User with this email already exists');
     }
 
     const password = await bcrypt.hash(dto.password, 10);
 
-    const created = await db.transaction(async (tx) => {
+    const created = await db.transaction(async tx => {
       const [user] = await tx
         .insert(users)
         .values({ name: dto.name, email: dto.email, password })
@@ -49,7 +58,10 @@ export class UsersService {
     if (dto.email !== undefined) updateData.email = dto.email;
     if (dto.password !== undefined) updateData.password = await bcrypt.hash(dto.password, 10);
     if (Object.keys(updateData).length) {
-      await db.update(users).set({ ...updateData, updatedAt: new Date() }).where(eq(users.id, id));
+      await db
+        .update(users)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(users.id, id));
     }
     return this.findOne(id);
   }
@@ -67,16 +79,19 @@ export class UsersService {
     await this.assertUserExists(userId);
     const roleIds = this.uniqueIds(inputRoleIds, 'Role IDs');
 
-    await db.transaction(async (tx) => {
+    await db.transaction(async tx => {
       if (roleIds.length) {
-        const foundRoles = await tx.select({ id: roles.id }).from(roles).where(inArray(roles.id, roleIds));
+        const foundRoles = await tx
+          .select({ id: roles.id })
+          .from(roles)
+          .where(inArray(roles.id, roleIds));
         if (foundRoles.length !== roleIds.length) {
           throw new BadRequestException('One or more role IDs do not exist');
         }
       }
       await tx.delete(usersRoles).where(eq(usersRoles.userId, userId));
       if (roleIds.length) {
-        await tx.insert(usersRoles).values(roleIds.map((roleId) => ({ userId, roleId })));
+        await tx.insert(usersRoles).values(roleIds.map(roleId => ({ userId, roleId })));
       }
     });
     return this.findOne(userId);
@@ -91,7 +106,7 @@ export class UsersService {
     const branchIds = this.uniqueIds(inputBranchIds, 'Branch IDs');
     this.validateDefaultBranch(branchIds, defaultBranchId);
 
-    await db.transaction(async (tx) => {
+    await db.transaction(async tx => {
       if (branchIds.length) {
         const foundBranches = await tx
           .select({ id: branches.id })
@@ -104,7 +119,7 @@ export class UsersService {
       await tx.delete(usersBranches).where(eq(usersBranches.userId, userId));
       if (branchIds.length) {
         await tx.insert(usersBranches).values(
-          branchIds.map((branchId) => ({
+          branchIds.map(branchId => ({
             userId,
             branchId,
             isDefault: branchId === defaultBranchId,
@@ -163,7 +178,7 @@ export class UsersService {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       roles: userRoles.map(({ name }) => name),
-      branches: userBranchRows.map((branch) => ({
+      branches: userBranchRows.map(branch => ({
         ...branch,
         isDefault: branch.isDefault ?? false,
       })),

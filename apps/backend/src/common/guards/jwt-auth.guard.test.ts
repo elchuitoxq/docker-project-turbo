@@ -2,11 +2,33 @@ import { describe, it, expect, vi } from 'vitest';
 import { UnauthorizedException, ExecutionContext } from '@nestjs/common';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
+const createGuard = (isPublic = false) => {
+  const reflector = { getAllAndOverride: vi.fn(() => isPublic) };
+  return { guard: new JwtAuthGuard(reflector as any), reflector };
+};
+
 describe('JwtAuthGuard', () => {
-  const mockContext = {} as ExecutionContext;
+  const mockContext = {
+    getHandler: () => undefined,
+    getClass: () => undefined,
+    switchToHttp: () => ({ getRequest: () => ({}), getResponse: () => ({}) }),
+  } as unknown as ExecutionContext;
+
+  it('returns true without calling super when the route is @Public()', () => {
+    const { guard } = createGuard(true);
+    const spy = vi
+      .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
+      .mockReturnValue(false as any);
+
+    const result = guard.canActivate(mockContext);
+
+    expect(result).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
 
   it('returns true when super.canActivate returns true', () => {
-    const guard = new JwtAuthGuard();
+    const { guard } = createGuard();
     const spy = vi
       .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
       .mockReturnValue(true as any);
@@ -18,7 +40,7 @@ describe('JwtAuthGuard', () => {
   });
 
   it('propagates UnauthorizedException from super', () => {
-    const guard = new JwtAuthGuard();
+    const { guard } = createGuard();
     const spy = vi
       .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
       .mockImplementation(() => {
@@ -30,7 +52,7 @@ describe('JwtAuthGuard', () => {
   });
 
   it('propagates any error from super', () => {
-    const guard = new JwtAuthGuard();
+    const { guard } = createGuard();
     const customError = new Error('Custom error');
     const spy = vi
       .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')

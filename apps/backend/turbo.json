@@ -4,6 +4,9 @@
   "tasks": {
     "test": {
       "dependsOn": ["database#test:db:prepare"]
+    },
+    "test:coverage": {
+      "dependsOn": ["database#test:db:prepare"]
     }
   }
 }

@@ -70,7 +70,9 @@ describe('CronService', () => {
 
   describe('parseBcvJsonData', () => {
     it('extracts from valid JSON', () => {
-      const data = { USD: { fecha: '2026-06-02', euro: '38,50', yuan: '5,00', lira: '1,00', rublo: '0,40' } };
+      const data = {
+        USD: { fecha: '2026-06-02', euro: '38,50', yuan: '5,00', lira: '1,00', rublo: '0,40' },
+      };
       // @ts-expect-error
       const result = service.parseBcvJsonData(data);
       expect(result).toBeGreaterThan(0);
@@ -108,10 +110,13 @@ describe('CronService', () => {
   describe('triggerBcvRateFetch', () => {
     it('returns success on happy path', async () => {
       const mockHtml = '<div id="dolar">36,50</div>';
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-        ok: true,
-        text: () => Promise.resolve(mockHtml),
-      }));
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          text: () => Promise.resolve(mockHtml),
+        })
+      );
 
       (db.select as any).mockReturnValue({
         from: () => ({ where: () => ({ limit: () => [{ id: 'usd-id' }] }) }),

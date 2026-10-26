@@ -31,12 +31,7 @@ export class AuditService {
     const logs = await db
       .select()
       .from(auditLogs)
-      .where(
-        and(
-          eq(auditLogs.entityTable, entityTable),
-          eq(auditLogs.entityId, entityId)
-        )
-      )
+      .where(and(eq(auditLogs.entityTable, entityTable), eq(auditLogs.entityId, entityId)))
       .orderBy(desc(auditLogs.createdAt));
 
     return logs.map(this.toResponseDto);

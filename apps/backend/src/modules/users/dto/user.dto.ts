@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsEmail,
-  IsOptional,
-  IsArray,
-  IsUUID,
-  MinLength,
-} from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsArray, IsUUID, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -32,7 +25,6 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6)
   password: string;
-
 }
 
 export class UpdateUserDto {

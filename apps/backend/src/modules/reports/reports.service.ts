@@ -227,7 +227,11 @@ export class ReportsService {
           : [];
 
         const invoice = invoiceData[0];
-        const fecha = invoice?.date ? this.formatDateForSeniat(new Date(invoice.date)) : (ret.date ? this.formatDateForSeniat(new Date(ret.date)) : '');
+        const fecha = invoice?.date
+          ? this.formatDateForSeniat(new Date(invoice.date))
+          : ret.date
+            ? this.formatDateForSeniat(new Date(ret.date))
+            : '';
         const numero = invoice?.code || ret.code;
         const montoBase = this.parseNumeric(line.baseAmount).toFixed(2);
         const montoRetenido = this.parseNumeric(line.retainedAmount).toFixed(2);
@@ -260,22 +264,18 @@ export class ReportsService {
       : await db.select().from(invoices);
 
     const allRetencionesIva = retentionConditions
-      ? await db.select().from(taxRetentions).where(
-          and(retentionConditions, eq(taxRetentions.type, 'IVA'))
-        )
-      : await db
+      ? await db
           .select()
           .from(taxRetentions)
-          .where(eq(taxRetentions.type, 'IVA'));
+          .where(and(retentionConditions, eq(taxRetentions.type, 'IVA')))
+      : await db.select().from(taxRetentions).where(eq(taxRetentions.type, 'IVA'));
 
     const allRetencionesIslr = retentionConditions
-      ? await db.select().from(taxRetentions).where(
-          and(retentionConditions, eq(taxRetentions.type, 'ISLR'))
-        )
-      : await db
+      ? await db
           .select()
           .from(taxRetentions)
-          .where(eq(taxRetentions.type, 'ISLR'));
+          .where(and(retentionConditions, eq(taxRetentions.type, 'ISLR')))
+      : await db.select().from(taxRetentions).where(eq(taxRetentions.type, 'ISLR'));
 
     const allCreditNotes = invoiceConditions
       ? await db.select().from(creditNotes).where(invoiceConditions)
@@ -456,10 +456,7 @@ export class ReportsService {
       const retencionesIva = await db
         .select()
         .from(taxRetentions)
-        .where(and(
-          eq(taxRetentions.partnerId, inv.partnerId),
-          eq(taxRetentions.type, 'IVA')
-        ));
+        .where(and(eq(taxRetentions.partnerId, inv.partnerId), eq(taxRetentions.type, 'IVA')));
 
       let retencionIva = 0;
       let nroComprobante = '';
@@ -467,7 +464,10 @@ export class ReportsService {
         if (ret.date && inv.date) {
           const retDate = new Date(ret.date);
           const invDate = new Date(inv.date);
-          if (retDate >= invDate && retDate <= new Date(invDate.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+          if (
+            retDate >= invDate &&
+            retDate <= new Date(invDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+          ) {
             retencionIva += this.parseNumeric(ret.totalRetained);
             nroComprobante = ret.code;
           }

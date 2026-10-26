@@ -89,7 +89,7 @@ describe('BillingService Logic', () => {
       const baseTotal = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const taxTotal = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
 
       expect(baseTotal).toBe(250);
@@ -239,12 +239,15 @@ describe('TreasuryService Logic', () => {
         { method: 'ZELLE', amount: 50, type: 'EXPENSE' },
       ];
 
-      const byMethod = payments.reduce((acc, p) => {
-        if (!acc[p.method]) acc[p.method] = { income: 0, expense: 0 };
-        if (p.type === 'INCOME') acc[p.method].income += p.amount;
-        else acc[p.method].expense += p.amount;
-        return acc;
-      }, {} as Record<string, { income: number; expense: number }>);
+      const byMethod = payments.reduce(
+        (acc, p) => {
+          if (!acc[p.method]) acc[p.method] = { income: 0, expense: 0 };
+          if (p.type === 'INCOME') acc[p.method].income += p.amount;
+          else acc[p.method].expense += p.amount;
+          return acc;
+        },
+        {} as Record<string, { income: number; expense: number }>
+      );
 
       expect(byMethod['CASH'].income).toBe(500);
       expect(byMethod['CASH'].expense).toBe(100);
@@ -258,7 +261,7 @@ describe('HrService - LOTTT Calculations', () => {
   const SSO_EMP_RATE = 0.04;
   const FAOV_EMP_RATE = 0.01;
   const PIE_EMP_RATE = 0.005;
-  const SSO_PAT_RATE = 0.10;
+  const SSO_PAT_RATE = 0.1;
   const FAOV_PAT_RATE = 0.02;
   const PIE_PAT_RATE = 0.02;
   const CESTATICKET_USD = 40.0;
@@ -320,9 +323,9 @@ describe('HrService - LOTTT Calculations', () => {
       const salary = 500;
       const integral =
         salary +
-        (salary * SSO_PAT_RATE) +
-        (salary * FAOV_PAT_RATE) +
-        (salary * PIE_PAT_RATE) +
+        salary * SSO_PAT_RATE +
+        salary * FAOV_PAT_RATE +
+        salary * PIE_PAT_RATE +
         CESTATICKET_USD;
 
       expect(integral).toBe(610);

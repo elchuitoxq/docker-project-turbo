@@ -1,16 +1,5 @@
-import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BiService, KpiResult, ChartResult, ActivityResult, MonthlyData } from './bi.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
@@ -22,7 +11,8 @@ export class BiController {
   @Get('kpis')
   @ApiOperation({
     summary: 'Get dashboard KPIs',
-    description: 'Retrieves key performance indicators including total invoices, payments, employees, and pending payroll runs',
+    description:
+      'Retrieves key performance indicators including total invoices, payments, employees, and pending payroll runs',
   })
   @ApiResponse({
     status: 200,
@@ -55,7 +45,7 @@ export class BiController {
   })
   async getChartData(
     @Query('type') type: 'sales' | 'payments',
-    @Query('year') year?: string,
+    @Query('year') year?: string
   ): Promise<MonthlyData[]> {
     const selectedYear = year ? parseInt(year, 10) : new Date().getFullYear();
     return this.biService.getChartData(type, selectedYear);

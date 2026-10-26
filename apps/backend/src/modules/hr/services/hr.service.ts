@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../../database';
 import {
   employees,
@@ -43,7 +39,7 @@ import {
 const SSO_EMP_RATE = 0.04;
 const FAOV_EMP_RATE = 0.01;
 const PIE_EMP_RATE = 0.005;
-const SSO_PAT_RATE = 0.10;
+const SSO_PAT_RATE = 0.1;
 const FAOV_PAT_RATE = 0.02;
 const PIE_PAT_RATE = 0.02;
 const CESTATICKET_USD = 40.0;
@@ -52,9 +48,13 @@ const CESTATICKET_USD = 40.0;
 export class HrService {
   async findAllEmployees(branchId?: string): Promise<EmployeeResponseDto[]> {
     const conditions = branchId ? [eq(employees.branchId, branchId)] : [];
-    const allEmployees = conditions.length > 0
-      ? await db.select().from(employees).where(and(...conditions))
-      : await db.select().from(employees);
+    const allEmployees =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(employees)
+            .where(and(...conditions))
+        : await db.select().from(employees);
 
     return this.mapEmployeesWithRelations(allEmployees);
   }
@@ -69,7 +69,9 @@ export class HrService {
     return (await this.mapEmployeesWithRelations([employee]))[0];
   }
 
-  private async mapEmployeesWithRelations(emps: typeof employees.$inferSelect[]): Promise<EmployeeResponseDto[]> {
+  private async mapEmployeesWithRelations(
+    emps: (typeof employees.$inferSelect)[]
+  ): Promise<EmployeeResponseDto[]> {
     const result: EmployeeResponseDto[] = [];
 
     for (const emp of emps) {
@@ -77,12 +79,20 @@ export class HrService {
       let departmentName: string | undefined;
 
       if (emp.positionId) {
-        const [pos] = await db.select().from(jobPositions).where(eq(jobPositions.id, emp.positionId)).limit(1);
+        const [pos] = await db
+          .select()
+          .from(jobPositions)
+          .where(eq(jobPositions.id, emp.positionId))
+          .limit(1);
         positionName = pos?.name;
       }
 
       if (emp.departmentId) {
-        const [dept] = await db.select().from(departments).where(eq(departments.id, emp.departmentId)).limit(1);
+        const [dept] = await db
+          .select()
+          .from(departments)
+          .where(eq(departments.id, emp.departmentId))
+          .limit(1);
         departmentName = dept?.name;
       }
 
@@ -191,14 +201,20 @@ export class HrService {
     return this.findOneEmployee(newEmployee.id);
   }
 
-  async updateEmployee(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<EmployeeResponseDto> {
+  async updateEmployee(
+    id: string,
+    updateEmployeeDto: UpdateEmployeeDto
+  ): Promise<EmployeeResponseDto> {
     const [employee] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
 
     if (!employee) {
       throw new NotFoundException(`Employee with ID ${id} not found`);
     }
 
-    if (updateEmployeeDto.baseSalary && updateEmployeeDto.baseSalary !== parseFloat(String(employee.baseSalary))) {
+    if (
+      updateEmployeeDto.baseSalary &&
+      updateEmployeeDto.baseSalary !== parseFloat(String(employee.baseSalary))
+    ) {
       await db.insert(employeeSalaryHistory).values({
         id: uuidv4(),
         employeeId: id,
@@ -218,8 +234,10 @@ export class HrService {
     if (updateEmployeeDto.departmentId) updateData.departmentId = updateEmployeeDto.departmentId;
     if (updateEmployeeDto.baseSalary) updateData.baseSalary = String(updateEmployeeDto.baseSalary);
     if (updateEmployeeDto.status) updateData.status = updateEmployeeDto.status;
-    if (updateEmployeeDto.terminationReason) updateData.terminationReason = updateEmployeeDto.terminationReason;
-    if (updateEmployeeDto.terminationDate) updateData.terminationDate = new Date(updateEmployeeDto.terminationDate);
+    if (updateEmployeeDto.terminationReason)
+      updateData.terminationReason = updateEmployeeDto.terminationReason;
+    if (updateEmployeeDto.terminationDate)
+      updateData.terminationDate = new Date(updateEmployeeDto.terminationDate);
     updateData.updatedAt = new Date();
 
     await db.update(employees).set(updateData).where(eq(employees.id, id));
@@ -230,7 +248,10 @@ export class HrService {
   async findAllDepartments(branchId?: string): Promise<any[]> {
     const conditions = branchId ? [eq(departments.branchId, branchId)] : [];
     return conditions.length > 0
-      ? await db.select().from(departments).where(and(...conditions))
+      ? await db
+          .select()
+          .from(departments)
+          .where(and(...conditions))
       : await db.select().from(departments);
   }
 
@@ -259,14 +280,21 @@ export class HrService {
         name: createPositionDto.name,
         description: createPositionDto.description,
         currencyId: createPositionDto.currencyId,
-        baseSalaryMin: createPositionDto.baseSalaryMin ? String(createPositionDto.baseSalaryMin) : '0',
-        baseSalaryMax: createPositionDto.baseSalaryMax ? String(createPositionDto.baseSalaryMax) : '0',
+        baseSalaryMin: createPositionDto.baseSalaryMin
+          ? String(createPositionDto.baseSalaryMin)
+          : '0',
+        baseSalaryMax: createPositionDto.baseSalaryMax
+          ? String(createPositionDto.baseSalaryMax)
+          : '0',
       })
       .returning();
     return newPos;
   }
 
-  async generatePayroll(createPayrollRunDto: CreatePayrollRunDto, userId: string): Promise<PayrollRunResponseDto> {
+  async generatePayroll(
+    createPayrollRunDto: CreatePayrollRunDto,
+    userId: string
+  ): Promise<PayrollRunResponseDto> {
     const activeEmployees = await db
       .select()
       .from(employees)
@@ -353,11 +381,46 @@ export class HrService {
       .returning();
 
     const lines = [
-      { conceptCode: 'SALARY', conceptName: 'Salario Base', category: 'INCOME', base: baseSalary, rate: 0, amount: baseSalary },
-      { conceptCode: 'CESTATICKET', conceptName: 'Cestaticket', category: 'INCOME', base: CESTATICKET_USD, rate: 0, amount: CESTATICKET_USD },
-      { conceptCode: 'SSO_EMP', conceptName: 'SSO Empleado', category: 'DEDUCTION', base: baseSalary, rate: SSO_EMP_RATE, amount: ssoEmp },
-      { conceptCode: 'FAOV_EMP', conceptName: 'FAOV Empleado', category: 'DEDUCTION', base: baseSalary, rate: FAOV_EMP_RATE, amount: faovEmp },
-      { conceptCode: 'PIE_EMP', conceptName: 'PIE Empleado', category: 'DEDUCTION', base: baseSalary, rate: PIE_EMP_RATE, amount: pieEmp },
+      {
+        conceptCode: 'SALARY',
+        conceptName: 'Salario Base',
+        category: 'INCOME',
+        base: baseSalary,
+        rate: 0,
+        amount: baseSalary,
+      },
+      {
+        conceptCode: 'CESTATICKET',
+        conceptName: 'Cestaticket',
+        category: 'INCOME',
+        base: CESTATICKET_USD,
+        rate: 0,
+        amount: CESTATICKET_USD,
+      },
+      {
+        conceptCode: 'SSO_EMP',
+        conceptName: 'SSO Empleado',
+        category: 'DEDUCTION',
+        base: baseSalary,
+        rate: SSO_EMP_RATE,
+        amount: ssoEmp,
+      },
+      {
+        conceptCode: 'FAOV_EMP',
+        conceptName: 'FAOV Empleado',
+        category: 'DEDUCTION',
+        base: baseSalary,
+        rate: FAOV_EMP_RATE,
+        amount: faovEmp,
+      },
+      {
+        conceptCode: 'PIE_EMP',
+        conceptName: 'PIE Empleado',
+        category: 'DEDUCTION',
+        base: baseSalary,
+        rate: PIE_EMP_RATE,
+        amount: pieEmp,
+      },
     ];
 
     for (const line of lines) {
@@ -373,16 +436,25 @@ export class HrService {
       });
     }
 
-    return { baseAmount: baseSalary, bonuses: CESTATICKET_USD, deductions: totalDeductions, netTotal };
+    return {
+      baseAmount: baseSalary,
+      bonuses: CESTATICKET_USD,
+      deductions: totalDeductions,
+      netTotal,
+    };
   }
 
   async findAllPayrollRuns(branchId?: string): Promise<PayrollRunResponseDto[]> {
     const conditions = branchId ? [eq(payrollRuns.branchId, branchId)] : [];
-    const runs = conditions.length > 0
-      ? await db.select().from(payrollRuns).where(and(...conditions))
-      : await db.select().from(payrollRuns);
+    const runs =
+      conditions.length > 0
+        ? await db
+            .select()
+            .from(payrollRuns)
+            .where(and(...conditions))
+        : await db.select().from(payrollRuns);
 
-    return runs.map((r) => ({
+    return runs.map(r => ({
       ...r,
       totalAmount: parseFloat(String(r.totalAmount)),
     }));
@@ -400,9 +472,16 @@ export class HrService {
     const itemsWithLines: any[] = [];
 
     for (const item of items) {
-      const [emp] = await db.select().from(employees).where(eq(employees.id, item.employeeId)).limit(1);
+      const [emp] = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.id, item.employeeId))
+        .limit(1);
 
-      const lines = await db.select().from(payrollItemLines).where(eq(payrollItemLines.itemId, item.id));
+      const lines = await db
+        .select()
+        .from(payrollItemLines)
+        .where(eq(payrollItemLines.itemId, item.id));
 
       itemsWithLines.push({
         id: item.id,
@@ -412,7 +491,7 @@ export class HrService {
         bonuses: parseFloat(String(item.bonuses)),
         deductions: parseFloat(String(item.deductions)),
         netTotal: parseFloat(String(item.netTotal)),
-        lines: lines.map((l) => ({
+        lines: lines.map(l => ({
           conceptCode: l.conceptCode,
           conceptName: l.conceptName,
           category: l.category,
@@ -441,7 +520,10 @@ export class HrService {
       throw new BadRequestException('Only DRAFT payroll runs can be processed');
     }
 
-    await db.update(payrollRuns).set({ status: PayrollRunStatus.PROCESSED }).where(eq(payrollRuns.id, id));
+    await db
+      .update(payrollRuns)
+      .set({ status: PayrollRunStatus.PROCESSED })
+      .where(eq(payrollRuns.id, id));
 
     return this.findOnePayrollRun(id);
   }
@@ -453,13 +535,20 @@ export class HrService {
       throw new NotFoundException(`Payroll item with ID ${itemId} not found`);
     }
 
-    const [emp] = await db.select().from(employees).where(eq(employees.id, item.employeeId)).limit(1);
+    const [emp] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.id, item.employeeId))
+      .limit(1);
     const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
     const [position] = emp?.positionId
       ? await db.select().from(jobPositions).where(eq(jobPositions.id, emp.positionId)).limit(1)
       : [null];
 
-    const lines = await db.select().from(payrollItemLines).where(eq(payrollItemLines.itemId, itemId));
+    const lines = await db
+      .select()
+      .from(payrollItemLines)
+      .where(eq(payrollItemLines.itemId, itemId));
 
     const incomeConcepts: { code: string; name: string; amount: number }[] = [];
     const deductionConcepts: { code: string; name: string; amount: number }[] = [];
@@ -494,7 +583,10 @@ export class HrService {
   async findAllIncidents(employeeId?: string): Promise<any[]> {
     const conditions = employeeId ? [eq(payrollIncidents.employeeId, employeeId)] : [];
     return conditions.length > 0
-      ? await db.select().from(payrollIncidents).where(and(...conditions))
+      ? await db
+          .select()
+          .from(payrollIncidents)
+          .where(and(...conditions))
       : await db.select().from(payrollIncidents);
   }
 

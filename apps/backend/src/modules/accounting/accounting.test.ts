@@ -117,9 +117,7 @@ describe('AccountingService', () => {
         })),
       });
 
-      await expect(service.findOneAccount('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOneAccount('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -138,7 +136,7 @@ describe('AccountingService', () => {
           code: '1.1.1.001',
           name: 'Duplicate Account',
           type: 'ACTIVO' as any,
-        }),
+        })
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -153,7 +151,7 @@ describe('AccountingService', () => {
             { accountId: mockAccount.id, debit: 1000, credit: 0 },
             { accountId: mockAccount2.id, debit: 0, credit: 500 },
           ],
-        }),
+        })
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -163,7 +161,7 @@ describe('AccountingService', () => {
           date: '2026-06-01T00:00:00.000Z',
           description: 'Single line entry',
           lines: [{ accountId: mockAccount.id, debit: 1000, credit: 0 }],
-        }),
+        })
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -178,9 +176,7 @@ describe('AccountingService', () => {
         })),
       });
 
-      await expect(service.findOneEntry('non-existent-id')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOneEntry('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 

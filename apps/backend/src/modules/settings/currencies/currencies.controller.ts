@@ -1,18 +1,5 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { CurrenciesService } from './currencies.service';
 import {
   CreateCurrencyDto,
@@ -58,9 +45,7 @@ export class CurrenciesController {
     status: 409,
     description: 'Currency with this code already exists',
   })
-  async create(
-    @Body() createCurrencyDto: CreateCurrencyDto,
-  ): Promise<CurrencyResponseDto> {
+  async create(@Body() createCurrencyDto: CreateCurrencyDto): Promise<CurrencyResponseDto> {
     return this.currenciesService.create(createCurrencyDto);
   }
 
@@ -92,9 +77,7 @@ export class CurrenciesController {
     status: 404,
     description: 'Currency not found',
   })
-  async addRate(
-    @Body() createRateDto: CreateExchangeRateDto,
-  ): Promise<ExchangeRateResponseDto> {
+  async addRate(@Body() createRateDto: CreateExchangeRateDto): Promise<ExchangeRateResponseDto> {
     return this.currenciesService.addRate(createRateDto.currencyId, createRateDto);
   }
 }

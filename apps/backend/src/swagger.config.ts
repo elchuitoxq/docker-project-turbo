@@ -14,8 +14,9 @@ export function buildOpenApiConfig() {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'JWT-auth',
+      'JWT-auth'
     )
+    .addCookieAuth('erp_token', { type: 'apiKey', in: 'cookie' }, 'cookie-auth')
     .addServer('http://localhost:4000', 'Local development')
     .addServer(process.env.API_URL ?? 'https://api.erp-ve.com', 'Production')
     .addTag('auth', 'Authentication endpoints (login, password reset)')

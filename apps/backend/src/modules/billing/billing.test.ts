@@ -29,7 +29,7 @@ describe('BillingService - Invoice Totals Calculation', () => {
       const baseTotal = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const taxTotal = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
 
       expect(baseTotal).toBe(250);
@@ -93,16 +93,14 @@ describe('BillingService - Invoice Totals Calculation', () => {
 
       const taxTotal = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
 
       expect(taxTotal).toBe(36);
     });
 
     it('should round totals to 2 decimal places', () => {
-      const items = [
-        { quantity: 3, price: 33.33, taxRate: 16 },
-      ];
+      const items = [{ quantity: 3, price: 33.33, taxRate: 16 }];
 
       const baseTotal = Math.round(items[0].quantity * items[0].price * 100) / 100;
       const taxTotal = Math.round(baseTotal * (16 / 100) * 100) / 100;
@@ -113,7 +111,12 @@ describe('BillingService - Invoice Totals Calculation', () => {
   });
 
   describe('Invoice Status Transitions', () => {
-    const validStatuses = [InvoiceStatus.DRAFT, InvoiceStatus.POSTED, InvoiceStatus.PAID, InvoiceStatus.VOID];
+    const validStatuses = [
+      InvoiceStatus.DRAFT,
+      InvoiceStatus.POSTED,
+      InvoiceStatus.PAID,
+      InvoiceStatus.VOID,
+    ];
 
     it('should have all expected status values', () => {
       expect(validStatuses).toContain('DRAFT');
@@ -288,7 +291,7 @@ describe('BillingService - Invoice Totals Calculation', () => {
       const totalBase = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const totalTax = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
       const totalIgtf = (totalBase + totalTax) * 0.03;
       const total = totalBase + totalTax + totalIgtf;
@@ -309,7 +312,7 @@ describe('BillingService - Invoice Totals Calculation', () => {
       const totalBase = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const totalTax = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
 
       expect(totalBase).toBe(275);
@@ -340,7 +343,7 @@ describe('BillingService - Invoice Totals Calculation', () => {
       const totalBase = items.reduce((sum, item) => sum + item.quantity * item.price, 0);
       const totalTax = items.reduce(
         (sum, item) => sum + item.quantity * item.price * (item.taxRate / 100),
-        0,
+        0
       );
 
       expect(totalBase).toBe(999999900);
@@ -421,7 +424,8 @@ describe('BillingService - Invoice Totals Calculation', () => {
 
     it('should NOT allow void on DRAFT invoices (business rule)', () => {
       const invoiceStatus: string = InvoiceStatus.DRAFT;
-      const canVoid = invoiceStatus !== InvoiceStatus.VOID && invoiceStatus === InvoiceStatus.POSTED;
+      const canVoid =
+        invoiceStatus !== InvoiceStatus.VOID && invoiceStatus === InvoiceStatus.POSTED;
 
       expect(canVoid).toBe(false);
     });

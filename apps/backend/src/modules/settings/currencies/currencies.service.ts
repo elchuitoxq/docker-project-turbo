@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../../database';
 import { currencies, exchangeRates } from '../../../schema';
 import { eq, desc } from 'drizzle-orm';
@@ -22,11 +18,7 @@ export class CurrenciesService {
   }
 
   async findOne(id: string): Promise<CurrencyResponseDto> {
-    const [currency] = await db
-      .select()
-      .from(currencies)
-      .where(eq(currencies.id, id))
-      .limit(1);
+    const [currency] = await db.select().from(currencies).where(eq(currencies.id, id)).limit(1);
 
     if (!currency) {
       throw new NotFoundException(`Currency with ID ${id} not found`);
@@ -97,7 +89,7 @@ export class CurrenciesService {
 
   async addRate(
     currencyId: string,
-    createRateDto: CreateExchangeRateDto,
+    createRateDto: CreateExchangeRateDto
   ): Promise<ExchangeRateResponseDto> {
     const [currency] = await db
       .select()
@@ -127,9 +119,7 @@ export class CurrenciesService {
     };
   }
 
-  private toResponseDto(
-    currency: typeof currencies.$inferSelect,
-  ): CurrencyResponseDto {
+  private toResponseDto(currency: typeof currencies.$inferSelect): CurrencyResponseDto {
     return {
       id: currency.id,
       code: currency.code,

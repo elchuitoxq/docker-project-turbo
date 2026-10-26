@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import {
   warehouses,
@@ -35,11 +31,7 @@ export class InventoryService {
   }
 
   async findOneWarehouse(id: string): Promise<WarehouseResponseDto> {
-    const [warehouse] = await db
-      .select()
-      .from(warehouses)
-      .where(eq(warehouses.id, id))
-      .limit(1);
+    const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, id)).limit(1);
 
     if (!warehouse) {
       throw new NotFoundException(`Warehouse with ID ${id} not found`);
@@ -48,9 +40,7 @@ export class InventoryService {
     return this.toWarehouseResponseDto(warehouse);
   }
 
-  async createWarehouse(
-    createWarehouseDto: CreateWarehouseDto
-  ): Promise<WarehouseResponseDto> {
+  async createWarehouse(createWarehouseDto: CreateWarehouseDto): Promise<WarehouseResponseDto> {
     const [newWarehouse] = await db
       .insert(warehouses)
       .values({
@@ -68,11 +58,7 @@ export class InventoryService {
     id: string,
     updateWarehouseDto: UpdateWarehouseDto
   ): Promise<WarehouseResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(warehouses)
-      .where(eq(warehouses.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(warehouses).where(eq(warehouses.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Warehouse with ID ${id} not found`);
@@ -100,9 +86,7 @@ export class InventoryService {
     return this.findOneWarehouse(id);
   }
 
-  async findStockByWarehouse(
-    warehouseId: string
-  ): Promise<StockResponseDto[]> {
+  async findStockByWarehouse(warehouseId: string): Promise<StockResponseDto[]> {
     const [warehouse] = await db
       .select()
       .from(warehouses)
@@ -113,10 +97,7 @@ export class InventoryService {
       throw new NotFoundException(`Warehouse with ID ${warehouseId} not found`);
     }
 
-    const stockItems = await db
-      .select()
-      .from(stock)
-      .where(eq(stock.warehouseId, warehouseId));
+    const stockItems = await db.select().from(stock).where(eq(stock.warehouseId, warehouseId));
 
     const result: StockResponseDto[] = [];
     for (const item of stockItems) {
@@ -127,10 +108,7 @@ export class InventoryService {
     return result;
   }
 
-  async findAllMoves(
-    status?: string,
-    warehouseId?: string
-  ): Promise<InventoryMoveResponseDto[]> {
+  async findAllMoves(status?: string, warehouseId?: string): Promise<InventoryMoveResponseDto[]> {
     const conditions = [];
 
     if (status) {
@@ -169,11 +147,7 @@ export class InventoryService {
   }
 
   async findOneMove(id: string): Promise<InventoryMoveResponseDto> {
-    const [move] = await db
-      .select()
-      .from(inventoryMoves)
-      .where(eq(inventoryMoves.id, id))
-      .limit(1);
+    const [move] = await db.select().from(inventoryMoves).where(eq(inventoryMoves.id, id)).limit(1);
 
     if (!move) {
       throw new NotFoundException(`Inventory move with ID ${id} not found`);
@@ -187,15 +161,11 @@ export class InventoryService {
     userId?: string
   ): Promise<InventoryMoveResponseDto> {
     if (createMoveDto.type === 'SALIDA' && !createMoveDto.fromWarehouseId) {
-      throw new BadRequestException(
-        'fromWarehouseId is required for SALIDA moves'
-      );
+      throw new BadRequestException('fromWarehouseId is required for SALIDA moves');
     }
 
     if (createMoveDto.type === 'ENTRADA' && !createMoveDto.toWarehouseId) {
-      throw new BadRequestException(
-        'toWarehouseId is required for ENTRADA moves'
-      );
+      throw new BadRequestException('toWarehouseId is required for ENTRADA moves');
     }
 
     if (
@@ -237,15 +207,8 @@ export class InventoryService {
     return this.findOneMove(newMove.id);
   }
 
-  async approveMove(
-    id: string,
-    userId?: string
-  ): Promise<InventoryMoveResponseDto> {
-    const [move] = await db
-      .select()
-      .from(inventoryMoves)
-      .where(eq(inventoryMoves.id, id))
-      .limit(1);
+  async approveMove(id: string, userId?: string): Promise<InventoryMoveResponseDto> {
+    const [move] = await db.select().from(inventoryMoves).where(eq(inventoryMoves.id, id)).limit(1);
 
     if (!move) {
       throw new NotFoundException(`Inventory move with ID ${id} not found`);
@@ -274,19 +237,9 @@ export class InventoryService {
           Number(line.cost)
         );
       } else if (move.type === 'SALIDA') {
-        await this.subtractStock(
-          move.fromWarehouseId!,
-          line.productId,
-          line.batchId,
-          quantity
-        );
+        await this.subtractStock(move.fromWarehouseId!, line.productId, line.batchId, quantity);
       } else if (move.type === 'TRANSFERENCIA') {
-        await this.subtractStock(
-          move.fromWarehouseId!,
-          line.productId,
-          line.batchId,
-          quantity
-        );
+        await this.subtractStock(move.fromWarehouseId!, line.productId, line.batchId, quantity);
         await this.addStock(
           move.toWarehouseId!,
           line.productId,
@@ -314,11 +267,7 @@ export class InventoryService {
     id: string,
     rejectDto: RejectInventoryMoveDto
   ): Promise<InventoryMoveResponseDto> {
-    const [move] = await db
-      .select()
-      .from(inventoryMoves)
-      .where(eq(inventoryMoves.id, id))
-      .limit(1);
+    const [move] = await db.select().from(inventoryMoves).where(eq(inventoryMoves.id, id)).limit(1);
 
     if (!move) {
       throw new NotFoundException(`Inventory move with ID ${id} not found`);
@@ -435,9 +384,7 @@ export class InventoryService {
     const existingMoves = await db
       .select({ code: inventoryMoves.code })
       .from(inventoryMoves)
-      .where(
-        sql`${inventoryMoves.code} LIKE ${`${prefix}%`}`
-      );
+      .where(sql`${inventoryMoves.code} LIKE ${`${prefix}%`}`);
 
     let maxNumber = 0;
     for (const move of existingMoves) {
@@ -496,9 +443,7 @@ export class InventoryService {
     };
   }
 
-  private async toStockResponseDto(
-    item: typeof stock.$inferSelect
-  ): Promise<StockResponseDto> {
+  private async toStockResponseDto(item: typeof stock.$inferSelect): Promise<StockResponseDto> {
     let productName: string | undefined;
     let productSku: string | undefined;
     let batchNumber: string | undefined;
@@ -539,9 +484,7 @@ export class InventoryService {
     };
   }
 
-  private toWarehouseResponseDto(
-    warehouse: typeof warehouses.$inferSelect
-  ): WarehouseResponseDto {
+  private toWarehouseResponseDto(warehouse: typeof warehouses.$inferSelect): WarehouseResponseDto {
     return {
       id: warehouse.id,
       branchId: warehouse.branchId,

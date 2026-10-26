@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../database';
 import { partners } from '../../schema';
 import { eq, sql, like, or } from 'drizzle-orm';
@@ -104,11 +100,16 @@ export class PartnersService {
     if (updatePartnerDto.address !== undefined) updateData.address = updatePartnerDto.address;
     if (updatePartnerDto.phone !== undefined) updateData.phone = updatePartnerDto.phone;
     if (updatePartnerDto.type !== undefined) updateData.type = updatePartnerDto.type;
-    if (updatePartnerDto.taxpayerType !== undefined) updateData.taxpayerType = updatePartnerDto.taxpayerType;
-    if (updatePartnerDto.retentionRate !== undefined) updateData.retentionRate = updatePartnerDto.retentionRate.toString();
-    if (updatePartnerDto.isSpecialTaxpayer !== undefined) updateData.isSpecialTaxpayer = updatePartnerDto.isSpecialTaxpayer;
-    if (updatePartnerDto.creditLimit !== undefined) updateData.creditLimit = updatePartnerDto.creditLimit.toString();
-    if (updatePartnerDto.islrConceptId !== undefined) updateData.islrConceptId = updatePartnerDto.islrConceptId;
+    if (updatePartnerDto.taxpayerType !== undefined)
+      updateData.taxpayerType = updatePartnerDto.taxpayerType;
+    if (updatePartnerDto.retentionRate !== undefined)
+      updateData.retentionRate = updatePartnerDto.retentionRate.toString();
+    if (updatePartnerDto.isSpecialTaxpayer !== undefined)
+      updateData.isSpecialTaxpayer = updatePartnerDto.isSpecialTaxpayer;
+    if (updatePartnerDto.creditLimit !== undefined)
+      updateData.creditLimit = updatePartnerDto.creditLimit.toString();
+    if (updatePartnerDto.islrConceptId !== undefined)
+      updateData.islrConceptId = updatePartnerDto.islrConceptId;
 
     if (Object.keys(updateData).length > 0) {
       updateData.updatedAt = new Date();

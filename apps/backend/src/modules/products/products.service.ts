@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../database';
 import { products, productCategories } from '../../schema';
 import { eq, sql, like, or, and } from 'drizzle-orm';
@@ -38,7 +34,10 @@ export class ProductsService {
     }
 
     if (conditions.length > 0) {
-      query = db.select().from(products).where(and(...conditions)) as any;
+      query = db
+        .select()
+        .from(products)
+        .where(and(...conditions)) as any;
     }
 
     const allProducts = await query;
@@ -117,16 +116,22 @@ export class ProductsService {
 
     if (updateProductDto.sku !== undefined) updateData.sku = updateProductDto.sku;
     if (updateProductDto.name !== undefined) updateData.name = updateProductDto.name;
-    if (updateProductDto.description !== undefined) updateData.description = updateProductDto.description;
-    if (updateProductDto.categoryId !== undefined) updateData.categoryId = updateProductDto.categoryId;
+    if (updateProductDto.description !== undefined)
+      updateData.description = updateProductDto.description;
+    if (updateProductDto.categoryId !== undefined)
+      updateData.categoryId = updateProductDto.categoryId;
     if (updateProductDto.cost !== undefined) updateData.cost = updateProductDto.cost.toString();
     if (updateProductDto.price !== undefined) updateData.price = updateProductDto.price.toString();
     if (updateProductDto.isExempt !== undefined) updateData.isExempt = updateProductDto.isExempt;
-    if (updateProductDto.taxRate !== undefined) updateData.taxRate = updateProductDto.taxRate.toString();
+    if (updateProductDto.taxRate !== undefined)
+      updateData.taxRate = updateProductDto.taxRate.toString();
     if (updateProductDto.type !== undefined) updateData.type = updateProductDto.type;
-    if (updateProductDto.minStock !== undefined) updateData.minStock = updateProductDto.minStock.toString();
-    if (updateProductDto.hasBatches !== undefined) updateData.hasBatches = updateProductDto.hasBatches;
-    if (updateProductDto.currencyId !== undefined) updateData.currencyId = updateProductDto.currencyId;
+    if (updateProductDto.minStock !== undefined)
+      updateData.minStock = updateProductDto.minStock.toString();
+    if (updateProductDto.hasBatches !== undefined)
+      updateData.hasBatches = updateProductDto.hasBatches;
+    if (updateProductDto.currencyId !== undefined)
+      updateData.currencyId = updateProductDto.currencyId;
 
     if (Object.keys(updateData).length > 0) {
       updateData.updatedAt = new Date();
@@ -197,7 +202,8 @@ export class ProductsService {
     const updateData: Partial<typeof productCategories.$inferInsert> = {};
 
     if (updateCategoryDto.name !== undefined) updateData.name = updateCategoryDto.name;
-    if (updateCategoryDto.description !== undefined) updateData.description = updateCategoryDto.description;
+    if (updateCategoryDto.description !== undefined)
+      updateData.description = updateCategoryDto.description;
     if (updateCategoryDto.parentId !== undefined) updateData.parentId = updateCategoryDto.parentId;
 
     if (Object.keys(updateData).length > 0) {
@@ -207,9 +213,7 @@ export class ProductsService {
     return this.findOneCategory(id);
   }
 
-  private async toResponseDto(
-    product: typeof products.$inferSelect
-  ): Promise<ProductResponseDto> {
+  private async toResponseDto(product: typeof products.$inferSelect): Promise<ProductResponseDto> {
     let category: ProductCategoryResponseDto | null = null;
 
     if (product.categoryId) {

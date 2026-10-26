@@ -64,7 +64,9 @@ describe('BiService', () => {
         [{ count: 5, sum: 2000 }],
       ];
       let callIndex = 0;
-      vi.mocked(db.select).mockImplementation(() => createQueryBuilder(callResults[callIndex++]) as any);
+      vi.mocked(db.select).mockImplementation(
+        () => createQueryBuilder(callResults[callIndex++]) as any
+      );
 
       const result = await service.getKpis();
 
@@ -134,14 +136,46 @@ describe('BiService', () => {
   describe('getActivity', () => {
     it('should return recent invoices, payments, and orders', async () => {
       const mockInvoices = [
-        { id: 'inv1', code: 'INV-001', partnerId: 'p1', total: 1000, status: 'POSTED', date: new Date(), createdAt: new Date() },
-        { id: 'inv2', code: 'INV-002', partnerId: 'p2', total: 2000, status: 'POSTED', date: new Date(), createdAt: new Date() },
+        {
+          id: 'inv1',
+          code: 'INV-001',
+          partnerId: 'p1',
+          total: 1000,
+          status: 'POSTED',
+          date: new Date(),
+          createdAt: new Date(),
+        },
+        {
+          id: 'inv2',
+          code: 'INV-002',
+          partnerId: 'p2',
+          total: 2000,
+          status: 'POSTED',
+          date: new Date(),
+          createdAt: new Date(),
+        },
       ];
       const mockPayments = [
-        { id: 'pay1', code: 'PAY-001', partnerId: 'p1', amount: 500, status: 'POSTED', date: new Date(), createdAt: new Date() },
+        {
+          id: 'pay1',
+          code: 'PAY-001',
+          partnerId: 'p1',
+          amount: 500,
+          status: 'POSTED',
+          date: new Date(),
+          createdAt: new Date(),
+        },
       ];
       const mockOrders = [
-        { id: 'ord1', code: 'ORD-001', partnerId: 'p1', total: 800, status: 'DRAFT', date: new Date(), createdAt: new Date() },
+        {
+          id: 'ord1',
+          code: 'ORD-001',
+          partnerId: 'p1',
+          total: 800,
+          status: 'DRAFT',
+          date: new Date(),
+          createdAt: new Date(),
+        },
       ];
       const mockPartners = [
         { id: 'p1', name: 'Partner One' },
@@ -149,7 +183,9 @@ describe('BiService', () => {
       ];
       const callResults = [mockInvoices, mockPayments, mockOrders, mockPartners];
       let callIndex = 0;
-      vi.mocked(db.select).mockImplementation(() => createQueryBuilder(callResults[callIndex++]) as any);
+      vi.mocked(db.select).mockImplementation(
+        () => createQueryBuilder(callResults[callIndex++]) as any
+      );
 
       const result = await service.getActivity();
 
@@ -164,7 +200,9 @@ describe('BiService', () => {
     it('should return empty arrays when no activity exists', async () => {
       const callResults = [[], [], [], []];
       let callIndex = 0;
-      vi.mocked(db.select).mockImplementation(() => createQueryBuilder(callResults[callIndex++]) as any);
+      vi.mocked(db.select).mockImplementation(
+        () => createQueryBuilder(callResults[callIndex++]) as any
+      );
 
       const result = await service.getActivity();
 
@@ -175,11 +213,21 @@ describe('BiService', () => {
 
     it('should handle null partnerName when partner not found', async () => {
       const mockInvoices = [
-        { id: 'inv1', code: 'INV-001', partnerId: 'unknown-partner', total: 1000, status: 'POSTED', date: new Date(), createdAt: new Date() },
+        {
+          id: 'inv1',
+          code: 'INV-001',
+          partnerId: 'unknown-partner',
+          total: 1000,
+          status: 'POSTED',
+          date: new Date(),
+          createdAt: new Date(),
+        },
       ];
       const callResults = [mockInvoices, [], [], []] as any;
       let callIndex = 0;
-      vi.mocked(db.select).mockImplementation(() => createQueryBuilder(callResults[callIndex++]) as any);
+      vi.mocked(db.select).mockImplementation(
+        () => createQueryBuilder(callResults[callIndex++]) as any
+      );
 
       const result = await service.getActivity();
 
@@ -188,11 +236,21 @@ describe('BiService', () => {
 
     it('should handle null partnerId in raw data', async () => {
       const mockInvoices = [
-        { id: 'inv1', code: 'INV-001', partnerId: null, total: 1000, status: 'POSTED', date: new Date(), createdAt: new Date() },
+        {
+          id: 'inv1',
+          code: 'INV-001',
+          partnerId: null,
+          total: 1000,
+          status: 'POSTED',
+          date: new Date(),
+          createdAt: new Date(),
+        },
       ];
       const callResults = [mockInvoices, [], [], []] as any;
       let callIndex = 0;
-      vi.mocked(db.select).mockImplementation(() => createQueryBuilder(callResults[callIndex++]) as any);
+      vi.mocked(db.select).mockImplementation(
+        () => createQueryBuilder(callResults[callIndex++]) as any
+      );
 
       const result = await service.getActivity();
 

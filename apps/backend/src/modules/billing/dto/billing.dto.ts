@@ -50,7 +50,7 @@ export class InvoiceItemDto {
 
   @ApiProperty({
     description: 'Unit price',
-    example: 100.00,
+    example: 100.0,
   })
   @IsNumber()
   @Min(0)
@@ -58,7 +58,7 @@ export class InvoiceItemDto {
 
   @ApiPropertyOptional({
     description: 'Tax rate (default 16 for IVA)',
-    example: 16.00,
+    example: 16.0,
   })
   @IsOptional()
   @IsNumber()
@@ -124,7 +124,7 @@ export class CreateInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'Exchange rate (default 1)',
-    example: 50.00,
+    example: 50.0,
   })
   @IsOptional()
   @IsNumber()
@@ -168,7 +168,7 @@ export class UpdateInvoiceDto {
 
   @ApiPropertyOptional({
     description: 'Exchange rate',
-    example: 50.00,
+    example: 50.0,
   })
   @IsOptional()
   @IsNumber()
@@ -217,16 +217,16 @@ export class InvoiceResponseDto {
   @ApiPropertyOptional({ example: 'PENDING' })
   fiscalStatus?: string | null;
 
-  @ApiProperty({ example: 1000.00 })
+  @ApiProperty({ example: 1000.0 })
   totalBase: number;
 
-  @ApiProperty({ example: 160.00 })
+  @ApiProperty({ example: 160.0 })
   totalTax: number;
 
-  @ApiProperty({ example: 34.80 })
+  @ApiProperty({ example: 34.8 })
   totalIgtf: number;
 
-  @ApiProperty({ example: 1194.80 })
+  @ApiProperty({ example: 1194.8 })
   total: number;
 
   @ApiPropertyOptional({ example: '2026-06-01T12:00:00.000Z' })
@@ -261,13 +261,13 @@ export class InvoiceItemResponseDto {
   @ApiPropertyOptional({ example: 10 })
   quantity?: number | string;
 
-  @ApiPropertyOptional({ example: 100.00 })
+  @ApiPropertyOptional({ example: 100.0 })
   price?: number | string;
 
-  @ApiPropertyOptional({ example: 16.00 })
+  @ApiPropertyOptional({ example: 16.0 })
   taxRate?: number | string;
 
-  @ApiProperty({ example: 1000.00 })
+  @ApiProperty({ example: 1000.0 })
   total: number | string;
 }
 
@@ -275,7 +275,7 @@ export class InvoiceStatsDto {
   @ApiProperty({ example: 150 })
   totalCount: number;
 
-  @ApiProperty({ example: 75000.00 })
+  @ApiProperty({ example: 75000.0 })
   totalAmount: number;
 
   @ApiProperty({ example: 45 })

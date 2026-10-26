@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import {
   accountingAccounts,
@@ -42,7 +38,7 @@ export class AccountingService {
     return this.buildTree(accounts);
   }
 
-  private buildTree(accounts: typeof accountingAccounts.$inferSelect[]): AccountTreeDto[] {
+  private buildTree(accounts: (typeof accountingAccounts.$inferSelect)[]): AccountTreeDto[] {
     const accountMap = new Map<string, AccountTreeDto>();
     const roots: AccountTreeDto[] = [];
 
@@ -92,8 +88,10 @@ export class AccountingService {
       .where(
         and(
           eq(accountingAccounts.code, createAccountDto.code),
-          createAccountDto.branchId ? eq(accountingAccounts.branchId, createAccountDto.branchId) : sql`1=1`,
-        ),
+          createAccountDto.branchId
+            ? eq(accountingAccounts.branchId, createAccountDto.branchId)
+            : sql`1=1`
+        )
       )
       .limit(1);
 
@@ -145,9 +143,7 @@ export class AccountingService {
       const response = await this.toEntryResponseDto(entry);
 
       if (filters.accountId) {
-        const hasAccount = response.lines.some(
-          (line) => line.accountId === filters.accountId,
-        );
+        const hasAccount = response.lines.some(line => line.accountId === filters.accountId);
         if (hasAccount) {
           result.push(response);
         }
@@ -181,7 +177,7 @@ export class AccountingService {
 
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
       throw new BadRequestException(
-        `Entry lines must sum to zero. Total debit: ${totalDebit}, Total credit: ${totalCredit}`,
+        `Entry lines must sum to zero. Total debit: ${totalDebit}, Total credit: ${totalCredit}`
       );
     }
 
@@ -231,11 +227,7 @@ export class AccountingService {
   }
 
   async createEntryFromInvoice(invoiceId: string, userId?: string): Promise<EntryResponseDto> {
-    const [invoice] = await db
-      .select()
-      .from(invoices)
-      .where(eq(invoices.id, invoiceId))
-      .limit(1);
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1);
 
     if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
@@ -244,12 +236,12 @@ export class AccountingService {
     const map = await this.findBestAccountingMap(
       'INVOICE',
       invoice.type || 'SALE',
-      invoice.branchId,
+      invoice.branchId
     );
 
     if (!map) {
       throw new BadRequestException(
-        `No accounting map found for invoice type ${invoice.type} in branch ${invoice.branchId}`,
+        `No accounting map found for invoice type ${invoice.type} in branch ${invoice.branchId}`
       );
     }
 
@@ -284,11 +276,7 @@ export class AccountingService {
   }
 
   async createEntryFromPayment(paymentId: string, userId?: string): Promise<EntryResponseDto> {
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.id, paymentId))
-      .limit(1);
+    const [payment] = await db.select().from(payments).where(eq(payments.id, paymentId)).limit(1);
 
     if (!payment) {
       throw new NotFoundException(`Payment with ID ${paymentId} not found`);
@@ -298,12 +286,12 @@ export class AccountingService {
       'PAYMENT',
       payment.type || 'INCOME',
       payment.branchId,
-      payment.methodId,
+      payment.methodId
     );
 
     if (!map) {
       throw new BadRequestException(
-        `No accounting map found for payment type ${payment.type} in branch ${payment.branchId}`,
+        `No accounting map found for payment type ${payment.type} in branch ${payment.branchId}`
       );
     }
 
@@ -313,7 +301,7 @@ export class AccountingService {
   private async applyMapToPayment(
     map: typeof accountingMaps.$inferSelect,
     payment: typeof payments.$inferSelect,
-    userId?: string,
+    userId?: string
   ): Promise<EntryResponseDto> {
     const lines: CreateEntryLineDto[] = [];
 
@@ -349,7 +337,7 @@ export class AccountingService {
     module: string,
     transactionType: string,
     branchId: string,
-    paymentMethodId?: string,
+    paymentMethodId?: string
   ): Promise<typeof accountingMaps.$inferSelect | null> {
     const isActive = eq(accountingMaps.isActive, true);
     const eqModule = eq(accountingMaps.module, module);
@@ -358,12 +346,7 @@ export class AccountingService {
     let maps = await db
       .select()
       .from(accountingMaps)
-      .where(and(
-        isActive,
-        eqModule,
-        eqTransactionType,
-        eq(accountingMaps.branchId, branchId),
-      ));
+      .where(and(isActive, eqModule, eqTransactionType, eq(accountingMaps.branchId, branchId)));
 
     if (maps.length > 0) {
       return maps[0];
@@ -372,12 +355,7 @@ export class AccountingService {
     maps = await db
       .select()
       .from(accountingMaps)
-      .where(and(
-        isActive,
-        eqModule,
-        eqTransactionType,
-        sql`${accountingMaps.branchId} is null`,
-      ));
+      .where(and(isActive, eqModule, eqTransactionType, sql`${accountingMaps.branchId} is null`));
 
     if (maps.length > 0) {
       return maps[0];
@@ -387,12 +365,14 @@ export class AccountingService {
       maps = await db
         .select()
         .from(accountingMaps)
-        .where(and(
-          isActive,
-          eqModule,
-          eqTransactionType,
-          eq(accountingMaps.paymentMethodId, paymentMethodId),
-        ));
+        .where(
+          and(
+            isActive,
+            eqModule,
+            eqTransactionType,
+            eq(accountingMaps.paymentMethodId, paymentMethodId)
+          )
+        );
 
       if (maps.length > 0) {
         return maps[0];
@@ -401,12 +381,9 @@ export class AccountingService {
       maps = await db
         .select()
         .from(accountingMaps)
-        .where(and(
-          isActive,
-          eqModule,
-          eqTransactionType,
-          sql`${accountingMaps.paymentMethodId} is null`,
-        ));
+        .where(
+          and(isActive, eqModule, eqTransactionType, sql`${accountingMaps.paymentMethodId} is null`)
+        );
 
       if (maps.length > 0) {
         return maps[0];
@@ -416,10 +393,7 @@ export class AccountingService {
     return null;
   }
 
-  async findAllMaps(filters?: {
-    module?: string;
-    branchId?: string;
-  }): Promise<MapResponseDto[]> {
+  async findAllMaps(filters?: { module?: string; branchId?: string }): Promise<MapResponseDto[]> {
     const conditions = [eq(accountingMaps.isActive, true)];
 
     if (filters?.module) {
@@ -435,7 +409,7 @@ export class AccountingService {
       .from(accountingMaps)
       .where(and(...conditions));
 
-    return Promise.all(maps.map((map) => this.toMapResponseDto(map)));
+    return Promise.all(maps.map(map => this.toMapResponseDto(map)));
   }
 
   async createMap(createMapDto: CreateMapDto): Promise<MapResponseDto> {
@@ -459,7 +433,7 @@ export class AccountingService {
 
   async applyMapToTransaction(
     mapId: string,
-    transactionId: string,
+    transactionId: string
   ): Promise<AccountingMapApplyResponseDto> {
     const [map] = await db
       .select()
@@ -492,7 +466,7 @@ export class AccountingService {
   }
 
   private async toAccountResponseDto(
-    account: typeof accountingAccounts.$inferSelect,
+    account: typeof accountingAccounts.$inferSelect
   ): Promise<AccountResponseDto> {
     return {
       id: account.id,
@@ -507,7 +481,7 @@ export class AccountingService {
 
   private async toEntryResponseDto(
     entry: typeof accountingEntries.$inferSelect,
-    includeLines = false,
+    includeLines = false
   ): Promise<EntryResponseDto> {
     let branchName: string | null = null;
     let userName: string | null = null;
@@ -522,11 +496,7 @@ export class AccountingService {
     }
 
     if (entry.userId) {
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, entry.userId))
-        .limit(1);
+      const [user] = await db.select().from(users).where(eq(users.id, entry.userId)).limit(1);
       userName = user?.name || null;
     }
 
@@ -550,16 +520,14 @@ export class AccountingService {
     };
 
     if (includeLines) {
-      response.lines = await Promise.all(
-        lines.map((line) => this.toEntryLineResponseDto(line)),
-      );
+      response.lines = await Promise.all(lines.map(line => this.toEntryLineResponseDto(line)));
     }
 
     return response;
   }
 
   private async toEntryLineResponseDto(
-    line: typeof accountingEntryLines.$inferSelect,
+    line: typeof accountingEntryLines.$inferSelect
   ): Promise<EntryLineResponseDto> {
     let accountCode: string | null = null;
     let accountName: string | null = null;
@@ -587,9 +555,7 @@ export class AccountingService {
     };
   }
 
-  private async toMapResponseDto(
-    map: typeof accountingMaps.$inferSelect,
-  ): Promise<MapResponseDto> {
+  private async toMapResponseDto(map: typeof accountingMaps.$inferSelect): Promise<MapResponseDto> {
     let debitAccountCode: string | null = null;
     let debitAccountName: string | null = null;
     let creditAccountCode: string | null = null;

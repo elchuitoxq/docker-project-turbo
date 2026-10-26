@@ -1,11 +1,5 @@
 import { applyDecorators } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiQuery,
-  ApiResponse,
-  ApiParam,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiResponse, ApiParam, getSchemaPath } from '@nestjs/swagger';
 import { Type } from '@nestjs/common';
 import { ApiErrorResponseDto, ApiPaginatedResponseDto } from '../dto/api-response.dto';
 
@@ -21,7 +15,7 @@ export function ApiAuthResponses() {
       status: 403,
       description: 'Forbidden - user does not have required permissions',
       type: ApiErrorResponseDto,
-    }),
+    })
   );
 }
 
@@ -46,7 +40,7 @@ export function ApiPaginationQuery() {
       required: false,
       type: String,
       description: 'Sort field (e.g. "createdAt:desc")',
-    }),
+    })
   );
 }
 
@@ -63,7 +57,11 @@ export function ApiCrudResponses(model: Type<unknown>, options?: { softDelete?: 
   ];
   if (options?.softDelete) {
     decorators.push(
-      ApiResponse({ status: 409, description: 'Resource has related records', type: ApiErrorResponseDto }),
+      ApiResponse({
+        status: 409,
+        description: 'Resource has related records',
+        type: ApiErrorResponseDto,
+      })
     );
   }
   return applyDecorators(...decorators);
@@ -84,7 +82,7 @@ export function ApiPaginatedResponse<T>(model: Type<T>) {
           },
         ],
       },
-    }),
+    })
   );
 }
 

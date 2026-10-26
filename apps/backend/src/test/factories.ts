@@ -24,10 +24,7 @@ export async function createTestBranch(data?: Partial<typeof branches.$inferInse
   const taxId = `J-${faker.string.numeric(9)}`;
   const [company] = companyId
     ? await testDb.select().from(companies).where(eq(companies.id, companyId)).limit(1)
-    : await testDb
-        .insert(companies)
-        .values({ name: faker.company.name(), taxId })
-        .returning();
+    : await testDb.insert(companies).values({ name: faker.company.name(), taxId }).returning();
   if (!company) throw new Error(`Company with ID ${companyId} not found`);
   const branch = {
     companyId: company.id,
@@ -96,7 +93,7 @@ export async function createTestProduct(data?: Partial<typeof products.$inferIns
 
 export async function createTestWarehouse(
   branchId: string,
-  data?: Partial<typeof warehouses.$inferInsert>,
+  data?: Partial<typeof warehouses.$inferInsert>
 ) {
   const warehouse = {
     branchId,
@@ -125,7 +122,7 @@ export async function createTestInvoice(
   partnerId: string,
   branchId: string,
   currencyId: string,
-  data?: Partial<typeof invoices.$inferInsert>,
+  data?: Partial<typeof invoices.$inferInsert>
 ) {
   const invoice = {
     code: `INV-${Date.now()}-${faker.string.numeric(4)}`,
@@ -155,7 +152,7 @@ export async function createTestInvoice(
 export async function createTestInvoiceItem(
   invoiceId: string,
   productId: string,
-  data?: Partial<typeof invoiceItems.$inferInsert>,
+  data?: Partial<typeof invoiceItems.$inferInsert>
 ) {
   const item = {
     invoiceId,
@@ -173,7 +170,7 @@ export async function createTestInvoiceItem(
 export async function createTestOrder(
   partnerId: string,
   branchId: string,
-  data?: Partial<typeof orders.$inferInsert>,
+  data?: Partial<typeof orders.$inferInsert>
 ) {
   const order = {
     code: `ORD-${Date.now()}-${faker.string.alphanumeric({ length: 4, casing: 'upper' })}`,
@@ -196,7 +193,7 @@ export async function createTestOrder(
 export async function createTestOrderItem(
   orderId: string,
   productId: string,
-  data?: Partial<typeof orderItems.$inferInsert>,
+  data?: Partial<typeof orderItems.$inferInsert>
 ) {
   const item = {
     orderId,
@@ -213,7 +210,7 @@ export async function createTestOrderItem(
 export async function createTestStock(
   warehouseId: string,
   productId: string,
-  data?: Partial<typeof stock.$inferInsert>,
+  data?: Partial<typeof stock.$inferInsert>
 ) {
   const stockRecord = {
     warehouseId,
@@ -230,7 +227,7 @@ export async function createTestStock(
 export async function createTestInventoryMove(
   warehouseId: string,
   userId: string | null,
-  data?: Partial<typeof inventoryMoves.$inferInsert>,
+  data?: Partial<typeof inventoryMoves.$inferInsert>
 ) {
   const move = {
     code: `MOV-${Date.now()}-${faker.string.alphanumeric({ length: 4, casing: 'upper' })}`,
@@ -254,7 +251,7 @@ export async function createTestInventoryMove(
 export async function createTestInventoryMoveLine(
   moveId: string,
   productId: string,
-  data?: Partial<typeof inventoryMoveLines.$inferInsert>,
+  data?: Partial<typeof inventoryMoveLines.$inferInsert>
 ) {
   const line = {
     moveId,
@@ -270,7 +267,7 @@ export async function createTestInventoryMoveLine(
 
 export async function createTestProductBatch(
   productId: string,
-  data?: Partial<typeof productBatches.$inferInsert>,
+  data?: Partial<typeof productBatches.$inferInsert>
 ) {
   const batch = {
     productId,

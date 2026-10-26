@@ -52,4 +52,23 @@ describe('PermissionsGuard', () => {
 
     await expect(guard.canActivate(context as never)).rejects.toThrow(ForbiddenException);
   });
+
+  it('reuses the cached grants within the TTL', async () => {
+    vi.mocked(db.selectDistinct).mockReturnValue(query([{ code: 'settings:users:view' }]) as never);
+
+    await guard.canActivate(context as never);
+    await guard.canActivate(context as never);
+
+    expect(db.selectDistinct).toHaveBeenCalledTimes(1);
+  });
+
+  it('queries again after invalidate()', async () => {
+    vi.mocked(db.selectDistinct).mockReturnValue(query([{ code: 'settings:users:view' }]) as never);
+
+    await guard.canActivate(context as never);
+    guard.invalidate('user-1');
+    await guard.canActivate(context as never);
+
+    expect(db.selectDistinct).toHaveBeenCalledTimes(2);
+  });
 });

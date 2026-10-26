@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../../database';
 import { taxConcepts } from '../../../schema';
 import { eq } from 'drizzle-orm';
@@ -20,11 +16,7 @@ export class TaxConceptsService {
   }
 
   async findOne(id: string): Promise<TaxConceptResponseDto> {
-    const [concept] = await db
-      .select()
-      .from(taxConcepts)
-      .where(eq(taxConcepts.id, id))
-      .limit(1);
+    const [concept] = await db.select().from(taxConcepts).where(eq(taxConcepts.id, id)).limit(1);
 
     if (!concept) {
       throw new NotFoundException(`Tax Concept with ID ${id} not found`);
@@ -33,9 +25,7 @@ export class TaxConceptsService {
     return this.toResponseDto(concept);
   }
 
-  async create(
-    createTaxConceptDto: CreateTaxConceptDto,
-  ): Promise<TaxConceptResponseDto> {
+  async create(createTaxConceptDto: CreateTaxConceptDto): Promise<TaxConceptResponseDto> {
     const [existing] = await db
       .select()
       .from(taxConcepts)
@@ -63,13 +53,9 @@ export class TaxConceptsService {
 
   async update(
     id: string,
-    updateTaxConceptDto: UpdateTaxConceptDto,
+    updateTaxConceptDto: UpdateTaxConceptDto
   ): Promise<TaxConceptResponseDto> {
-    const [existing] = await db
-      .select()
-      .from(taxConcepts)
-      .where(eq(taxConcepts.id, id))
-      .limit(1);
+    const [existing] = await db.select().from(taxConcepts).where(eq(taxConcepts.id, id)).limit(1);
 
     if (!existing) {
       throw new NotFoundException(`Tax Concept with ID ${id} not found`);
@@ -112,11 +98,7 @@ export class TaxConceptsService {
   }
 
   async remove(id: string): Promise<{ message: string }> {
-    const [concept] = await db
-      .select()
-      .from(taxConcepts)
-      .where(eq(taxConcepts.id, id))
-      .limit(1);
+    const [concept] = await db.select().from(taxConcepts).where(eq(taxConcepts.id, id)).limit(1);
 
     if (!concept) {
       throw new NotFoundException(`Tax Concept with ID ${id} not found`);
@@ -127,9 +109,7 @@ export class TaxConceptsService {
     return { message: `Tax Concept ${id} deleted successfully` };
   }
 
-  private toResponseDto(
-    concept: typeof taxConcepts.$inferSelect,
-  ): TaxConceptResponseDto {
+  private toResponseDto(concept: typeof taxConcepts.$inferSelect): TaxConceptResponseDto {
     return {
       id: concept.id,
       code: concept.code,

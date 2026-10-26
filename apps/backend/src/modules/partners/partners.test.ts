@@ -41,7 +41,8 @@ const mockVendorPartner = {
 };
 
 const makeAwaitable = (value: any) => ({
-  then: (resolve: (val: any) => any, reject?: (err: any) => any) => Promise.resolve(value).then(resolve, reject),
+  then: (resolve: (val: any) => any, reject?: (err: any) => any) =>
+    Promise.resolve(value).then(resolve, reject),
   [Symbol.toStringTag]: 'Promise',
 });
 
@@ -353,8 +354,8 @@ describe('PartnersService', () => {
     };
 
     it('should update partner fields successfully', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -394,8 +395,8 @@ describe('PartnersService', () => {
     });
 
     it('should throw ConflictException when changing to existing taxId', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -410,7 +411,9 @@ describe('PartnersService', () => {
           }),
         } as any);
 
-      await expect(service.update(mockPartner.id, { taxId: mockVendorPartner.taxId })).rejects.toThrow(ConflictException);
+      await expect(
+        service.update(mockPartner.id, { taxId: mockVendorPartner.taxId })
+      ).rejects.toThrow(ConflictException);
     });
 
     it('should allow updating to same taxId', async () => {
@@ -434,8 +437,8 @@ describe('PartnersService', () => {
     });
 
     it('should handle partner type transition from CUSTOMER to VENDOR', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -462,8 +465,8 @@ describe('PartnersService', () => {
     });
 
     it('should handle partner type transition from VENDOR to CUSTOMER', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockVendorPartner])),
@@ -490,8 +493,8 @@ describe('PartnersService', () => {
     });
 
     it('should update retention rate correctly', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -501,7 +504,9 @@ describe('PartnersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockPartner, retentionRate: '100' }])),
+              limit: vi
+                .fn()
+                .mockReturnValue(makeAwaitable([{ ...mockPartner, retentionRate: '100' }])),
             }),
           }),
         } as any);
@@ -518,8 +523,8 @@ describe('PartnersService', () => {
     });
 
     it('should update credit limit correctly', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -529,7 +534,9 @@ describe('PartnersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockPartner, creditLimit: '50000' }])),
+              limit: vi
+                .fn()
+                .mockReturnValue(makeAwaitable([{ ...mockPartner, creditLimit: '50000' }])),
             }),
           }),
         } as any);
@@ -546,8 +553,8 @@ describe('PartnersService', () => {
     });
 
     it('should update isSpecialTaxpayer status', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -557,7 +564,9 @@ describe('PartnersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockPartner, isSpecialTaxpayer: true }])),
+              limit: vi
+                .fn()
+                .mockReturnValue(makeAwaitable([{ ...mockPartner, isSpecialTaxpayer: true }])),
             }),
           }),
         } as any);
@@ -574,8 +583,8 @@ describe('PartnersService', () => {
     });
 
     it('should update taxpayerType', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -585,7 +594,9 @@ describe('PartnersService', () => {
         .mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([{ ...mockPartner, taxpayerType: 'LEGAL' }])),
+              limit: vi
+                .fn()
+                .mockReturnValue(makeAwaitable([{ ...mockPartner, taxpayerType: 'LEGAL' }])),
             }),
           }),
         } as any);
@@ -617,8 +628,8 @@ describe('PartnersService', () => {
     });
 
     it('should set updatedAt timestamp when updating', async () => {
-      vi.mocked(db).select
-        .mockReturnValueOnce({
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
@@ -704,10 +715,12 @@ describe('PartnersService', () => {
     it('should return correct statistics for customers and vendors', async () => {
       vi.mocked(db).select.mockReturnValue({
         from: vi.fn().mockReturnValue({
-          groupBy: vi.fn().mockReturnValue(makeAwaitable([
-            { type: 'CUSTOMER', count: 10 },
-            { type: 'VENDOR', count: 5 },
-          ])),
+          groupBy: vi.fn().mockReturnValue(
+            makeAwaitable([
+              { type: 'CUSTOMER', count: 10 },
+              { type: 'VENDOR', count: 5 },
+            ])
+          ),
         }),
       } as any);
 
@@ -735,9 +748,7 @@ describe('PartnersService', () => {
     it('should handle only customer partners', async () => {
       vi.mocked(db).select.mockReturnValue({
         from: vi.fn().mockReturnValue({
-          groupBy: vi.fn().mockReturnValue(makeAwaitable([
-            { type: 'CUSTOMER', count: 20 },
-          ])),
+          groupBy: vi.fn().mockReturnValue(makeAwaitable([{ type: 'CUSTOMER', count: 20 }])),
         }),
       } as any);
 
@@ -751,9 +762,7 @@ describe('PartnersService', () => {
     it('should handle only vendor partners', async () => {
       vi.mocked(db).select.mockReturnValue({
         from: vi.fn().mockReturnValue({
-          groupBy: vi.fn().mockReturnValue(makeAwaitable([
-            { type: 'VENDOR', count: 15 },
-          ])),
+          groupBy: vi.fn().mockReturnValue(makeAwaitable([{ type: 'VENDOR', count: 15 }])),
         }),
       } as any);
 
@@ -767,9 +776,7 @@ describe('PartnersService', () => {
     it('should handle null type in database', async () => {
       vi.mocked(db).select.mockReturnValue({
         from: vi.fn().mockReturnValue({
-          groupBy: vi.fn().mockReturnValue(makeAwaitable([
-            { type: null, count: 3 },
-          ])),
+          groupBy: vi.fn().mockReturnValue(makeAwaitable([{ type: null, count: 3 }])),
         }),
       } as any);
 
@@ -783,10 +790,12 @@ describe('PartnersService', () => {
     it('should handle uppercase type values', async () => {
       vi.mocked(db).select.mockReturnValue({
         from: vi.fn().mockReturnValue({
-          groupBy: vi.fn().mockReturnValue(makeAwaitable([
-            { type: 'CUSTOMER', count: 8 },
-            { type: 'VENDOR', count: 12 },
-          ])),
+          groupBy: vi.fn().mockReturnValue(
+            makeAwaitable([
+              { type: 'CUSTOMER', count: 8 },
+              { type: 'VENDOR', count: 12 },
+            ])
+          ),
         }),
       } as any);
 

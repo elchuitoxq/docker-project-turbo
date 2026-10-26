@@ -123,9 +123,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(service.findOneWarehouse('non-existent')).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(service.findOneWarehouse('non-existent')).rejects.toThrow(NotFoundException);
     });
 
     it('createWarehouse - should create new warehouse', async () => {
@@ -156,9 +154,9 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(
-        service.updateWarehouse('non-existent', { name: 'New Name' })
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateWarehouse('non-existent', { name: 'New Name' })).rejects.toThrow(
+        NotFoundException
+      );
     });
   });
 
@@ -169,9 +167,7 @@ describe('InventoryService', () => {
         toWarehouseId: 'warehouse-1',
       };
 
-      await expect(service.createMove(createDto)).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.createMove(createDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for ENTRADA without toWarehouseId', async () => {
@@ -180,9 +176,7 @@ describe('InventoryService', () => {
         fromWarehouseId: 'warehouse-1',
       };
 
-      await expect(service.createMove(createDto)).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.createMove(createDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for TRANSFERENCIA without both warehouses', async () => {
@@ -190,9 +184,7 @@ describe('InventoryService', () => {
         type: 'TRANSFERENCIA',
       };
 
-      await expect(service.createMove(createDto)).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.createMove(createDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for TRANSFERENCIA with only fromWarehouseId', async () => {
@@ -201,9 +193,7 @@ describe('InventoryService', () => {
         fromWarehouseId: 'warehouse-1',
       };
 
-      await expect(service.createMove(createDto)).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.createMove(createDto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for TRANSFERENCIA with only toWarehouseId', async () => {
@@ -212,9 +202,7 @@ describe('InventoryService', () => {
         toWarehouseId: 'warehouse-2',
       };
 
-      await expect(service.createMove(createDto)).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.createMove(createDto)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -228,9 +216,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(service.approveMove('non-existent')).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(service.approveMove('non-existent')).rejects.toThrow(NotFoundException);
     });
 
     it('approveMove - should throw BadRequestException when move already APPROVED', async () => {
@@ -244,9 +230,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(service.approveMove('move-1')).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.approveMove('move-1')).rejects.toThrow(BadRequestException);
     });
 
     it('approveMove - should throw BadRequestException when move already REJECTED', async () => {
@@ -260,9 +244,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(service.approveMove('move-1')).rejects.toThrow(
-        BadRequestException
-      );
+      await expect(service.approveMove('move-1')).rejects.toThrow(BadRequestException);
     });
 
     it('rejectMove - should throw NotFoundException when move not found', async () => {
@@ -274,9 +256,9 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(
-        service.rejectMove('non-existent', { reason: 'Invalid' })
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.rejectMove('non-existent', { reason: 'Invalid' })).rejects.toThrow(
+        NotFoundException
+      );
     });
 
     it('rejectMove - should throw BadRequestException when move already APPROVED', async () => {
@@ -290,9 +272,9 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(
-        service.rejectMove('move-1', { reason: 'Invalid' })
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.rejectMove('move-1', { reason: 'Invalid' })).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it('rejectMove - should throw BadRequestException when move already REJECTED', async () => {
@@ -306,9 +288,9 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(
-        service.rejectMove('move-1', { reason: 'Invalid' })
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.rejectMove('move-1', { reason: 'Invalid' })).rejects.toThrow(
+        BadRequestException
+      );
     });
   });
 
@@ -322,9 +304,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(service.findOneMove('non-existent')).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(service.findOneMove('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -338,9 +318,7 @@ describe('InventoryService', () => {
         }),
       });
 
-      await expect(
-        service.findStockByWarehouse('non-existent')
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.findStockByWarehouse('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
