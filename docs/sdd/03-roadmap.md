@@ -60,7 +60,7 @@ S-07 depende de S-01 (contratos) y S-04 (asientos para NC)
 | Módulos con UI funcional                    | 8 de 22                  | 18 de 22                                     |
 | Llamadas del frontend que devuelven 404/405 | ≥ 15                     | 0                                            |
 | Endpoints con aislamiento por sucursal      | 0 %                      | 100 % de los de negocio                      |
-| Cobertura backend (statements)              | 70 %                     | ≥ 80 %                                       |
+| Cobertura backend (statements)              | 65 %                     | ≥ 80 %                                       |
 | Flujos E2E cubiertos                        | 3 (login, reset, health) | 8 (incluye facturar, cobrar, nómina, cierre) |
 
 ## Backlog posterior (sin spec aún)
