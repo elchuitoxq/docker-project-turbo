@@ -9,6 +9,8 @@ import {
   creditNotes,
   branches,
   companies,
+  exchangeRates,
+  currencies,
 } from '../../schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 
@@ -52,6 +54,18 @@ export interface FiscalSummary {
   totalCreditNotesAmount: number;
   dateFrom: string;
   dateTo: string;
+  /** Tasa usada para la columna en dÃ³lares (M10 de `S-08`). */
+  closingRate: number;
+  closingRateDate: string | null;
+  /** Misma informaciÃ³n expresada en USD a la tasa de corte. */
+  usd: {
+    totalBaseImponible: number;
+    totalIva: number;
+    totalIgtf: number;
+    totalRetencionesIva: number;
+    totalRetencionesIslr: number;
+    totalCreditNotesAmount: number;
+  };
 }
 
 interface LibroVentasLine {
@@ -255,6 +269,26 @@ export class ReportsService {
     return xml;
   }
 
+  /** Ãšltima tasa USD conocida hasta la fecha de corte (columna paralela del reporte). */
+  private async getUsdClosingRate(dateTo?: string): Promise<{ rate: number; date: string | null }> {
+    const cutoff = dateTo ? new Date(`${dateTo}T23:59:59`) : new Date();
+
+    const [row] = await db
+      .select({ rate: exchangeRates.rate, date: exchangeRates.date })
+      .from(exchangeRates)
+      .innerJoin(currencies, eq(exchangeRates.currencyId, currencies.id))
+      .where(and(eq(currencies.code, 'USD'), lte(exchangeRates.date, cutoff)))
+      .orderBy(desc(exchangeRates.date))
+      .limit(1);
+
+    if (!row) return { rate: 1, date: null };
+
+    return {
+      rate: this.parseNumeric(row.rate) || 1,
+      date: row.date ? new Date(row.date).toISOString().slice(0, 10) : null,
+    };
+  }
+
   async getFiscalSummary(dateFrom?: string, dateTo?: string): Promise<FiscalSummary> {
     const invoiceConditions = this.buildInvoiceDateConditions(dateFrom, dateTo);
     const retentionConditions = this.buildDateConditions(dateFrom, dateTo);
@@ -287,10 +321,13 @@ export class ReportsService {
     let totalRetencionesIva = 0;
     let totalRetencionesIslr = 0;
 
+    // Cada documento se lleva a moneda funcional con su tasa congelada antes de sumar:
+    // sumar importes en divisa y bolÃ­vares directamente no tiene sentido.
     for (const inv of allInvoices) {
-      totalBaseImponible += this.parseNumeric(inv.totalBase);
-      totalIva += this.parseNumeric(inv.totalTax);
-      totalIgtf += this.parseNumeric(inv.totalIgtf);
+      const rate = this.parseNumeric(inv.exchangeRate) || 1;
+      totalBaseImponible += this.parseNumeric(inv.totalBase) * rate;
+      totalIva += this.parseNumeric(inv.totalTax) * rate;
+      totalIgtf += this.parseNumeric(inv.totalIgtf) * rate;
     }
 
     for (const ret of allRetencionesIva) {
@@ -306,17 +343,35 @@ export class ReportsService {
       totalCreditNotesAmount += this.parseNumeric(cn.total);
     }
 
+    const round2 = (value: number) => Math.round(value * 100) / 100;
+    const closing = await this.getUsdClosingRate(dateTo);
+    const toUsd = (value: number) => (closing.rate > 0 ? round2(value / closing.rate) : 0);
+
+    const baseTotals = {
+      totalBaseImponible: round2(totalBaseImponible),
+      totalIva: round2(totalIva),
+      totalIgtf: round2(totalIgtf),
+      totalRetencionesIva: round2(totalRetencionesIva),
+      totalRetencionesIslr: round2(totalRetencionesIslr),
+      totalCreditNotesAmount: round2(totalCreditNotesAmount),
+    };
+
     return {
       totalInvoices: allInvoices.length,
       totalCreditNotes: allCreditNotes.length,
-      totalRetencionesIva,
-      totalRetencionesIslr,
-      totalBaseImponible: Math.round(totalBaseImponible * 100) / 100,
-      totalIva: Math.round(totalIva * 100) / 100,
-      totalIgtf: Math.round(totalIgtf * 100) / 100,
-      totalCreditNotesAmount: Math.round(totalCreditNotesAmount * 100) / 100,
+      ...baseTotals,
       dateFrom: dateFrom || 'N/A',
       dateTo: dateTo || 'N/A',
+      closingRate: closing.rate,
+      closingRateDate: closing.date,
+      usd: {
+        totalBaseImponible: toUsd(baseTotals.totalBaseImponible),
+        totalIva: toUsd(baseTotals.totalIva),
+        totalIgtf: toUsd(baseTotals.totalIgtf),
+        totalRetencionesIva: toUsd(baseTotals.totalRetencionesIva),
+        totalRetencionesIslr: toUsd(baseTotals.totalRetencionesIslr),
+        totalCreditNotesAmount: toUsd(baseTotals.totalCreditNotesAmount),
+      },
     };
   }
 
