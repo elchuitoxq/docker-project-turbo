@@ -57,6 +57,13 @@
       "when": 1793063010141,
       "tag": "0007_round_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793064555410,
+      "tag": "0008_superb_inertia",
+      "breakpoints": true
     }
   ]
 }

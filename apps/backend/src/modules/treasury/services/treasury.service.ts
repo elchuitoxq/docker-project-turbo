@@ -14,7 +14,7 @@ import {
   paymentMethods,
   partners,
 } from '../../../schema';
-import { eq, and, desc, isNull } from 'drizzle-orm';
+import { eq, and, desc, isNull, like } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CreatePaymentDto,
@@ -35,19 +35,18 @@ const PAYMENT_METHODS_BALANCE_AFFECTING = ['CASH_USD', 'CASH_VES', 'POS', 'ZELLE
 export class TreasuryService {
   constructor(private readonly money: MoneyService) {}
   private async getNextPaymentCode(branchId: string): Promise<string> {
-    const lastPayment = await db
+    // `payments.code` es único a nivel global: la numeración también debe serlo.
+    // MÃ¡ximo sobre todos los cÃ³digos PAY-nnnnn, no sÃ³lo sobre el Ãºltimo insertado.
+    const existing = await db
       .select({ code: payments.code })
       .from(payments)
-      .where(eq(payments.branchId, branchId))
-      .orderBy(desc(payments.createdAt))
-      .limit(1);
+      .where(like(payments.code, 'PAY-%'));
 
     let nextNumber = 1;
-    if (lastPayment.length > 0) {
-      const lastCode = lastPayment[0].code;
-      const match = lastCode.match(/PAY-(\d+)/);
+    for (const row of existing) {
+      const match = row.code.match(/^PAY-(\d+)$/);
       if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
+        nextNumber = Math.max(nextNumber, parseInt(match[1], 10) + 1);
       }
     }
 
@@ -152,6 +151,9 @@ export class TreasuryService {
         paymentId: newPayment.id,
         invoiceId: createPaymentDto.invoiceId,
         amount: String(createPaymentDto.amount),
+        amountBase: this.money.round(
+          this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
+        ),
       });
 
       const [invoice] = await db
@@ -161,14 +163,35 @@ export class TreasuryService {
         .limit(1);
 
       if (invoice) {
-        const totalPaid = await this.calculateTotalPaid(createPaymentDto.invoiceId);
-        const invoiceTotal = parseFloat(String(invoice.total));
+        // Se compara en moneda funcional: el pago puede venir en otra moneda y con otra tasa.
+        const allocatedBase = await this.calculateTotalPaidBase(createPaymentDto.invoiceId);
+        const invoiceRate = invoice.exchangeRate ? Number(invoice.exchangeRate) : 1;
+        const invoiceBase = Number(
+          this.money.round(this.money.toBase(invoice.total ?? 0, invoiceRate))
+        );
 
-        if (totalPaid >= invoiceTotal) {
+        if (allocatedBase >= invoiceBase) {
           await db
             .update(invoices)
             .set({ status: 'PAID' })
             .where(eq(invoices.id, createPaymentDto.invoiceId));
+
+          // M8: la diferencia por cobrar con otra tasa no se pierde; queda registrada.
+          const exchangeDifference = Number(this.money.round(allocatedBase - invoiceBase));
+          if (exchangeDifference !== 0) {
+            await db
+              .update(payments)
+              .set({
+                metadata: {
+                  ...((newPayment.metadata as Record<string, unknown> | null) ?? {}),
+                  exchangeDifference,
+                  invoiceBase,
+                  allocatedBase,
+                  invoiceRate,
+                } as never,
+              })
+              .where(eq(payments.id, newPayment.id));
+          }
         }
       }
     }
@@ -177,6 +200,29 @@ export class TreasuryService {
       ...newPayment,
       amount: createPaymentDto.amount,
     };
+  }
+
+  /** Total asignado a la factura, expresado en moneda funcional. */
+  private async calculateTotalPaidBase(invoiceId: string): Promise<number> {
+    const allocations = await db
+      .select()
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.invoiceId, invoiceId));
+
+    let total = 0;
+    for (const alloc of allocations) {
+      const [payment] = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.id, alloc.paymentId))
+        .limit(1);
+
+      if (payment && payment.status === PaymentStatus.POSTED) {
+        total = Number(this.money.round(total + Number(alloc.amountBase ?? 0)));
+      }
+    }
+
+    return total;
   }
 
   private async calculateTotalPaid(invoiceId: string): Promise<number> {

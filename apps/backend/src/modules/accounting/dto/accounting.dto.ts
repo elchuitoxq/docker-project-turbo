@@ -181,6 +181,22 @@ export class CreateEntryLineDto {
   debit?: number;
 
   @ApiPropertyOptional({
+    description: 'Importe original en la moneda del documento (si difiere de la funcional)',
+    example: 100,
+  })
+  @IsOptional()
+  @IsNumber()
+  originalAmount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Moneda del importe original',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsUUID()
+  originalCurrencyId?: string;
+
+  @ApiPropertyOptional({
     description: 'Credit amount',
     example: 0,
   })
@@ -262,6 +278,19 @@ export class CreateEntryDto {
 }
 
 export class EntryLineResponseDto {
+  @ApiPropertyOptional({
+    description: 'Importe original en la moneda del documento',
+    example: 100,
+    nullable: true,
+  })
+  originalAmount?: number | null;
+
+  @ApiPropertyOptional({
+    description: 'Moneda del importe original',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    nullable: true,
+  })
+  originalCurrencyId?: string | null;
   @ApiProperty({
     description: 'Line ID',
     example: '550e8400-e29b-41d4-a716-446655440001',
@@ -312,6 +341,18 @@ export class EntryLineResponseDto {
 }
 
 export class EntryResponseDto {
+  @ApiPropertyOptional({
+    description: 'Moneda funcional del libro (VES)',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    nullable: true,
+  })
+  baseCurrencyId?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Tasa del documento origen congelada al registrar el asiento',
+    example: 36.5,
+  })
+  exchangeRate?: number;
   @ApiProperty({
     description: 'Entry ID',
     example: '550e8400-e29b-41d4-a716-446655440001',

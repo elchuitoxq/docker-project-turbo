@@ -11,7 +11,7 @@ import {
   exchangeRates,
   products,
 } from '../../../schema';
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CreateInvoiceDto,
@@ -28,20 +28,28 @@ const IGTF_RATE = 0.03;
 
 @Injectable()
 export class BillingService {
-  private async getNextInvoiceCode(branchId: string): Promise<string> {
-    const lastInvoice = await db
+  /**
+   * Siguiente código de factura. `invoices.code` es único a nivel global, así que la
+   * numeración también lo es; el llamador debe invocarlo dentro de la transacción que
+   * toma el advisory lock para que dos emisiones no lean el mismo máximo.
+   */
+  private async getNextInvoiceCode(
+    branchId: string,
+    executor: Pick<typeof db, 'select'> = db
+  ): Promise<string> {
+    // Se toma el mÃ¡ximo sobre TODOS los cÃ³digos con formato A-nnnnn: hay documentos
+    // sembrados con otros formatos (INV-...) que, al ser los mÃ¡s recientes, hacÃ­an
+    // que el generador volviera a A-00001 y chocara con la restricciÃ³n Ãºnica.
+    const existing = await executor
       .select({ code: invoices.code })
       .from(invoices)
-      .where(eq(invoices.branchId, branchId))
-      .orderBy(desc(invoices.createdAt))
-      .limit(1);
+      .where(like(invoices.code, 'A-%'));
 
     let nextNumber = 1;
-    if (lastInvoice.length > 0) {
-      const lastCode = lastInvoice[0].code;
-      const match = lastCode.match(/A-(\d+)/);
+    for (const row of existing) {
+      const match = row.code.match(/^A-(\d+)$/);
       if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
+        nextNumber = Math.max(nextNumber, parseInt(match[1], 10) + 1);
       }
     }
 
@@ -220,7 +228,6 @@ export class BillingService {
         ? 1
         : (createInvoiceDto.exchangeRate ?? (await this.getExchangeRate(currencyId)));
     const isForeignCurrency = currencyId !== baseCurrency.id;
-    const code = await this.getNextInvoiceCode(invoiceBranchId);
 
     const productIds = createInvoiceDto.items.map(item => item.productId);
     const productRecords =
@@ -248,29 +255,38 @@ export class BillingService {
 
     const totals = this.calculateInvoiceTotals(itemCalculations, applyIgtf, exchangeRate);
 
-    const [newInvoice] = await db
-      .insert(invoices)
-      .values({
-        id: uuidv4(),
-        code,
-        partnerId: createInvoiceDto.partnerId,
-        branchId: invoiceBranchId,
-        currencyId,
-        exchangeRate: String(exchangeRate),
-        type: createInvoiceDto.type || 'SALE',
-        invoiceNumber: createInvoiceDto.invoiceNumber,
-        orderId: createInvoiceDto.orderId,
-        status: InvoiceStatus.DRAFT,
-        fiscalStatus: 'PENDING',
-        totalBase: String(totals.totalBase),
-        totalTax: String(totals.totalTax),
-        totalIgtf: String(totals.totalIgtf),
-        total: String(totals.total),
-        dueDate: createInvoiceDto.dueDate ? new Date(createInvoiceDto.dueDate) : null,
-        warehouseId: createInvoiceDto.warehouseId,
-        userId,
-      })
-      .returning();
+    // El cÃ³digo se asigna dentro de una transacciÃ³n con advisory lock: dos emisiones
+    // concurrentes se serializan y no pueden leer el mismo mÃ¡ximo.
+    const newInvoice = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(42001)`);
+      const lockedCode = await this.getNextInvoiceCode(invoiceBranchId, tx);
+
+      const [row] = await tx
+        .insert(invoices)
+        .values({
+          id: uuidv4(),
+          code: lockedCode,
+          partnerId: createInvoiceDto.partnerId,
+          branchId: invoiceBranchId,
+          currencyId,
+          exchangeRate: String(exchangeRate),
+          type: createInvoiceDto.type || 'SALE',
+          invoiceNumber: createInvoiceDto.invoiceNumber,
+          orderId: createInvoiceDto.orderId,
+          status: InvoiceStatus.DRAFT,
+          fiscalStatus: 'PENDING',
+          totalBase: String(totals.totalBase),
+          totalTax: String(totals.totalTax),
+          totalIgtf: String(totals.totalIgtf),
+          total: String(totals.total),
+          dueDate: createInvoiceDto.dueDate ? new Date(createInvoiceDto.dueDate) : null,
+          warehouseId: createInvoiceDto.warehouseId,
+          userId,
+        })
+        .returning();
+
+      return row;
+    });
 
     const invoiceItemsList: InvoiceItemResponseDto[] = [];
 

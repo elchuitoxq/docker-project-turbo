@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
+import { MoneyService } from '../../common/money/money.service';
 import {
   accountingAccounts,
   accountingEntries,
@@ -9,6 +10,7 @@ import {
   users,
   invoices,
   payments,
+  currencies,
 } from '../../schema';
 import { eq, and, gte, lte, sql, or } from 'drizzle-orm';
 import {
@@ -28,6 +30,7 @@ import {
 
 @Injectable()
 export class AccountingService {
+  constructor(private readonly money: MoneyService = new MoneyService()) {}
   async findAllAccounts(): Promise<AccountTreeDto[]> {
     const accounts = await db
       .select()
@@ -186,6 +189,17 @@ export class AccountingService {
     return this.toEntryResponseDto(entry, true);
   }
 
+  /** Moneda funcional del libro (VES, decision D-01). */
+  private async getBaseCurrencyId(): Promise<string | null> {
+    const [base] = await db
+      .select({ id: currencies.id })
+      .from(currencies)
+      .where(eq(currencies.isBase, true))
+      .limit(1);
+
+    return base?.id ?? null;
+  }
+
   async createEntry(createEntryDto: CreateEntryDto): Promise<EntryResponseDto> {
     const lines = createEntryDto.lines;
 
@@ -226,6 +240,8 @@ export class AccountingService {
         reference: createEntryDto.reference,
         branchId: createEntryDto.branchId,
         status: EntryStatus.POSTED,
+        baseCurrencyId: await this.getBaseCurrencyId(),
+        exchangeRate: '1',
         userId: createEntryDto.userId,
       })
       .returning();
@@ -236,6 +252,8 @@ export class AccountingService {
         accountId: line.accountId,
         debit: line.debit?.toString() || '0',
         credit: line.credit?.toString() || '0',
+        originalAmount: line.originalAmount != null ? line.originalAmount.toString() : null,
+        originalCurrencyId: line.originalCurrencyId ?? null,
         description: line.description,
       });
     }
@@ -262,14 +280,21 @@ export class AccountingService {
       );
     }
 
+    // El libro va en moneda funcional: se convierte con la tasa del documento (M3).
+    const rate = invoice.exchangeRate ? Number(invoice.exchangeRate) : 1;
+    const baseTotal = Number(this.money.round(this.money.toBase(invoice.total ?? 0, rate)));
+    const originalAmount = Number(invoice.total ?? 0);
+
     const lines: CreateEntryLineDto[] = [];
 
     if (map.debitAccountId) {
       lines.push({
         accountId: map.debitAccountId,
-        debit: Number(invoice.total),
+        debit: baseTotal,
         credit: 0,
         description: `Invoice ${invoice.code}`,
+        originalAmount,
+        originalCurrencyId: invoice.currencyId,
       });
     }
 
@@ -277,8 +302,10 @@ export class AccountingService {
       lines.push({
         accountId: map.creditAccountId,
         debit: 0,
-        credit: Number(invoice.total),
+        credit: baseTotal,
         description: `Invoice ${invoice.code}`,
+        originalAmount,
+        originalCurrencyId: invoice.currencyId,
       });
     }
 
@@ -320,14 +347,23 @@ export class AccountingService {
     payment: typeof payments.$inferSelect,
     userId?: string
   ): Promise<EntryResponseDto> {
+    // Se usa el monto ya convertido del pago (amountBase) para no recalcular con otra tasa.
+    const rate = payment.exchangeRate ? Number(payment.exchangeRate) : 1;
+    const baseTotal = Number(
+      this.money.round(payment.amountBase ?? this.money.toBase(payment.amount ?? 0, rate))
+    );
+    const originalAmount = Number(payment.amount ?? 0);
+
     const lines: CreateEntryLineDto[] = [];
 
     if (map.debitAccountId) {
       lines.push({
         accountId: map.debitAccountId,
-        debit: Number(payment.amount),
+        debit: baseTotal,
         credit: 0,
         description: `Payment ${payment.code}`,
+        originalAmount,
+        originalCurrencyId: payment.currencyId,
       });
     }
 
@@ -335,8 +371,10 @@ export class AccountingService {
       lines.push({
         accountId: map.creditAccountId,
         debit: 0,
-        credit: Number(payment.amount),
+        credit: baseTotal,
         description: `Payment ${payment.code}`,
+        originalAmount,
+        originalCurrencyId: payment.currencyId,
       });
     }
 
@@ -530,6 +568,8 @@ export class AccountingService {
       branchId: entry.branchId,
       branchName,
       status: entry.status as EntryStatus,
+      baseCurrencyId: entry.baseCurrencyId,
+      exchangeRate: entry.exchangeRate ? Number(entry.exchangeRate) : 1,
       userId: entry.userId,
       userName,
       createdAt: entry.createdAt,

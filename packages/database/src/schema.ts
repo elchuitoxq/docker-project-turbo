@@ -556,6 +556,8 @@ export const paymentAllocations = pgTable('payment_allocations', {
   paymentId: uuid('payment_id').notNull(),
   invoiceId: uuid('invoice_id').notNull(),
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+  /** Importe aplicado en moneda funcional (M8 de `S-08`). */
+  amountBase: numeric('amount_base', { precision: 20, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -880,6 +882,9 @@ export const accountingEntries = pgTable('accounting_entries', {
   reference: text('reference'),
   branchId: uuid('branch_id'),
   status: text('status').default('POSTED'),
+  /** Moneda funcional del libro (VES) y tasa del documento origen (M1/M2 de `S-08`). */
+  baseCurrencyId: uuid('base_currency_id'),
+  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).default('1'),
   createdAt: timestamp('created_at').defaultNow(),
   userId: uuid('user_id'),
 });
@@ -890,8 +895,12 @@ export const accountingEntryLines = pgTable('accounting_entry_lines', {
     .$defaultFn(() => uuidv7()),
   entryId: uuid('entry_id').notNull(),
   accountId: uuid('account_id').notNull(),
+  /** Importes en moneda funcional. */
   debit: numeric('debit', { precision: 20, scale: 2 }).default('0'),
   credit: numeric('credit', { precision: 20, scale: 2 }).default('0'),
+  /** Importe y moneda originales cuando el documento no estaba en moneda funcional. */
+  originalAmount: numeric('original_amount', { precision: 20, scale: 2 }),
+  originalCurrencyId: uuid('original_currency_id'),
   description: text('description'),
 });
 
