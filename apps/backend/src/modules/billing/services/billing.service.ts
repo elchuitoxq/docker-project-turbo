@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../../database';
+
+/** Horas maximas de antiguedad de una tasa antes de exigir confirmacion (T-08-10). */
+const EXCHANGE_RATE_MAX_AGE_HOURS = Number(process.env.EXCHANGE_RATE_MAX_AGE_HOURS ?? 24);
 import {
   invoices,
   invoiceItems,
@@ -45,6 +48,25 @@ export class BillingService {
     return `A-${String(nextNumber).padStart(5, '0')}`;
   }
 
+  /** Moneda funcional del sistema (VES, decision D-01). */
+  private async getBaseCurrency(): Promise<{ id: string; code: string }> {
+    const [base] = await db
+      .select({ id: currencies.id, code: currencies.code })
+      .from(currencies)
+      .where(eq(currencies.isBase, true))
+      .limit(1);
+
+    if (!base) {
+      throw new BadRequestException('No base currency configured');
+    }
+
+    return base;
+  }
+
+  /**
+   * Tasa vigente de la moneda. La base vale 1.
+   * Rechaza tasas vencidas para no facturar con un valor obsoleto (`T-08-10`).
+   */
   private async getExchangeRate(currencyId: string): Promise<number> {
     const [currency] = await db
       .select()
@@ -63,7 +85,20 @@ export class BillingService {
       .orderBy(desc(exchangeRates.date))
       .limit(1);
 
-    return rate ? parseFloat(rate.rate) : 1;
+    if (!rate) {
+      throw new BadRequestException(
+        `No exchange rate registered for ${currency.code}. Register one or send the rate explicitly.`
+      );
+    }
+
+    const ageHours = (Date.now() - (rate.date?.getTime() ?? Date.now())) / 3_600_000;
+    if (ageHours > EXCHANGE_RATE_MAX_AGE_HOURS) {
+      throw new BadRequestException(
+        `The exchange rate for ${currency.code} is ${ageHours.toFixed(1)}h old (max ${EXCHANGE_RATE_MAX_AGE_HOURS}h). Confirm the rate explicitly to issue the document.`
+      );
+    }
+
+    return parseFloat(rate.rate);
   }
 
   private calculateInvoiceTotals(
@@ -175,12 +210,16 @@ export class BillingService {
     }
 
     let currencyId = createInvoiceDto.currencyId;
+    const baseCurrency = await this.getBaseCurrency();
     if (!currencyId) {
-      const [usd] = await db.select().from(currencies).where(eq(currencies.code, 'USD')).limit(1);
-      currencyId = usd.id;
+      currencyId = baseCurrency.id;
     }
 
-    const exchangeRate = createInvoiceDto.exchangeRate || (await this.getExchangeRate(currencyId));
+    const exchangeRate =
+      currencyId === baseCurrency.id
+        ? 1
+        : (createInvoiceDto.exchangeRate ?? (await this.getExchangeRate(currencyId)));
+    const isForeignCurrency = currencyId !== baseCurrency.id;
     const code = await this.getNextInvoiceCode(invoiceBranchId);
 
     const productIds = createInvoiceDto.items.map(item => item.productId);
@@ -191,7 +230,8 @@ export class BillingService {
 
     const productMap = new Map(productRecords.map(p => [p.id, p]));
 
-    const applyIgtf = partner.type === 'CUSTOMER' && exchangeRate > 1;
+    // M6: el IGTF depende de la moneda, no de la magnitud de la tasa.
+    const applyIgtf = partner.type === 'CUSTOMER' && isForeignCurrency;
 
     const itemCalculations = createInvoiceDto.items.map(item => {
       const product = productMap.get(item.productId);
@@ -283,6 +323,9 @@ export class BillingService {
       throw new BadRequestException('Only DRAFT invoices can be updated');
     }
 
+    const baseCurrency = await this.getBaseCurrency();
+    const isForeignCurrency = invoice.currencyId !== baseCurrency.id;
+
     let exchangeRate = invoice.exchangeRate ? parseFloat(invoice.exchangeRate) : 1;
 
     if (updateInvoiceDto.exchangeRate) {
@@ -295,7 +338,7 @@ export class BillingService {
       .where(eq(partners.id, updateInvoiceDto.partnerId || invoice.partnerId))
       .limit(1);
 
-    const applyIgtf = partner?.type === 'CUSTOMER' && exchangeRate > 1;
+    const applyIgtf = partner?.type === 'CUSTOMER' && isForeignCurrency;
 
     if (updateInvoiceDto.items) {
       await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));

@@ -200,18 +200,32 @@ export const currencies = pgTable(
   },
   t => ({
     unq: uniqueIndex('currencies_code_unq').on(t.code),
+    // Una sola moneda funcional: la base se elige una vez y no se cambia sin migración contable.
+    oneBase: uniqueIndex('currencies_one_base_idx')
+      .on(t.isBase)
+      .where(sql`${t.isBase} = true`),
   })
 );
 
-export const exchangeRates = pgTable('exchange_rates', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  currencyId: uuid('currency_id').notNull(),
-  rate: numeric('rate', { precision: 20, scale: 10 }).notNull(),
-  date: timestamp('date').defaultNow(),
-  source: text('source').default('MANUAL'),
-});
+export const exchangeRates = pgTable(
+  'exchange_rates',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    currencyId: uuid('currency_id').notNull(),
+    rate: numeric('rate', { precision: 20, scale: 10 }).notNull(),
+    date: timestamp('date').defaultNow(),
+    source: text('source').default('MANUAL'),
+    /** Usuario que cargó la tasa a mano; nulo cuando viene del job de BCV. */
+    createdBy: uuid('created_by'),
+    /** Motivo obligatorio en los overrides manuales (M9 de `S-08`). */
+    reason: text('reason'),
+  },
+  t => ({
+    uniquePerDay: uniqueIndex('exchange_rates_currency_date_unq').on(t.currencyId, t.date),
+  })
+);
 
 export const taxConcepts = pgTable('tax_concepts', {
   id: uuid('id')
@@ -524,6 +538,8 @@ export const payments = pgTable('payments', {
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
   currencyId: uuid('currency_id').notNull(),
   exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).notNull(),
+  /** Monto en moneda funcional (VES): amount x exchangeRate (M2 de `S-08`). */
+  amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
   bankAccountId: uuid('bank_account_id'),
   payrollRunId: uuid('payroll_run_id'),
   reference: text('reference'),
@@ -566,6 +582,10 @@ export const taxRetentions = pgTable('tax_retentions', {
   totalBase: numeric('total_base', { precision: 20, scale: 2 }).notNull(),
   totalTax: numeric('total_tax', { precision: 20, scale: 2 }).default('0'),
   totalRetained: numeric('total_retained', { precision: 20, scale: 2 }).notNull(),
+  /** Moneda y tasa del comprobante de retencion (M2 de `S-08`). */
+  currencyId: uuid('currency_id'),
+  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }),
+  totalRetainedBase: numeric('total_retained_base', { precision: 20, scale: 2 }),
   xmlContent: text('xml_content'),
   date: timestamp('date').defaultNow(),
   userId: uuid('user_id'),

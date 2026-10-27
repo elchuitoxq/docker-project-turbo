@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
 import { CurrenciesService } from './currencies/currencies.service';
 import { BanksService } from './banks/banks.service';
 import { TaxConceptsService } from './tax-concepts/tax-concepts.service';
@@ -55,7 +55,7 @@ describe('Settings Module', () => {
 
     beforeEach(() => {
       vi.clearAllMocks();
-      service = new CurrenciesService();
+      service = new CurrenciesService({ store: vi.fn() } as never);
     });
 
     describe('findAll', () => {
@@ -283,39 +283,63 @@ describe('Settings Module', () => {
     });
 
     describe('addRate', () => {
-      const createRateDto = {
-        currencyId: '550e8400-e29b-41d4-a716-446655440000',
-        rate: 1.5,
-        source: 'API',
-      };
+      it('delegates the manual override to ExchangeRateService', async () => {
+        const store = vi.fn().mockResolvedValue({
+          id: 'rate-1',
+          currencyId: 'usd-id',
+          rate: 1.5,
+          date: new Date('2026-10-26T00:00:00.000Z'),
+          source: 'MANUAL',
+        });
+        const svc = new CurrenciesService({ store } as never);
 
-      it('should add a new exchange rate successfully', async () => {
+        const result = await svc.addRate(
+          { currencyCode: 'USD', rate: 1.5, reason: 'feriado bancario' },
+          'user-1'
+        );
+
+        expect(store).toHaveBeenCalledWith(
+          expect.objectContaining({
+            currencyCode: 'USD',
+            rate: 1.5,
+            source: 'MANUAL',
+            createdBy: 'user-1',
+            reason: 'feriado bancario',
+          })
+        );
+        expect(result.source).toBe('MANUAL');
+      });
+
+      it('resolves the currency code when only the id is provided', async () => {
         vi.mocked(db).select.mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([mockCurrency])),
+              limit: vi.fn().mockReturnValue(makeAwaitable([{ code: 'USD' }])),
             }),
           }),
         } as any);
 
-        const mockInsertResult = {
-          ...mockExchangeRate,
-          rate: '1.5',
-          source: 'API',
-        };
-        vi.mocked(db).insert.mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockReturnValue(makeAwaitable([mockInsertResult])),
-          }),
-        } as any);
+        const store = vi.fn().mockResolvedValue({
+          id: 'rate-1',
+          currencyId: 'usd-id',
+          rate: 1.5,
+          date: new Date('2026-10-26T00:00:00.000Z'),
+          source: 'MANUAL',
+        });
+        const svc = new CurrenciesService({ store } as never);
 
-        const result = await service.addRate(createRateDto.currencyId, createRateDto);
+        await svc.addRate({ currencyId: '550e8400-e29b-41d4-a716-446655440000', rate: 1.5 });
 
-        expect(result.rate).toBe(1.5);
-        expect(result.source).toBe('API');
+        expect(store).toHaveBeenCalledWith(expect.objectContaining({ currencyCode: 'USD' }));
       });
 
-      it('should throw NotFoundException when currency not found', async () => {
+      it('rejects a request without currencyCode or currencyId', async () => {
+        const svc = new CurrenciesService({ store: vi.fn() } as never);
+
+        await expect(svc.addRate({ rate: 1.5 } as never)).rejects.toThrow(BadRequestException);
+      });
+
+      it('throws NotFoundException when the currency id does not exist', async () => {
         vi.mocked(db).select.mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
@@ -324,36 +348,11 @@ describe('Settings Module', () => {
           }),
         } as any);
 
-        await expect(service.addRate('nonexistent-id', createRateDto)).rejects.toThrow(
-          NotFoundException
-        );
-      });
+        const svc = new CurrenciesService({ store: vi.fn() } as never);
 
-      it('should use MANUAL as default source when not provided', async () => {
-        vi.mocked(db).select.mockReturnValue({
-          from: vi.fn().mockReturnValue({
-            where: vi.fn().mockReturnValue({
-              limit: vi.fn().mockReturnValue(makeAwaitable([mockCurrency])),
-            }),
-          }),
-        } as any);
-
-        const mockInsertResult = {
-          ...mockExchangeRate,
-          source: null,
-        };
-        vi.mocked(db).insert.mockReturnValue({
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockReturnValue(makeAwaitable([mockInsertResult])),
-          }),
-        } as any);
-
-        const result = await service.addRate(createRateDto.currencyId, {
-          currencyId: createRateDto.currencyId,
-          rate: 1.5,
-        });
-
-        expect(result.source).toBe('MANUAL');
+        await expect(
+          svc.addRate({ currencyId: '550e8400-e29b-41d4-a716-446655440000', rate: 1.5 })
+        ).rejects.toThrow(NotFoundException);
       });
     });
   });
@@ -1221,7 +1220,7 @@ describe('Settings Module', () => {
 
       beforeEach(() => {
         vi.clearAllMocks();
-        service = new CurrenciesService();
+        service = new CurrenciesService({ store: vi.fn() } as never);
       });
 
       it('should handle base currency flag correctly', async () => {

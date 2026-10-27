@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env.validation';
+import { CommonModule } from './common/common.module';
 import { BranchContextGuard } from './common/branch/branch-context.guard';
 import { AuditWriteInterceptor } from './common/audit/audit-write.interceptor';
 import { PermissionsGuard } from './common/guards/permissions.guard';
@@ -47,6 +49,8 @@ import { HealthModule } from './modules/health/health.module';
       },
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ScheduleModule.forRoot(),
+    CommonModule,
     DatabaseModule,
     HealthModule,
     AuthModule,

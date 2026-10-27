@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../../database';
+import { MoneyService } from '../../../common/money/money.service';
 import {
   payments,
   paymentAllocations,
@@ -32,6 +33,7 @@ const PAYMENT_METHODS_BALANCE_AFFECTING = ['CASH_USD', 'CASH_VES', 'POS', 'ZELLE
 
 @Injectable()
 export class TreasuryService {
+  constructor(private readonly money: MoneyService) {}
   private async getNextPaymentCode(branchId: string): Promise<string> {
     const lastPayment = await db
       .select({ code: payments.code })
@@ -134,6 +136,9 @@ export class TreasuryService {
         amount: String(createPaymentDto.amount),
         currencyId: createPaymentDto.currencyId,
         exchangeRate: String(createPaymentDto.exchangeRate),
+        amountBase: this.money.round(
+          this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
+        ),
         bankAccountId: createPaymentDto.bankAccountId,
         reference: createPaymentDto.reference,
         date: createPaymentDto.date ? new Date(createPaymentDto.date) : new Date(),

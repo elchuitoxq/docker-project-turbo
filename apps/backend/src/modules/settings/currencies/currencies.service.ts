@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { db } from '../../../database';
 import { currencies, exchangeRates } from '../../../schema';
 import { eq, desc } from 'drizzle-orm';
@@ -9,9 +14,12 @@ import {
   ExchangeRateResponseDto,
   LatestRatesResponseDto,
 } from './dto/currencies.dto';
+import { ExchangeRateService } from './exchange-rate.service';
 
 @Injectable()
 export class CurrenciesService {
+  constructor(private readonly exchangeRates: ExchangeRateService) {}
+
   async findAll(): Promise<CurrencyResponseDto[]> {
     const allCurrencies = await db.select().from(currencies);
     return allCurrencies.map(this.toResponseDto);
@@ -87,36 +95,52 @@ export class CurrenciesService {
     return Array.from(latestByCurrency.values());
   }
 
+  /**
+   * Override manual de la tasa del dia (regla M9 de `S-08`).
+   * Acepta `currencyCode` (preferido) o `currencyId`, exige motivo y delega el
+   * almacenamiento en `ExchangeRateService` para no duplicar la logica de tasas.
+   */
   async addRate(
-    currencyId: string,
-    createRateDto: CreateExchangeRateDto
+    createRateDto: CreateExchangeRateDto,
+    userId?: string
   ): Promise<ExchangeRateResponseDto> {
+    const currencyCode = await this.resolveCurrencyCode(createRateDto);
+
+    const stored = await this.exchangeRates.store({
+      currencyCode,
+      rate: createRateDto.rate,
+      source: 'MANUAL',
+      date: createRateDto.date ? new Date(createRateDto.date) : undefined,
+      createdBy: userId ?? null,
+      reason: createRateDto.reason ?? null,
+    });
+
+    return {
+      id: stored.id,
+      currencyId: stored.currencyId,
+      rate: stored.rate,
+      date: stored.date,
+      source: stored.source,
+    };
+  }
+
+  private async resolveCurrencyCode(createRateDto: CreateExchangeRateDto): Promise<string> {
+    if (createRateDto.currencyCode) return createRateDto.currencyCode;
+    if (!createRateDto.currencyId) {
+      throw new BadRequestException('currencyCode or currencyId is required');
+    }
+
     const [currency] = await db
-      .select()
+      .select({ code: currencies.code })
       .from(currencies)
-      .where(eq(currencies.id, currencyId))
+      .where(eq(currencies.id, createRateDto.currencyId))
       .limit(1);
 
     if (!currency) {
-      throw new NotFoundException(`Currency with ID ${currencyId} not found`);
+      throw new NotFoundException(`Currency with ID ${createRateDto.currencyId} not found`);
     }
 
-    const [newRate] = await db
-      .insert(exchangeRates)
-      .values({
-        currencyId: currencyId,
-        rate: createRateDto.rate.toString(),
-        source: createRateDto.source || 'MANUAL',
-      })
-      .returning();
-
-    return {
-      id: newRate.id,
-      currencyId: newRate.currencyId,
-      rate: Number(newRate.rate),
-      date: newRate.date,
-      source: newRate.source || 'MANUAL',
-    };
+    return currency.code;
   }
 
   private toResponseDto(currency: typeof currencies.$inferSelect): CurrencyResponseDto {

@@ -13,10 +13,17 @@ import {
 } from '../schema';
 import { uuidv7 } from '../schema';
 import * as bcrypt from 'bcryptjs';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 
 export async function seedCoreData() {
   console.log('Seeding core data...');
+
+  // Moneda funcional = VES (decisión D-01). Se limpia cualquier otra base antes del
+  // upsert para no violar el índice único parcial `currencies_one_base_idx`.
+  await db
+    .update(currencies)
+    .set({ isBase: false })
+    .where(and(eq(currencies.isBase, true), ne(currencies.code, 'VES')));
 
   const seededCurrencies = await db
     .insert(currencies)
@@ -26,14 +33,14 @@ export async function seedCoreData() {
         code: 'USD',
         name: 'US Dollar',
         symbol: '$',
-        isBase: true,
+        isBase: false,
       },
       {
         id: uuidv7(),
         code: 'VES',
         name: 'Venezuelan Bolivar',
         symbol: 'Bs',
-        isBase: false,
+        isBase: true,
       },
     ])
     .onConflictDoUpdate({
