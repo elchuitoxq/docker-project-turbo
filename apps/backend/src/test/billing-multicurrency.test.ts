@@ -8,6 +8,7 @@ import {
   createTestPartner,
   createTestProduct,
   createTestUser,
+  ensureTestBaseCurrency,
 } from './factories';
 import { currencies, exchangeRates } from '../schema';
 import { BillingService } from '../modules/billing/services/billing.service';
@@ -32,12 +33,7 @@ describe('Billing multimoneda', () => {
   });
 
   async function baseCurrencyId(): Promise<string> {
-    const [base] = await testDb
-      .select({ id: currencies.id })
-      .from(currencies)
-      .where(eq(currencies.isBase, true))
-      .limit(1);
-    if (!base) throw new Error('No base currency configured');
+    const base = await ensureTestBaseCurrency();
     return base.id;
   }
 

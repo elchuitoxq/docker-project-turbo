@@ -1987,6 +1987,209 @@
         ]
       }
     },
+    "/v1/hr/employees/{id}/vacations": {
+      "get": {
+        "operationId": "HrController_getVacationSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vacation summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VacationSummaryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found"
+          }
+        },
+        "summary": "Get vacation entitlement and pending days",
+        "tags": [
+          "hr"
+        ]
+      },
+      "post": {
+        "operationId": "HrController_registerVacation",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterVacationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vacation registered"
+          },
+          "400": {
+            "description": "More days than entitled"
+          },
+          "409": {
+            "description": "Vacation period already registered for that year"
+          }
+        },
+        "summary": "Register a vacation period and compute vacation and bonus pay",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/employees/{id}/benefits": {
+      "get": {
+        "operationId": "HrController_getBenefitsSummary",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Benefits summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenefitsSummaryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found"
+          }
+        },
+        "summary": "Get severance benefits: both modalities and the payable one",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/employees/{id}/benefits/deposit": {
+      "post": {
+        "operationId": "HrController_depositBenefitGuarantee",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepositBenefitDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Deposit registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenefitsSummaryDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Quarter already deposited"
+          }
+        },
+        "summary": "Deposit the quarterly severance guarantee",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/employees/{id}/profit-sharing": {
+      "post": {
+        "operationId": "HrController_registerProfitSharing",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterProfitSharingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Profit sharing registered"
+          },
+          "409": {
+            "description": "Profit sharing already registered for that year"
+          }
+        },
+        "summary": "Register annual profit sharing (utilidades)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/v1/settings/currencies": {
       "get": {
         "description": "Retrieves a list of all currencies",
@@ -7826,6 +8029,193 @@
             "type": "boolean"
           }
         }
+      },
+      "VacationSummaryDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string"
+          },
+          "years": {
+            "type": "number",
+            "description": "Años de servicio cumplidos",
+            "example": 3
+          },
+          "vacationDays": {
+            "type": "number",
+            "description": "Días de vacaciones que corresponden",
+            "example": 17
+          },
+          "bonusDays": {
+            "type": "number",
+            "description": "Días de bono vacacional que corresponden",
+            "example": 9
+          },
+          "daysTaken": {
+            "type": "number",
+            "example": 0
+          },
+          "daysPending": {
+            "type": "number",
+            "example": 17
+          },
+          "normalDaily": {
+            "type": "number",
+            "description": "Salario normal diario",
+            "example": 333.33
+          }
+        },
+        "required": [
+          "employeeId",
+          "years",
+          "vacationDays",
+          "bonusDays",
+          "daysTaken",
+          "daysPending",
+          "normalDaily"
+        ]
+      },
+      "RegisterVacationDto": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "number",
+            "minimum": 2000,
+            "description": "Año del período vacacional",
+            "example": 2026
+          },
+          "days": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Días de vacaciones a tomar",
+            "example": 15
+          },
+          "startDate": {
+            "type": "string",
+            "example": "2026-11-02"
+          },
+          "endDate": {
+            "type": "string",
+            "example": "2026-11-20"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "year",
+          "days"
+        ]
+      },
+      "BenefitsSummaryDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string"
+          },
+          "years": {
+            "type": "number",
+            "example": 5
+          },
+          "integralDaily": {
+            "type": "number",
+            "description": "Salario integral diario",
+            "example": 367.59
+          },
+          "quartersDeposited": {
+            "type": "number",
+            "description": "Trimestres depositados",
+            "example": 20
+          },
+          "guaranteeAccumulated": {
+            "type": "number",
+            "example": 113218.52
+          },
+          "retroactive": {
+            "type": "number",
+            "example": 55138.89
+          },
+          "payable": {
+            "type": "number",
+            "description": "Monto que se paga: la modalidad mayor (RN-11)",
+            "example": 113218.52
+          },
+          "modality": {
+            "enum": [
+              "GUARANTEE",
+              "RETROACTIVE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "employeeId",
+          "years",
+          "integralDaily",
+          "quartersDeposited",
+          "guaranteeAccumulated",
+          "retroactive",
+          "payable",
+          "modality"
+        ]
+      },
+      "DepositBenefitDto": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "number",
+            "minimum": 2000,
+            "example": 2026
+          },
+          "quarter": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 4,
+            "description": "Trimestre 1-4",
+            "example": 4
+          },
+          "isAnniversaryQuarter": {
+            "type": "boolean",
+            "description": "Si en el trimestre se cumple el aniversario, se suman los días adicionales",
+            "default": false
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "year",
+          "quarter"
+        ]
+      },
+      "RegisterProfitSharingDto": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "number",
+            "minimum": 2000,
+            "description": "Ejercicio fiscal",
+            "example": 2025
+          },
+          "monthsWorked": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Meses completos trabajados en el ejercicio",
+            "example": 12
+          },
+          "paymentDate": {
+            "type": "string",
+            "example": "2026-03-15"
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "year",
+          "monthsWorked"
+        ]
       },
       "CurrencyResponseDto": {
         "type": "object",

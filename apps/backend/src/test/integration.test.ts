@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { cleanDatabase, closeTestConnection } from './database';
+import { closeTestConnection } from './database';
 import {
   createTestBranch,
   createTestCurrency,
@@ -7,10 +7,14 @@ import {
   createTestProduct,
   createTestInvoice,
   createTestInvoiceItem,
+  ensureTestBaseCurrency,
 } from './factories';
 
+// Sin `cleanDatabase()`: este archivo comparte la base con las demás suites, que corren en
+// paralelo. Truncar el esquema completo aquí borraba monedas y sucursales que otros archivos
+// estaban usando (fallos intermitentes de "No base currency configured").
 beforeAll(async () => {
-  await cleanDatabase();
+  await ensureTestBaseCurrency();
 });
 
 afterAll(async () => {
@@ -91,7 +95,7 @@ describe('Invoice Integration Tests', () => {
     const branch = await createTestBranch();
     branchId = branch.id;
 
-    const currency = await createTestCurrency({ isBase: true });
+    const currency = await ensureTestBaseCurrency();
     currencyId = currency.id;
 
     const partner = await createTestPartner();

@@ -272,6 +272,33 @@ parámetros congelados, no con constantes del código.
 - **Un run fallido no queda en el historial:** si el cálculo falla, el run se descarta completo.
 - Si la sucursal no tiene empleados activos, el run se crea vacío (no es un error).
 
+## Nómina: prestaciones, vacaciones y utilidades (desde 2026-10-27)
+
+`T-02-04`. Las reglas están en [`09-HR-NOMINA-VENEZUELA.md`](./09-HR-NOMINA-VENEZUELA.md) §8.3 y §8.4.
+
+| Método | Ruta                                    | Permiso              |
+| ------ | --------------------------------------- | -------------------- |
+| `GET`  | `/v1/hr/employees/:id/vacations?asOf=`  | `hr:employees:view`  |
+| `POST` | `/v1/hr/employees/:id/vacations`        | `hr:payroll:process` |
+| `GET`  | `/v1/hr/employees/:id/benefits?asOf=`   | `hr:payroll:view`    |
+| `POST` | `/v1/hr/employees/:id/benefits/deposit` | `hr:payroll:process` |
+| `POST` | `/v1/hr/employees/:id/profit-sharing`   | `hr:payroll:process` |
+
+- El **salario integral diario** sale del motor de nómina, no de una fórmula paralela: prestaciones y
+  utilidades usan exactamente el mismo cálculo que el recibo.
+- `GET /vacations` devuelve `years`, `vacationDays`, `bonusDays`, `daysTaken`, `daysPending` y
+  `normalDaily`. El día adicional empieza a contar desde el segundo año.
+- `POST /vacations` paga vacaciones y bono sobre el salario normal diario; responde `400` si se piden
+  más días de los que corresponden y `409` si el año ya está registrado.
+- `GET /benefits` devuelve las **dos modalidades** (`guaranteeAccumulated`, `retroactive`), la que se
+  paga (`payable`) y su nombre (`modality`: `GUARANTEE` | `RETROACTIVE`).
+- `POST /benefits/deposit` registra la garantía de un trimestre (`year`, `quarter` 1-4,
+  `isAnniversaryQuarter`). Es idempotente: el segundo intento responde `409`.
+- `POST /profit-sharing` registra las utilidades del ejercicio (`year`, `monthsWorked` 1-12) con los
+  días mínimos y el tope configurados; `409` si el ejercicio ya está registrado.
+- Ninguna de estas operaciones exige la tasa de cambio: sólo se convierten los parámetros que las
+  fórmulas involucradas realmente usan.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

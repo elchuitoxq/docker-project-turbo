@@ -31,15 +31,21 @@ import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import { ConfigService } from '@nestjs/config';
-import { validateConceptExpression } from '../payroll/concept-expression';
+import { extractIdentifiers, validateConceptExpression } from '../payroll/concept-expression';
 import { resolvePayrollSettings, validateSettingValue } from '../payroll/settings-resolver';
 import {
   ConceptDefinition,
   PayrollCalculator,
   PayrollItemCalculation,
 } from '../payroll/payroll.calculator';
+import {
+  BenefitSettings,
+  DEFAULT_BENEFIT_SETTINGS,
+  LaborBenefits,
+} from '../payroll/labor-benefits';
 import { CurrencyConverter, PayrollSettingRow } from '../payroll/payroll.types';
 import { ExchangeRateService } from '../../settings/currencies/exchange-rate.service';
+import { MoneyService } from '../../../common/money/money.service';
 import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -59,6 +65,11 @@ import {
   UpdatePayrollConceptDto,
   PayrollConceptResponseDto,
   PayrollConceptKind,
+  VacationSummaryDto,
+  BenefitsSummaryDto,
+  RegisterVacationDto,
+  DepositBenefitDto,
+  RegisterProfitSharingDto,
 } from '../dto/hr.dto';
 
 @Injectable()
@@ -67,7 +78,8 @@ export class HrService {
     private readonly calculator: PayrollCalculator = new PayrollCalculator(),
     private readonly exchangeRate: ExchangeRateService = new ExchangeRateService(
       new ConfigService()
-    )
+    ),
+    private readonly benefits: LaborBenefits = new LaborBenefits()
   ) {}
 
   async findAllEmployees(branchId?: string): Promise<EmployeeResponseDto[]> {
@@ -717,16 +729,18 @@ export class HrService {
           createPayrollRunDto.branchId,
           periodEnd
         );
+        const usedSettings = this.settingsUsedByConcepts(frozenSettings, concepts);
+
         const converter = await this.buildCurrencyConverter(
           currenciesById,
           runCurrency.code,
           activeEmployees
             .map(emp => emp.salaryCurrencyId)
             .filter((id): id is string => id !== null),
-          frozenSettings,
+          usedSettings,
           periodEnd
         );
-        const settings = this.toSettingNumbers(frozenSettings, converter);
+        const settings = this.toSettingNumbers(usedSettings, converter);
 
         for (const emp of activeEmployees) {
           const calculation = this.calculator.calculate(
@@ -781,15 +795,14 @@ export class HrService {
 
   /** ParÃ¡metros del run: su copia congelada o, en runs anteriores a T-02-01, los vigentes. */
   private async settingsForRun(
-    runId: string,
+    runId: string | undefined,
     companyId: string,
     branchId: string,
     asOf: Date
   ): Promise<PayrollSettingRow[]> {
-    const frozen = await db
-      .select()
-      .from(payrollPeriodSettings)
-      .where(eq(payrollPeriodSettings.runId, runId));
+    const frozen = runId
+      ? await db.select().from(payrollPeriodSettings).where(eq(payrollPeriodSettings.runId, runId))
+      : [];
 
     if (frozen.length > 0) {
       return frozen.map(row => ({
@@ -811,7 +824,27 @@ export class HrService {
     }));
   }
 
-  /** Convierte los parÃ¡metros expresados en divisa (`MONEY_USD`) a la moneda del run (M4). */
+  /**
+   * Descarta los parámetros que ningún concepto usa.
+   *
+   * Importa por la moneda: convertir un parámetro en divisa exige una tasa, y no tiene sentido
+   * bloquear una nómina (o el cálculo de prestaciones) porque falte la tasa de un parámetro que
+   * ninguna fórmula lee.
+   */
+  private settingsUsedByConcepts(
+    rows: PayrollSettingRow[],
+    concepts: ConceptDefinition[]
+  ): PayrollSettingRow[] {
+    const used = new Set(
+      concepts.flatMap(concept =>
+        concept.expression ? extractIdentifiers(concept.expression) : []
+      )
+    );
+
+    return rows.filter(row => used.has(row.key));
+  }
+
+  /** Convierte los parámetros expresados en divisa (`MONEY_USD`) a la moneda del run (M4). */
   private toSettingNumbers(
     rows: PayrollSettingRow[],
     converter: CurrencyConverter
@@ -1285,5 +1318,380 @@ export class HrService {
       isSystem: row.isSystem ?? false,
       branchId: row.branchId,
     };
+  }
+
+  /**
+   * Resumen de vacaciones (`T-02-04`): días que corresponden por antigüedad y días pendientes.
+   */
+  async getVacationSummary(
+    employeeId: string,
+    branchId?: string,
+    asOf?: string
+  ): Promise<VacationSummaryDto> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+    const at = asOf ? new Date(asOf) : new Date();
+    const setup = await this.buildBenefitsSetup(employee, branchId, at);
+    const years = this.benefits.serviceYears(employee.hireDate ?? at, at);
+    const entitlement = this.benefits.vacationEntitlement(years, setup.settings);
+
+    const rows = await db
+      .select()
+      .from(employeeVacations)
+      .where(eq(employeeVacations.employeeId, employeeId));
+    const daysTaken = rows.reduce((acc, row) => acc + (row.daysTaken ?? 0), 0);
+
+    return {
+      employeeId,
+      years,
+      vacationDays: entitlement.vacationDays,
+      bonusDays: entitlement.bonusDays,
+      daysTaken,
+      daysPending: Math.max(0, entitlement.vacationDays - daysTaken),
+      normalDaily: setup.normalDaily,
+    };
+  }
+
+  /** Registra un período vacacional y devuelve lo que se paga por vacaciones y bono. */
+  async registerVacation(
+    employeeId: string,
+    dto: RegisterVacationDto,
+    branchId?: string
+  ): Promise<VacationSummaryDto & { vacationAmount: number; bonusAmount: number }> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+    const at = dto.startDate ? new Date(dto.startDate) : new Date();
+    const setup = await this.buildBenefitsSetup(employee, branchId, at);
+    const years = this.benefits.serviceYears(employee.hireDate ?? at, at);
+    const entitlement = this.benefits.vacationEntitlement(years, setup.settings);
+
+    if (dto.days > entitlement.vacationDays) {
+      throw new BadRequestException(
+        `El empleado tiene ${entitlement.vacationDays} días de vacaciones y se intentan tomar ${dto.days}`
+      );
+    }
+
+    const [existing] = await db
+      .select({ id: employeeVacations.id })
+      .from(employeeVacations)
+      .where(
+        and(eq(employeeVacations.employeeId, employeeId), eq(employeeVacations.year, dto.year))
+      )
+      .limit(1);
+
+    if (existing) {
+      throw new ConflictException(`Ya existe el período vacacional ${dto.year} para este empleado`);
+    }
+
+    const pay = this.benefits.vacationPay(setup.normalDaily, years, dto.days, setup.settings);
+
+    await db.insert(employeeVacations).values({
+      id: uuidv4(),
+      employeeId,
+      year: dto.year,
+      totalDays: entitlement.vacationDays,
+      daysTaken: dto.days,
+      daysPending: Math.max(0, entitlement.vacationDays - dto.days),
+      status: dto.days >= entitlement.vacationDays ? 'TAKEN' : 'PENDING',
+      startDate: dto.startDate ? new Date(dto.startDate) : null,
+      endDate: dto.endDate ? new Date(dto.endDate) : null,
+      amount: String(pay.total),
+      notes: dto.notes,
+    });
+
+    return {
+      employeeId,
+      years,
+      vacationDays: entitlement.vacationDays,
+      bonusDays: entitlement.bonusDays,
+      daysTaken: dto.days,
+      daysPending: Math.max(0, entitlement.vacationDays - dto.days),
+      normalDaily: setup.normalDaily,
+      vacationAmount: pay.vacationAmount,
+      bonusAmount: pay.bonusAmount,
+    };
+  }
+
+  /** Prestaciones: garantía acumulada, retroactivo y la modalidad que se paga (RN-11). */
+  async getBenefitsSummary(
+    employeeId: string,
+    branchId?: string,
+    asOf?: string
+  ): Promise<BenefitsSummaryDto> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+    const at = asOf ? new Date(asOf) : new Date();
+    const setup = await this.buildBenefitsSetup(employee, branchId, at);
+    const years = this.benefits.serviceYears(employee.hireDate ?? at, at);
+
+    const deposits = await db
+      .select()
+      .from(employeeBenefits)
+      .where(eq(employeeBenefits.employeeId, employeeId));
+
+    const quartersDeposited = deposits.length;
+    const guaranteeAccumulated = Number(this.moneySum(deposits.map(row => row.amount)));
+    const retroactive = this.benefits.retroactiveAmount(setup.integralDaily, years, setup.settings);
+    const modality = this.benefits.compareModalities(guaranteeAccumulated, retroactive);
+
+    return {
+      employeeId,
+      years,
+      integralDaily: setup.integralDaily,
+      quartersDeposited,
+      guaranteeAccumulated,
+      retroactive,
+      payable: modality.payable,
+      modality: modality.modality,
+    };
+  }
+
+  /** Deposita la garantía de un trimestre (Art. 142 literal “a”). Idempotente por trimestre. */
+  async depositBenefitGuarantee(
+    employeeId: string,
+    dto: DepositBenefitDto,
+    branchId?: string
+  ): Promise<BenefitsSummaryDto> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+    const at = new Date(Date.UTC(dto.year, dto.quarter * 3, 0));
+    const setup = await this.buildBenefitsSetup(employee, branchId, at);
+    const years = this.benefits.serviceYears(employee.hireDate ?? at, at);
+
+    const [existing] = await db
+      .select({ id: employeeBenefits.id })
+      .from(employeeBenefits)
+      .where(
+        and(
+          eq(employeeBenefits.employeeId, employeeId),
+          eq(employeeBenefits.year, dto.year),
+          eq(employeeBenefits.month, dto.quarter * 3)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      throw new ConflictException(
+        `La garantía del trimestre ${dto.quarter} de ${dto.year} ya está depositada`
+      );
+    }
+
+    const deposit = this.benefits.quarterlyDeposit(
+      setup.integralDaily,
+      years,
+      dto.isAnniversaryQuarter ?? false,
+      setup.settings
+    );
+
+    const previous = await db
+      .select({ amount: employeeBenefits.amount })
+      .from(employeeBenefits)
+      .where(eq(employeeBenefits.employeeId, employeeId));
+
+    await db.insert(employeeBenefits).values({
+      id: uuidv4(),
+      employeeId,
+      year: dto.year,
+      month: dto.quarter * 3,
+      monthlySalary: String(setup.monthlySalary),
+      integralSalary: String(setup.integralDaily),
+      days: deposit.days,
+      amount: String(deposit.amount),
+      accumulatedAmount: this.moneySum([
+        ...previous.map(row => row.amount),
+        String(deposit.amount),
+      ]),
+      type: 'GARANTIA',
+      paid: true,
+      paymentDate: new Date(),
+      notes: dto.notes,
+    });
+
+    return this.getBenefitsSummary(employeeId, branchId, at.toISOString());
+  }
+
+  /** Utilidades del ejercicio (Art. 131, RN-16). Idempotente por año. */
+  async registerProfitSharing(
+    employeeId: string,
+    dto: RegisterProfitSharingDto,
+    branchId?: string
+  ): Promise<{ employeeId: string; year: number; days: number; amount: number }> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+    const at = new Date(Date.UTC(dto.year, 11, 31));
+    const setup = await this.buildBenefitsSetup(employee, branchId, at);
+
+    const [existing] = await db
+      .select({ id: employeeProfitSharing.id })
+      .from(employeeProfitSharing)
+      .where(
+        and(
+          eq(employeeProfitSharing.employeeId, employeeId),
+          eq(employeeProfitSharing.year, dto.year)
+        )
+      )
+      .limit(1);
+
+    if (existing) {
+      throw new ConflictException(`Las utilidades de ${dto.year} ya están registradas`);
+    }
+
+    const sharing = this.benefits.profitSharing(
+      setup.normalDaily,
+      dto.monthsWorked,
+      setup.settings
+    );
+
+    await db.insert(employeeProfitSharing).values({
+      id: uuidv4(),
+      employeeId,
+      year: dto.year,
+      daysToPay: sharing.days,
+      amount: String(sharing.amount),
+      paymentDate: dto.paymentDate ? new Date(dto.paymentDate) : null,
+      status: 'PENDING',
+      notes: dto.notes,
+    });
+
+    return { employeeId, year: dto.year, days: sharing.days, amount: sharing.amount };
+  }
+
+  private async findEmployeeOrFail(employeeId: string, branchId?: string) {
+    const [employee] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.id, employeeId))
+      .limit(1);
+
+    // R2: un empleado de otra sucursal se comporta como inexistente.
+    if (!employee || (branchId && employee.branchId && employee.branchId !== branchId)) {
+      throw new NotFoundException(`Employee ${employeeId} not found`);
+    }
+
+    return employee;
+  }
+
+  /**
+   * Contexto para prestaciones y utilidades: parámetros vigentes, catálogo de conceptos y salarios
+   * diarios. El integral sale del **mismo motor** de nómina, no de una fórmula paralela.
+   */
+  private async buildBenefitsSetup(
+    employee: typeof employees.$inferSelect,
+    branchId: string | undefined,
+    asOf: Date
+  ): Promise<{
+    settings: BenefitSettings;
+    normalDaily: number;
+    integralDaily: number;
+    monthlySalary: number;
+  }> {
+    const companyId = await this.resolveCompanyId(branchId ?? employee.branchId ?? undefined);
+    const frozenSettings = await this.settingsForRun(undefined, companyId, branchId ?? '', asOf);
+
+    const settingValues: Record<string, number> = {};
+    for (const row of frozenSettings) settingValues[row.key] = row.value;
+
+    const settings: BenefitSettings = {
+      DIAS_VACACIONES_BASE:
+        settingValues.DIAS_VACACIONES_BASE ?? DEFAULT_BENEFIT_SETTINGS.DIAS_VACACIONES_BASE,
+      TOPE_DIAS_VACACIONES_EXTRA:
+        settingValues.TOPE_DIAS_VACACIONES_EXTRA ??
+        DEFAULT_BENEFIT_SETTINGS.TOPE_DIAS_VACACIONES_EXTRA,
+      DIAS_BONO_VACACIONAL:
+        settingValues.DIAS_BONO_VACACIONAL ?? DEFAULT_BENEFIT_SETTINGS.DIAS_BONO_VACACIONAL,
+      TOPE_DIAS_BONO_EXTRA:
+        settingValues.TOPE_DIAS_BONO_EXTRA ?? DEFAULT_BENEFIT_SETTINGS.TOPE_DIAS_BONO_EXTRA,
+      DIAS_GARANTIA_TRIMESTRE:
+        settingValues.DIAS_GARANTIA_TRIMESTRE ?? DEFAULT_BENEFIT_SETTINGS.DIAS_GARANTIA_TRIMESTRE,
+      DIAS_ADICIONALES_ANIO:
+        settingValues.DIAS_ADICIONALES_ANIO ?? DEFAULT_BENEFIT_SETTINGS.DIAS_ADICIONALES_ANIO,
+      TOPE_DIAS_ADICIONALES:
+        settingValues.TOPE_DIAS_ADICIONALES ?? DEFAULT_BENEFIT_SETTINGS.TOPE_DIAS_ADICIONALES,
+      DIAS_UTILIDADES: settingValues.DIAS_UTILIDADES ?? DEFAULT_BENEFIT_SETTINGS.DIAS_UTILIDADES,
+      TOPE_UTILIDADES_MESES:
+        settingValues.TOPE_UTILIDADES_MESES ?? DEFAULT_BENEFIT_SETTINGS.TOPE_UTILIDADES_MESES,
+      DIAS_RETROACTIVO_ANIO:
+        settingValues.DIAS_RETROACTIVO_ANIO ?? DEFAULT_BENEFIT_SETTINGS.DIAS_RETROACTIVO_ANIO,
+    };
+
+    const companyConcepts = await db
+      .select()
+      .from(payrollConceptTypes)
+      .where(eq(payrollConceptTypes.companyId, companyId));
+
+    const monthlySalary = Number(employee.baseSalary);
+
+    if (companyConcepts.length === 0) {
+      return {
+        settings,
+        normalDaily: this.round6(monthlySalary / 30),
+        integralDaily: this.round6(monthlySalary / 30),
+        monthlySalary,
+      };
+    }
+
+    const currenciesById = await this.loadCurrencies();
+    const employeeCurrency = employee.salaryCurrencyId
+      ? currenciesById.get(employee.salaryCurrencyId)?.code
+      : undefined;
+    const functional =
+      [...currenciesById.values()].find(currency => currency.isBase)?.code ?? 'VES';
+
+    // Sólo los conceptos que pueden mover el salario normal o el integral. El cestaticket y las
+    // deducciones no participan: incluirlos obligaría a tener tasas de moneda y alícuotas que no
+    // tienen nada que ver con las prestaciones.
+    const concepts: ConceptDefinition[] = companyConcepts
+      .filter(
+        concept =>
+          (concept.category === 'ASSIGNMENT' && concept.isSalarial) ||
+          (concept.category === 'INFORMATIVE' && concept.affectsIntegralSalary)
+      )
+      .map(concept => ({
+        code: concept.code,
+        name: concept.name,
+        category: concept.category as ConceptDefinition['category'],
+        kind: concept.kind as ConceptDefinition['kind'],
+        expression: concept.expression,
+        affectsIntegralSalary: concept.affectsIntegralSalary,
+        isSalarial: concept.isSalarial,
+      }));
+
+    const usedSettings = this.settingsUsedByConcepts(frozenSettings, concepts);
+
+    const converter = await this.buildCurrencyConverter(
+      currenciesById,
+      functional,
+      employeeCurrency ? [employeeCurrency] : [],
+      usedSettings,
+      asOf
+    );
+
+    // Un período completo: el motor entrega SALARY_NORMAL mensual y SALARY_INTEGRAL **diario**
+    // (la convención de §9: las alícuotas y el integral se expresan por día).
+    const calculation = this.calculator.calculate(
+      {
+        employeeId: employee.id,
+        baseSalary: monthlySalary,
+        salaryCurrency: employeeCurrency ?? functional,
+      },
+      {
+        periodDays: 30,
+        monthDays: 30,
+        settings: this.toSettingNumbers(usedSettings, converter),
+        concepts,
+        convertToRunCurrency: converter.convert,
+        runCurrency: functional,
+      }
+    );
+
+    return {
+      settings,
+      normalDaily: this.round6(calculation.variables.SALARY_NORMAL / 30),
+      integralDaily: calculation.variables.SALARY_INTEGRAL,
+      monthlySalary: calculation.variables.SALARY_BASE,
+    };
+  }
+
+  private round6(value: number): number {
+    return Number(new MoneyService().round(value, 6));
+  }
+
+  private moneySum(values: Array<string | number>): string {
+    return new MoneyService().sum(values);
   }
 }

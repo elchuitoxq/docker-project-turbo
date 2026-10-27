@@ -38,6 +38,11 @@ import {
   CreatePayrollConceptDto,
   UpdatePayrollConceptDto,
   PayrollConceptResponseDto,
+  VacationSummaryDto,
+  BenefitsSummaryDto,
+  RegisterVacationDto,
+  DepositBenefitDto,
+  RegisterProfitSharingDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
@@ -334,5 +339,76 @@ export class HrController {
     @CurrentBranch() branchId: string
   ): Promise<{ deleted: true }> {
     return this.hrService.deletePayrollConcept(id, branchId);
+  }
+
+  @Get('employees/:id/vacations')
+  @RequirePermissions('hr:employees:view')
+  @ApiOperation({ summary: 'Get vacation entitlement and pending days' })
+  @ApiQuery({ name: 'asOf', required: false })
+  @ApiResponse({ status: 200, description: 'Vacation summary', type: VacationSummaryDto })
+  @ApiResponse({ status: 404, description: 'Employee not found' })
+  async getVacationSummary(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @Query('asOf') asOf?: string
+  ): Promise<VacationSummaryDto> {
+    return this.hrService.getVacationSummary(id, branchId, asOf);
+  }
+
+  @Post('employees/:id/vacations')
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({ summary: 'Register a vacation period and compute vacation and bonus pay' })
+  @ApiBody({ type: RegisterVacationDto })
+  @ApiResponse({ status: 201, description: 'Vacation registered' })
+  @ApiResponse({ status: 400, description: 'More days than entitled' })
+  @ApiResponse({ status: 409, description: 'Vacation period already registered for that year' })
+  async registerVacation(
+    @Param('id') id: string,
+    @Body() dto: RegisterVacationDto,
+    @CurrentBranch() branchId: string
+  ): Promise<VacationSummaryDto & { vacationAmount: number; bonusAmount: number }> {
+    return this.hrService.registerVacation(id, dto, branchId);
+  }
+
+  @Get('employees/:id/benefits')
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({ summary: 'Get severance benefits: both modalities and the payable one' })
+  @ApiQuery({ name: 'asOf', required: false })
+  @ApiResponse({ status: 200, description: 'Benefits summary', type: BenefitsSummaryDto })
+  @ApiResponse({ status: 404, description: 'Employee not found' })
+  async getBenefitsSummary(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @Query('asOf') asOf?: string
+  ): Promise<BenefitsSummaryDto> {
+    return this.hrService.getBenefitsSummary(id, branchId, asOf);
+  }
+
+  @Post('employees/:id/benefits/deposit')
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({ summary: 'Deposit the quarterly severance guarantee' })
+  @ApiBody({ type: DepositBenefitDto })
+  @ApiResponse({ status: 201, description: 'Deposit registered', type: BenefitsSummaryDto })
+  @ApiResponse({ status: 409, description: 'Quarter already deposited' })
+  async depositBenefitGuarantee(
+    @Param('id') id: string,
+    @Body() dto: DepositBenefitDto,
+    @CurrentBranch() branchId: string
+  ): Promise<BenefitsSummaryDto> {
+    return this.hrService.depositBenefitGuarantee(id, dto, branchId);
+  }
+
+  @Post('employees/:id/profit-sharing')
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({ summary: 'Register annual profit sharing (utilidades)' })
+  @ApiBody({ type: RegisterProfitSharingDto })
+  @ApiResponse({ status: 201, description: 'Profit sharing registered' })
+  @ApiResponse({ status: 409, description: 'Profit sharing already registered for that year' })
+  async registerProfitSharing(
+    @Param('id') id: string,
+    @Body() dto: RegisterProfitSharingDto,
+    @CurrentBranch() branchId: string
+  ): Promise<{ employeeId: string; year: number; days: number; amount: number }> {
+    return this.hrService.registerProfitSharing(id, dto, branchId);
   }
 }

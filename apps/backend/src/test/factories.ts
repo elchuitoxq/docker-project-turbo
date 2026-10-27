@@ -52,6 +52,30 @@ export async function createTestCurrency(data?: Partial<typeof currencies.$infer
   return result;
 }
 
+/**
+ * Moneda funcional para las pruebas.
+ *
+ * Los archivos de prueba corren en paralelo contra la misma base, así que ninguno puede dar por
+ * hecho que la moneda base ya existe: la crea el primero que la necesita y los demás la reutilizan.
+ * Antes esto dependía de que `integration.test.ts` no hubiera truncado la base todavía.
+ */
+export async function ensureTestBaseCurrency() {
+  const [existing] = await testDb
+    .select()
+    .from(currencies)
+    .where(eq(currencies.isBase, true))
+    .limit(1);
+  if (existing) return existing;
+
+  const [created] = await testDb
+    .insert(currencies)
+    .values({ code: 'VES', name: 'Bolívar', symbol: 'Bs', isBase: true })
+    .onConflictDoUpdate({ target: currencies.code, set: { isBase: true } })
+    .returning();
+
+  return created;
+}
+
 export async function createTestPartner(data?: Partial<typeof partners.$inferInsert>) {
   const partner = {
     name: `Partner ${faker.company.name()}`,

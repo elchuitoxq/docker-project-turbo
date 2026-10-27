@@ -7,6 +7,7 @@ import {
   createTestPartner,
   createTestProduct,
   createTestUser,
+  ensureTestBaseCurrency,
 } from './factories';
 import { accountsBankStatementsPlaceholder } from './__placeholder';
 import { currencies, exchangeRates, invoices, paymentMethods, payments } from '../schema';
@@ -26,13 +27,7 @@ describe('Tesoreria multimoneda', () => {
   const treasury = new TreasuryService(money);
 
   async function baseCurrency() {
-    const [base] = await testDb
-      .select({ id: currencies.id, code: currencies.code })
-      .from(currencies)
-      .where(eq(currencies.isBase, true))
-      .limit(1);
-    if (!base) throw new Error('No base currency configured');
-    return base;
+    return await ensureTestBaseCurrency();
   }
 
   async function paymentMethodId(): Promise<string> {

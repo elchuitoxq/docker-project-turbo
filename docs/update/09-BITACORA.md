@@ -1114,3 +1114,80 @@ Añadir un concepto nuevo no exige tocar el motor: se declara con su fórmula y 
 - Casos dorados de §9 en `payroll.calculator.test.ts` (19 pruebas) y cableado completo en
   `src/test/payroll-engine.test.ts` (6 pruebas, incluida la conversión de moneda y el run huérfano).
 - `pnpm --filter backend openapi:export` para mantener el contrato en sincronía.
+
+### BT-042 · 2026-10-27 · E2: prestaciones, vacaciones y utilidades (T-02-04)
+
+**Qué se hizo**
+
+Las tres prestaciones que la nómina venezolana trata fuera del recibo mensual, con las mismas reglas
+para todas las empresas y **sin valores legales hardcodeados**:
+
+| Pieza                       | Archivo                                                 |
+| --------------------------- | ------------------------------------------------------- |
+| Reglas LOTTT parametrizadas | `modules/hr/payroll/labor-benefits.ts`                  |
+| Persistencia y endpoints    | `modules/hr/services/hr.service.ts`, `hr.controller.ts` |
+
+| Capacidad           | Regla que implementa                                                     |
+| ------------------- | ------------------------------------------------------------------------ |
+| Vacaciones y bono   | 15 + 1 por año desde el segundo, con tope (RN-14/RN-15)                  |
+| Garantía trimestral | 15 días por trimestre + días adicionales en el trimestre del aniversario |
+| Dos modalidades     | Garantía acumulada vs retroactivo; se informa la mayor (RN-11)           |
+| Utilidades          | Días mínimos, proporcional por meses y tope en meses (RN-16)             |
+| Idempotencia        | `409` si el trimestre o el ejercicio ya están registrados (RN-13)        |
+
+**El salario integral no se duplica: se toma del motor**
+
+Prestaciones y utilidades necesitan el integral diario. En vez de escribir una segunda fórmula, el
+servicio ejecuta el **mismo motor** de nómina y lee la base `SALARY_INTEGRAL`. Si mañana cambia la
+definición del integral, cambia en un solo lugar.
+
+> Ojo con la unidad: `SALARY_INTEGRAL` es **diario** y `SALARY_NORMAL` es **mensual**. La primera
+> versión dividió el integral entre 30 y el resultado salió 30 veces más chico (12,25 en vez de
+> 367,59). Los tests lo cazaron de inmediato; queda anotado aquí porque es el error fácil de repetir.
+
+**Un detalle que sólo aparece con datos reales**
+
+Al probar utilidades, la operación fallaba con `400 Falta la tasa de cambio de USD`: el cálculo de
+prestaciones ejecutaba el catálogo completo, incluido el cestaticket, y convertir el cestaticket exige
+la tasa del dólar. Pero las prestaciones **no dependen del cestaticket**. Ahora:
+
+1. Sólo se convierten los parámetros que las fórmulas involucradas **realmente usan**.
+2. Para prestaciones y utilidades sólo participan los conceptos que pueden mover el salario normal o
+   el integral (asignaciones salariales y alícuotas), no las deducciones ni el cestaticket.
+
+Resultado: prestaciones y utilidades ya no dependen de la tasa de cambio.
+
+**Hallazgo colateral corregido (H-68)**
+
+La suite completa empezó a fallar de forma intermitente en archivos que no había tocado
+(`billing-multicurrency`, `treasury-multicurrency`, `payroll-settings`) con "No base currency
+configured". Causa: `integration.test.ts` hacía `cleanDatabase()` —un `TRUNCATE` de todo el
+esquema— mientras el resto de las suites corre en paralelo contra la misma base. Se eliminó el
+truncado global y se agregó `ensureTestBaseCurrency()`, que crea la moneda funcional si falta. Tres
+corridas seguidas verdes confirman que el problema era ese.
+
+**Verificación en vivo (stack real)**
+
+| Prueba                                         | Resultado                                                                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------- |
+| `GET /employees/:id/vacations?asOf=2026-10-27` | 3 años, **17** días de vacaciones, **9** de bono, diario 333,333333         |
+| `POST /vacations` (15 días)                    | vacaciones **5.000**, bono **3.000**, pendientes **2**                      |
+| `POST /vacations` repetido                     | **409**                                                                     |
+| `GET /benefits`                                | integral **367,592593**, retroactivo **33.083,33**, modalidad `RETROACTIVE` |
+| `POST /benefits/deposit` (2026 Q4)             | garantía **5.513,89**, 1 trimestre                                          |
+| `POST /benefits/deposit` repetido              | **409**                                                                     |
+| `POST /profit-sharing` (12 meses)              | **30 días**, **10.000**                                                     |
+| `POST /profit-sharing` repetido                | **409**                                                                     |
+
+**Estado**
+
+- Backend **828/828** · database **39/39** · turbo `lint typecheck build` **12/12** ·
+  `test:coverage` **4/4** · `format:check` verde · 0 vulnerabilidades.
+- Plan: **46 de 100 tareas**; E2 con 5 de 11.
+- Datos de prueba eliminados (empleado de prueba, sus vacaciones, prestaciones y utilidades).
+
+**Verificación**
+
+- 18 pruebas unitarias de las reglas (`labor-benefits.test.ts`) con los importes de §9 y 15 de
+  integración (`hr-benefits.test.ts`) que cubren persistencia, idempotencia y aislamiento por sucursal.
+- `pnpm --filter backend openapi:export` para mantener el contrato en sincronía.

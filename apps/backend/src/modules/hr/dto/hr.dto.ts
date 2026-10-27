@@ -7,8 +7,10 @@ import {
   IsDateString,
   IsBoolean,
   IsISO8601,
+  IsInt,
   Matches,
   Min,
+  Max,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -700,4 +702,129 @@ export class PayrollConceptResponseDto {
 
   @ApiProperty({ nullable: true })
   branchId: string | null;
+}
+
+export class VacationSummaryDto {
+  @ApiProperty()
+  employeeId: string;
+
+  @ApiProperty({ description: 'Años de servicio cumplidos', example: 3 })
+  years: number;
+
+  @ApiProperty({ description: 'Días de vacaciones que corresponden', example: 17 })
+  vacationDays: number;
+
+  @ApiProperty({ description: 'Días de bono vacacional que corresponden', example: 9 })
+  bonusDays: number;
+
+  @ApiProperty({ example: 0 })
+  daysTaken: number;
+
+  @ApiProperty({ example: 17 })
+  daysPending: number;
+
+  @ApiProperty({ description: 'Salario normal diario', example: 333.33 })
+  normalDaily: number;
+}
+
+export class BenefitsSummaryDto {
+  @ApiProperty()
+  employeeId: string;
+
+  @ApiProperty({ example: 5 })
+  years: number;
+
+  @ApiProperty({ description: 'Salario integral diario', example: 367.59 })
+  integralDaily: number;
+
+  @ApiProperty({ description: 'Trimestres depositados', example: 20 })
+  quartersDeposited: number;
+
+  @ApiProperty({ example: 113218.52 })
+  guaranteeAccumulated: number;
+
+  @ApiProperty({ example: 55138.89 })
+  retroactive: number;
+
+  @ApiProperty({ description: 'Monto que se paga: la modalidad mayor (RN-11)', example: 113218.52 })
+  payable: number;
+
+  @ApiProperty({ enum: ['GUARANTEE', 'RETROACTIVE'] })
+  modality: 'GUARANTEE' | 'RETROACTIVE';
+}
+
+export class RegisterVacationDto {
+  @ApiProperty({ description: 'Año del período vacacional', example: 2026 })
+  @IsInt()
+  @Min(2000)
+  year: number;
+
+  @ApiProperty({ description: 'Días de vacaciones a tomar', example: 15 })
+  @IsInt()
+  @Min(1)
+  days: number;
+
+  @ApiPropertyOptional({ example: '2026-11-02' })
+  @IsOptional()
+  @IsISO8601()
+  startDate?: string;
+
+  @ApiPropertyOptional({ example: '2026-11-20' })
+  @IsOptional()
+  @IsISO8601()
+  endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class DepositBenefitDto {
+  @ApiProperty({ example: 2026 })
+  @IsInt()
+  @Min(2000)
+  year: number;
+
+  @ApiProperty({ description: 'Trimestre 1-4', example: 4 })
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  quarter: number;
+
+  @ApiPropertyOptional({
+    description: 'Si en el trimestre se cumple el aniversario, se suman los días adicionales',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isAnniversaryQuarter?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class RegisterProfitSharingDto {
+  @ApiProperty({ description: 'Ejercicio fiscal', example: 2025 })
+  @IsInt()
+  @Min(2000)
+  year: number;
+
+  @ApiProperty({ description: 'Meses completos trabajados en el ejercicio', example: 12 })
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  monthsWorked: number;
+
+  @ApiPropertyOptional({ example: '2026-03-15' })
+  @IsOptional()
+  @IsISO8601()
+  paymentDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

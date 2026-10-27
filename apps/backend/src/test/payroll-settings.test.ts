@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { testDb } from './database';
-import { createTestBranch, createTestUser } from './factories';
+import { createTestBranch, createTestUser, ensureTestBaseCurrency } from './factories';
 import { branches, currencies, payrollItemLines, payrollItems } from '../schema';
 import { HrService } from '../modules/hr/services/hr.service';
 import { PayrollConceptCategory, PayrollConceptKind } from '../modules/hr/dto/hr.dto';
@@ -303,12 +303,7 @@ async function createPayrollRun(
   startDate: string,
   endDate: string
 ) {
-  const [currency] = await testDb
-    .select({ id: currencies.id })
-    .from(currencies)
-    .where(eq(currencies.isBase, true))
-    .limit(1);
-  if (!currency) throw new Error('No base currency configured');
+  const currency = await ensureTestBaseCurrency();
 
   return hr.generatePayroll(
     {

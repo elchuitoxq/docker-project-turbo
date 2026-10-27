@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { faker } from '@faker-js/faker';
 import { testDb } from './database';
-import { createTestBranch, createTestCurrency } from './factories';
+import { createTestBranch, createTestCurrency, ensureTestBaseCurrency } from './factories';
 import {
   currencies,
   employees,
@@ -108,15 +108,8 @@ const SETTINGS: Array<{ key: string; value: string; type: string }> = [
 ];
 
 async function baseCurrency() {
-  const [currency] = await testDb
-    .select()
-    .from(currencies)
-    .where(eq(currencies.isBase, true))
-    .limit(1);
-  if (!currency) throw new Error('No base currency configured');
-  return currency;
+  return await ensureTestBaseCurrency();
 }
-
 /**
  * El parámetro `CESTATICKET_USD` se convierte contra la moneda real `USD`, así que la prueba la
  * necesita con una tasa para la fecha del período. Se reutiliza si ya existe.
