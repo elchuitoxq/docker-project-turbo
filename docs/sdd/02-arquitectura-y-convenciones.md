@@ -49,8 +49,22 @@ Reglas a partir de ahora (implementadas en `S-00`):
 
 - Montos en `numeric(18,4)` en BD; en la API se serializan como **string** (nunca `number` float).
 - Cálculos con `decimal.js`/`dinero` en el servicio, jamás aritmética flotante.
-- Moneda: toda fila con monto lleva `currencyId` y `exchangeRate` cuando aplique (BCV a la fecha).
 - Fechas en ISO-8601 UTC; los cierres y períodos usan fecha local de Venezuela (UTC-4).
+
+### 4.1 Multimoneda — reglas obligatorias ([`S-08`](./specs/S-08-multimoneda.md))
+
+| Regla   | Detalle                                                                                                                                                        |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M1**  | Existe **una sola** moneda funcional (base) en `currencies.isBase`, garantizada por restricción de BD. Toda agregación contable y de reportes va en ella.      |
+| **M2**  | Todo documento con monto persiste **tríada**: `currencyId`, `exchangeRate` aplicado y monto en moneda base (`amountBase`/`totalBase`).                         |
+| **M3**  | La tasa se **congela al emitir**. Nunca se recalcula un documento con la tasa de hoy.                                                                          |
+| **M4**  | La conversión ocurre **sólo** en `MoneyService`. Multiplicar un monto a mano (o con `parseFloat`) es motivo de rechazo del PR.                                 |
+| **M5**  | El **dólar es la referencia**: `exchange_rates.rate` = unidades de moneda base por 1 USD; otras monedas guardan su tasa directa con la convención documentada. |
+| **M6**  | IGTF se decide por `currencyId != baseCurrencyId`, **nunca** por `rate > 1`.                                                                                   |
+| **M7**  | Redondeo: precisión completa en el cálculo, redondeo sólo al persistir (`HALF_UP`, 2 decimales en base).                                                       |
+| **M8**  | Un pago en moneda distinta a la factura genera **diferencia cambiaria** como línea contable, no como residuo de redondeo.                                      |
+| **M9**  | La tasa puede venir de BCV o de un override humano; el override exige motivo, permiso `settings:currencies:override` y queda en `exchange_rate_log`.           |
+| **M10** | Los reportes se **agregan en base** y opcionalmente se presentan en otra moneda con la tasa de la fecha de corte, etiquetando siempre la conversión.           |
 
 ## 5. Auditoría
 

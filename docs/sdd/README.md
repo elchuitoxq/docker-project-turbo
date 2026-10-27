@@ -26,7 +26,7 @@
 | [`01-gap-analysis.md`](./01-gap-analysis.md)                                 | Matriz completa backend ↔ frontend ↔ docs y defectos de contrato         |
 | [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md)   | Patrones obligatorios (módulos, RBAC, multi-sucursal, dinero, auditoría) |
 | [`03-roadmap.md`](./03-roadmap.md)                                           | Épicas, secuencia, criterios de salida y Definition of Done              |
-| [`04-plan-de-tareas.md`](./04-plan-de-tareas.md)                             | WBS: 87 tareas con dependencias, verificación y registro de avance       |
+| [`04-plan-de-tareas.md`](./04-plan-de-tareas.md)                             | WBS: 99 tareas con dependencias, verificación y registro de avance       |
 | [`specs/S-00-aislamiento-sucursal.md`](./specs/S-00-aislamiento-sucursal.md) | Aislamiento por sucursal + auditoría (cimiento P0)                       |
 | [`specs/S-01-contratos-p0.md`](./specs/S-01-contratos-p0.md)                 | Arreglar contratos rotos (HR, inventario, billing/finance)               |
 | [`specs/S-02-nomina-ve.md`](./specs/S-02-nomina-ve.md)                       | Completar nómina Venezuela (settings, conceptos, liquidación)            |
@@ -35,6 +35,7 @@
 | [`specs/S-05-tesoreria-cobranzas.md`](./specs/S-05-tesoreria-cobranzas.md)   | Métodos, cuentas, conciliación y estado de cuenta                        |
 | [`specs/S-06-reportes-fiscales.md`](./specs/S-06-reportes-fiscales.md)       | Libros, retenciones TXT/XML y validaciones fiscales                      |
 | [`specs/S-07-frontend-restante.md`](./specs/S-07-frontend-restante.md)       | Notas de crédito, préstamos, auditoría y home con BI                     |
+| [`specs/S-08-multimoneda.md`](./specs/S-08-multimoneda.md)                   | Multimoneda con el dólar como referencia (transversal P0)                |
 
 ## Reglas de Oro del SDD
 

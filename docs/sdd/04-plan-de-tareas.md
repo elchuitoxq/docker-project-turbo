@@ -77,6 +77,32 @@ Medición sobre `packages/database/src/schema.ts`: **50 tablas**, **18 con `bran
 
 ---
 
+## 1.5 Épica E8 · Multimoneda con el dólar como referencia — [`S-08`](./specs/S-08-multimoneda.md)
+
+> Requisito declarado por el negocio el 2026-10-26. Es **transversal y P0**: sin esto, el libro
+> contable y los reportes no declaran en qué moneda están, y la tasa puede quedar congelada sin aviso.
+> El número de la épica no indica el turno; el orden está en §10.
+
+| ID      | Tarea                                                                                                   | Artefactos                                                        | Depende | Verificación                                                     | Talla | Estado |
+| ------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------- | ---------------------------------------------------------------- | ----- | ------ |
+| T-08-01 | **Decisión D-01** de moneda funcional y política de tasa, redondeo e IGTF (documento aprobado)          | `docs/MULTIMONEDA.md` (nuevo)                                     | —       | revisión de contabilidad; sin código todavía                     | S     | ⬜     |
+| T-08-02 | Restricción de **una sola** moneda base + seed idempotente VES/USD                                      | `currencies`, `seed-core.ts`                                      | T-08-01 | intento de segunda base falla en BD                              | S     | ⬜     |
+| T-08-03 | `exchange_rates`: único `(currencyId, date)`, `source`, `createdBy`; historial paginado                 | migración + `modules/settings/currencies/*`                       | T-08-02 | dos tasas mismo día y moneda → `409`                             | M     | ⬜     |
+| T-08-04 | Job programado de tasa BCV (`@nestjs/schedule`, 08:00 America/Caracas) con reintentos                   | `modules/cron/*`, `ScheduleModule`                                | T-08-03 | corre solo; `GET /health/rates` refleja la hora                  | L     | ⬜     |
+| T-08-05 | Retirar scraping frágil y el `FALLBACK_API_URL` corrupto; validación de cordura (≤ 0, variación diaria) | `modules/cron/cron.service.ts`                                    | T-08-04 | tasa basura rechazada con `422` y queda la anterior              | M     | ⬜     |
+| T-08-06 | `payments.amountBase` + backfill; `tax_retentions` con moneda y tasa                                    | migración + `modules/treasury`, `modules/billing`                 | T-08-02 | backfill cuadra con `amount * exchange_rate`                     | M     | ⬜     |
+| T-08-07 | Libro en moneda funcional: `accounting_entries.baseCurrencyId` + original en la línea                   | migración + `modules/accounting/*`                                | T-08-02 | asiento de factura USD suma en base y conserva original          | L     | ⬜     |
+| T-08-08 | IGTF por `currencyId != base` (elimina la heurística `rate > 1`)                                        | `modules/billing/services/billing.service.ts`                     | T-08-02 | test: moneda extranjera con tasa 1,0 igual aplica IGTF           | S     | ⬜     |
+| T-08-09 | `MoneyService.convert()` único con `decimal.js` y política de redondeo                                  | `apps/backend/src/common/money/*` (nuevo)                         | T-08-01 | unit: 1 / 36,5 / 0 → error; HALF_UP                              | M     | ⬜     |
+| T-08-10 | Frescura de tasa: `getExchangeRate` rechaza tasas fuera del umbral y la emisión exige confirmación      | `billing.service.ts`, `treasury/*`                                | T-08-04 | tasa de hace 3 días no se usa en silencio                        | M     | ⬜     |
+| T-08-11 | Diferencia cambiaria al cobrar en moneda distinta a la factura                                          | `modules/treasury/*`, `modules/accounting/*`                      | T-08-07 | cobro en VES de factura USD deja saldo 0 con línea de diferencia | L     | ⬜     |
+| T-08-12 | Frontend: formato por moneda, monto dual y aviso de tasa vencida                                        | `global-rate-display.tsx`, `lib/utils.ts`, formularios de emisión | T-08-10 | E2E: aviso bloquea emisión hasta confirmar                       | M     | ⬜     |
+
+**Gate de salida E8:** una factura en USD cobrada en VES a tasa distinta cierra el saldo en cero con
+la diferencia asentada, y ningún reporte suma monedas distintas sin convertir.
+
+---
+
 ## 2. Épica E1 · Reparar contratos — [`S-01`](./specs/S-01-contratos-p0.md)
 
 Tres frentes independientes = tres PR. **No se crean alias** (`/calculate`, `/approve`): se corrige el
@@ -244,24 +270,26 @@ trazada.
 ## 10. Secuencia y registro de avance
 
 > **El número de la épica identifica la spec, no el orden de ejecución.** La secuencia acordada el
-> 2026-10-26 adelanta la obligación fiscal (E6) antes de compras/CxP (E3) y de tesorería (E5).
+> 2026-10-26 adelanta la obligación fiscal (E6) antes de compras/CxP (E3) y de tesorería (E5), e
+> incorpora multimoneda (E8) antes de contabilidad porque el libro debe nacer con moneda funcional.
 
-| Ola | Semanas | Épica / tareas                 | Tareas | Hechas |
-| --- | ------- | ------------------------------ | ------ | ------ |
-| 1   | 1       | E0 backend (T-00-01 … T-00-07) | 7      | 2      |
-| 2   | 2       | E0 cierre (T-00-08 … T-00-13)  | 6      | 0      |
-| 3   | 3       | E1 frentes A, B y C            | 17     | 0      |
-| 4   | 4-5     | E2 nómina                      | 11     | 0      |
-| 5   | 6-7     | **E4 contabilidad**            | 9      | 0      |
-| 6   | 8-9     | **E6 reportes fiscales**       | 6      | 0      |
-| 7   | 10-11   | **E3 compras y CxP**           | 9      | 0      |
-| 8   | 12-13   | **E5 tesorería**               | 9      | 0      |
-| 9   | 14      | E7 frontend restante           | 7      | 0      |
-| —   | —       | Transversales                  | 6      | 0      |
-| —   | —       | **Total**                      | **87** | **2**  |
+| Ola | Semanas | Épica / tareas                         | Tareas | Hechas |
+| --- | ------- | -------------------------------------- | ------ | ------ |
+| 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13     | 2      |
+| 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-12)** | 12     | 0      |
+| 3   | 5       | E1 frentes A, B y C                    | 17     | 0      |
+| 4   | 6-7     | E2 nómina                              | 11     | 0      |
+| 5   | 8-9     | E4 contabilidad                        | 9      | 0      |
+| 6   | 10-11   | E6 reportes fiscales                   | 6      | 0      |
+| 7   | 12-13   | E3 compras y CxP                       | 9      | 0      |
+| 8   | 14-15   | E5 tesorería                           | 9      | 0      |
+| 9   | 16      | E7 frontend restante                   | 7      | 0      |
+| —   | —       | Transversales                          | 6      | 0      |
+| —   | —       | **Total**                              | **99** | **2**  |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
-con el mismo defecto). E1 antes de E2-E7 porque desbloquea pantallas hoy rotas con esfuerzo bajo.
+con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y
+antes de E3/E5/E6, que producen documentos con monto.
 
 **Consecuencias de adelantar E6 (decisión del 2026-10-26):**
 
@@ -283,8 +311,12 @@ con el mismo defecto). E1 antes de E2-E7 porque desbloquea pantallas hoy rotas c
 | Migraciones de 12 columnas en una sola tanda                               | Migración por tabla con su backfill y verificación de conteos                                              |
 | La base de desarrollo hoy tiene 5 facturas, 3 pagos y 2 sucursales         | Backfill trivial en dev; si hay producción con datos, definir sucursal por defecto y registrar excepciones |
 | `docs/09-HR-NOMINA-VENEZUELA.md` citado en S-02 **no existía**             | Se crea en T-02-00 antes de tocar el motor de cálculo                                                      |
+| Elegir mal la moneda funcional (D-01) encarece todo lo que venga después   | T-08-01 se cierra como documento aprobado **antes** de tocar esquema o código                              |
+| El scraping de BCV se rompe cuando cambian el HTML                         | Job con reintentos, alerta por antigüedad de la tasa y override manual auditado                            |
+| Documentos históricos sin tasa verificable                                 | Backfill con la tasa del documento; si no existe, la del día y la fila se marca para revisión              |
 
-## 12. Fuera de alcance (no entra en estas 14 semanas)
+## 12. Fuera de alcance (no entra en estas 16 semanas)
 
 Activos fijos y depreciación · presupuestos · multi-empresa contable · app móvil de inventario ·
-transmisión automática al SENIAT · RLS de PostgreSQL · integración bancaria directa.
+transmisión automática al SENIAT · RLS de PostgreSQL · integración bancaria directa ·
+**revaluación de saldos por variación cambiaria** y cobertura de riesgo cambiario (posterior a `S-08`).

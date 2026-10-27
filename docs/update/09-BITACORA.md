@@ -515,3 +515,49 @@ Hasta la semana 10 el **libro de compras y las retenciones de compra** quedan in
 - `pnpm format:check` verde · enlaces relativos validados · tablas markdown con el mismo número de
   columnas por tabla (sin filas partidas por pipes dentro de code spans).
 - Sin cambios de código funcional; `git status` limpio tras el commit.
+
+---
+
+### BT-032 · 2026-10-26 · Requisito nuevo: multimoneda con el dólar como base
+
+**Qué pidió el negocio**
+
+El sistema debe operar en **multimoneda tomando el precio del dólar como referencia**, antes de
+empezar a implementar.
+
+**Qué se auditó (medido, no supuesto)**
+
+Ya existía intención de multimoneda (`currencies.isBase`, `exchange_rates`, `invoices` con
+`currencyId` + `exchangeRate` + `totalBase`), pero falta la garantía. Hallazgos nuevos:
+
+| ID   | Hallazgo                                                                                           |
+| ---- | -------------------------------------------------------------------------------------------------- |
+| H-49 | 🔴 El libro contable **no declara moneda**: `accounting_entry_lines.debit/credit` sin `currencyId` |
+| H-50 | 🟠 La tasa **nunca se actualiza sola**: scraping BCV sin `@Cron`/`ScheduleModule`                  |
+| H-51 | 🟠 El `FALLBACK_API_URL` del servicio de tasas apunta a un dominio con mojibake (servicio ajeno)   |
+| H-52 | 🟠 `getExchangeRate()` usa la última tasa **sin validar antigüedad**                               |
+| H-53 | 🟡 IGTF por heurística `rate > 1` en vez de `currencyId != base`                                   |
+| H-54 | 🟡 `payments` sin `amountBase` y `tax_retentions` sin moneda                                       |
+
+**Qué se creó**
+
+- Spec [`docs/sdd/specs/S-08-multimoneda.md`](../sdd/specs/S-08-multimoneda.md) completa (10 secciones).
+- Reglas **M1…M10** en [`02-arquitectura-y-convenciones.md`](../sdd/02-arquitectura-y-convenciones.md) §4.1.
+- Épica **E8** con 12 tareas (T-08-01 … T-08-12) en [`04-plan-de-tareas.md`](../sdd/04-plan-de-tareas.md) §1.5.
+- Sección §5 nueva en [`01-gap-analysis.md`](../sdd/01-gap-analysis.md) y el módulo 18 pasó de ✅ a 🟡.
+
+**Efecto en la secuencia**
+
+Entra como **ola 2 (semanas 3-4)**, antes de contabilidad: el libro no puede nacer sin moneda
+funcional. El plan pasa de 87 a **99 tareas** y de 14 a **16 semanas**.
+
+**Decisión abierta (D-01, T-08-01)**
+
+Elegir la **moneda funcional** del libro: VES (criterio fiscal venezolano, con USD como referencia
+de precio) o USD (operación dolarizada). Se resuelve antes de tocar esquema o código.
+
+**Verificación**
+
+- Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
+  `tax_retentions`, `accounting_entry_lines`) y de `modules/cron/cron.service.ts`.
+- `pnpm format:check` verde · enlaces relativos validados · árbol limpio.

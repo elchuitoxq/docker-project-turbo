@@ -38,7 +38,7 @@
 | 15  | `loans`                 | listado, detalle, approve, reject, pay                                                          | —                                                  | ⚪     | Sin UI                                                                                                                               |
 | 16  | `audit`                 | `GET /audit/:entityTable/:entityId`                                                             | —                                                  | ⚪     | Sin UI ni endpoint de listado/búsqueda                                                                                               |
 | 17  | `bi`                    | kpis, chart, activity                                                                           | `dashboard/bi`                                     | ✅     | El **home** del dashboard es un stub                                                                                                 |
-| 18  | `settings/currencies`   | tasas (`latest`, historial)                                                                     | `settings/currencies`                              | ✅     | Falta UI de carga manual de tasa                                                                                                     |
+| 18  | `settings/currencies`   | tasas (`latest`, historial)                                                                     | `settings/currencies`                              | 🟡     | Tasa sin actualización automática ni validación de frescura; falta override manual auditado y UI de carga (ver §5)                   |
 | 19  | `settings/banks`        | listado, alta, toggle                                                                           | `settings/banks`                                   | ✅     | —                                                                                                                                    |
 | 20  | `settings/tax-concepts` | CRUD                                                                                            | `settings/tax-concepts`                            | ✅     | —                                                                                                                                    |
 | 21  | `cron`                  | trigger BCV                                                                                     | —                                                  | ✅     | Correcto sin UI (admin)                                                                                                              |
@@ -128,8 +128,29 @@ De `docs/PLANNING.md` §5.2 ("31 páginas") contra las 22 rutas actuales:
 | **Caja chica** (fondo fijo, rendiciones)                                                      | Operación diaria de sucursal                                                              | `S-05`                   |
 | **Activos fijos y depreciación**                                                              | Requisito contable/fiscal                                                                 | Backlog (`S-04` §futuro) |
 | **Presupuestos**                                                                              | Control de gestión                                                                        | Backlog                  |
-| **Notificaciones transaccionales** (más allá de reset)                                        | Facturas, vencimientos                                                                    | Backlog                  |
-| **Portal de clientes**                                                                        | Autoservicio                                                                              | Fuera de alcance         |
+
+---
+
+## 5. Multimoneda (requisito del 2026-10-26)
+
+El negocio exige operar en multimoneda **con el precio del dólar como referencia**. Lo que hay hoy:
+
+| Pieza                                    | Estado | Detalle                                                              |
+| ---------------------------------------- | ------ | -------------------------------------------------------------------- |
+| `currencies` con `isBase`                | 🟡     | Existe, pero nada garantiza **una sola** moneda base                 |
+| `exchange_rates` (`rate` 20,10 + `date`) | 🟡     | Sin índice único por día ni campo de fuente (`BCV`/`MANUAL`)         |
+| Facturas con moneda + tasa + total base  | ✅     | `invoices` es el único documento que lo hace bien                    |
+| Pagos con monto en base                  | ⛔     | `payments` guarda `amount` + `exchangeRate` pero **no `amountBase`** |
+| Retenciones con moneda                   | ⛔     | `tax_retentions` sin `currencyId` ni tasa                            |
+| Libro contable con moneda funcional      | ⛔     | `accounting_entries`/`_lines` sin moneda (H-49)                      |
+| Actualización automática de la tasa      | ⛔     | Scraping BCV sin `@Cron`; sólo un `GET` manual (H-50)                |
+| Validación de frescura de la tasa        | ⛔     | Se usa la última fila sin importar su antigüedad (H-52)              |
+| IGTF correcto                            | 🟡     | Se infiere con `rate > 1` en vez de `currencyId != base` (H-53)      |
+
+**Spec:** [`specs/S-08-multimoneda.md`](./specs/S-08-multimoneda.md) · **Épica:** E8 · **Bloquea a:**
+`S-04`, `S-06`, `S-03` y `S-05`.
+| **Notificaciones transaccionales** (más allá de reset) | Facturas, vencimientos | Backlog |
+| **Portal de clientes** | Autoservicio | Fuera de alcance |
 
 ---
 
