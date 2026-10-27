@@ -1651,6 +1651,53 @@
         ]
       }
     },
+    "/v1/hr/payroll/{id}/pay": {
+      "post": {
+        "operationId": "HrController_payPayrollRun",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayPayrollRunDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollPaymentResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Nothing to pay or missing exchange rate"
+          },
+          "409": {
+            "description": "Run marked as paid without a registered payment"
+          }
+        },
+        "summary": "Pay the payroll run through treasury (idempotent: one payment per run)",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/v1/hr/payroll/{runId}/payslip/{itemId}": {
       "get": {
         "operationId": "HrController_getPayslip",
@@ -6895,6 +6942,10 @@
             "type": "string",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
+          "code": {
+            "type": "string",
+            "example": "PAY-00001"
+          },
           "invoiceId": {
             "type": "string",
             "nullable": true,
@@ -6902,6 +6953,8 @@
           },
           "partnerId": {
             "type": "string",
+            "nullable": true,
+            "description": "Nulo en pagos de nómina: el beneficiario es un empleado, no un partner",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "branchId": {
@@ -6934,6 +6987,15 @@
             "type": "object",
             "example": 50
           },
+          "amountBase": {
+            "type": "object",
+            "description": "Monto en moneda funcional",
+            "example": 36500
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Datos adicionales: diferencia cambiaria del cobro o el run de nómina pagado"
+          },
           "bankAccountId": {
             "type": "string",
             "nullable": true,
@@ -6964,7 +7026,7 @@
         },
         "required": [
           "id",
-          "partnerId",
+          "code",
           "branchId",
           "methodId",
           "amount",
@@ -7820,6 +7882,99 @@
           "startDate",
           "endDate",
           "currencyId"
+        ]
+      },
+      "PayPayrollRunDto": {
+        "type": "object",
+        "properties": {
+          "methodId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Método de pago usado para pagar la nómina"
+          },
+          "bankAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Cuenta bancaria de la que sale el dinero"
+          },
+          "exchangeRate": {
+            "type": "number",
+            "minimum": 1e-7,
+            "description": "Tasa manual a la moneda funcional. Sin ella se usa la tasa del período",
+            "example": 36.5
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-11-01"
+          },
+          "reference": {
+            "type": "string",
+            "example": "Nómina octubre 2026"
+          }
+        },
+        "required": [
+          "methodId"
+        ]
+      },
+      "PayrollPaymentResponseDto": {
+        "type": "object",
+        "properties": {
+          "payrollRunId": {
+            "type": "string"
+          },
+          "runCode": {
+            "type": "string",
+            "example": "NOM-000001"
+          },
+          "runStatus": {
+            "type": "string",
+            "example": "PAID"
+          },
+          "alreadyPaid": {
+            "type": "boolean",
+            "description": "true si el run ya estaba pagado y se devuelve el pago existente"
+          },
+          "paymentId": {
+            "type": "string"
+          },
+          "paymentCode": {
+            "type": "string",
+            "example": "PAY-00001"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Monto en la moneda del run",
+            "example": 10910
+          },
+          "amountBase": {
+            "type": "number",
+            "description": "Monto en moneda funcional",
+            "example": 10910
+          },
+          "currencyId": {
+            "type": "string"
+          },
+          "exchangeRate": {
+            "type": "number",
+            "example": 1
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-11-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "payrollRunId",
+          "runCode",
+          "runStatus",
+          "alreadyPaid",
+          "paymentId",
+          "paymentCode",
+          "amount",
+          "amountBase",
+          "currencyId",
+          "exchangeRate",
+          "date"
         ]
       },
       "PayslipDto": {

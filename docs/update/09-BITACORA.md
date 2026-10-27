@@ -1260,3 +1260,66 @@ baja a **50.083,33** porque no hay indemnización.
 - 8 pruebas de integración en `hr-settlement.test.ts`: desglose completo, despido injustificado,
   empleado marcado como egresado, idempotencia (409), causa inválida (400), consulta sin liquidación
   (404), descuento de vacaciones tomadas y aislamiento por sucursal.
+
+### BT-044 · 2026-10-27 · E2: el pago de nómina llega a tesorería (T-02-06)
+
+**Qué se hizo**
+
+`POST /hr/payroll/:id/pay`. El run deja de ser un documento que sólo se calcula: ahora se paga, y el
+pago es un movimiento real de tesorería con su código `PAY-nnnnn`, su asiento en la cuenta bancaria y
+su `payrollRunId`.
+
+| Pieza                       | Dónde                                                              |
+| --------------------------- | ------------------------------------------------------------------ |
+| Índice único por run        | `payments_payroll_run_unq` (parcial, `payroll_run_id`)             |
+| `partnerId` nullable        | un pago de nómina no tiene partner: el beneficiario es un empleado |
+| Registro del pago           | `TreasuryService.registerPayrollPayment`                           |
+| Orquestación e idempotencia | `HrService.payPayrollRun`                                          |
+
+**La idempotencia está en dos niveles**
+
+1. **Servicio**: si el run ya tiene pago, se devuelve **ese** pago con `alreadyPaid: true` en lugar de
+   crear otro. Reintentar el `POST` es seguro.
+2. **Base**: índice único parcial sobre `payroll_run_id`. Aunque dos peticiones entren exactamente a
+   la vez y ambas pasen el primer control, la segunda no puede insertar.
+
+Hay un tercer caso, el peor de todos, y se trata como error en lugar de taparlo: run en estado `PAID`
+**sin** pago registrado. Eso significa que alguien marcó el run como pagado sin que saliera el dinero;
+responde `409` para que se revise.
+
+**Hallazgo colateral corregido (H-69)**
+
+La suite completa falló al primer intento con una violación de unicidad en `payments.code`. La causa
+no era mía: `TreasuryService.create` calculaba el siguiente `PAY-nnnnn` con un `select max` y luego
+insertaba, **sin transacción ni advisory lock**, mientras `payments.code` es único global. Dos cobros
+concurrentes leían el mismo máximo. Se corrigió con el mismo patrón que facturación y nómina
+(`pg_advisory_xact_lock(42004)` + transacción), que además es el mismo lock que usa el pago de nómina.
+
+> **Lección repetida tres veces en este proyecto:** cualquier código correlativo con índice único
+> global necesita lock y transacción. Vale para `A-`, `PAY-`, `NOM-`. Está anotado en `01-HALLAZGOS`
+> como patrón, ya no como incidente aislado.
+
+**Verificación en vivo (stack real)**
+
+| Prueba                                                   | Resultado                                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `POST /hr/payroll/:id/pay` (run 10.910)                  | `PAY-00004`, monto **10.910**, base **10.910**, tasa 1, run `PAID`         |
+| Segunda llamada idéntica                                 | mismo `paymentId`, `alreadyPaid: true`                                     |
+| `select count(*) from payments where payroll_run_id = …` | **1**                                                                      |
+| `GET /treasury/payments`                                 | el pago aparece como `EXPENSE` con `partnerId: null` sin romper el listado |
+| Run sin monto                                            | `400`                                                                      |
+| Run en divisa sin tasa                                   | `400` con el mensaje de qué falta                                          |
+| Run de otra sucursal                                     | `404`                                                                      |
+
+**Estado**
+
+- Backend **850/850** · database **39/39** · turbo `lint typecheck build` **12/12** ·
+  `test:coverage` **4/4** · `format:check` verde · 0 vulnerabilidades.
+- Plan: **48 de 100 tareas**; E2 con 7 de 11.
+- Datos de prueba eliminados (pago, run y empleado).
+
+**Verificación**
+
+- 8 pruebas de integración en `payroll-payment.test.ts`: pago único, idempotencia, descuento de saldo,
+  run vacío (400), run inexistente (404), aislamiento por sucursal, tasa manual y tasa faltante.
+- Tres corridas consecutivas de la suite completa en verde después del arreglo de numeración.

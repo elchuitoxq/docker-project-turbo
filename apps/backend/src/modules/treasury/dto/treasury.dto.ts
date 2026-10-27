@@ -112,11 +112,18 @@ export class PaymentResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id: string;
 
+  @ApiProperty({ example: 'PAY-00001' })
+  code: string;
+
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440001' })
   invoiceId?: string | null;
 
-  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440002' })
-  partnerId: string;
+  @ApiPropertyOptional({
+    description: 'Nulo en pagos de nómina: el beneficiario es un empleado, no un partner',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+    nullable: true,
+  })
+  partnerId: string | null;
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440003' })
   branchId: string;
@@ -138,6 +145,14 @@ export class PaymentResponseDto {
 
   @ApiPropertyOptional({ example: 50.0 })
   exchangeRate?: number | string | null;
+
+  @ApiPropertyOptional({ description: 'Monto en moneda funcional', example: 36500 })
+  amountBase?: number | string | null;
+
+  @ApiPropertyOptional({
+    description: 'Datos adicionales: diferencia cambiaria del cobro o el run de nómina pagado',
+  })
+  metadata?: unknown;
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440006' })
   bankAccountId?: string | null;

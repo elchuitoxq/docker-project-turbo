@@ -806,6 +806,71 @@ export class DepositBenefitDto {
   notes?: string;
 }
 
+export class PayPayrollRunDto {
+  @ApiProperty({ description: 'Método de pago usado para pagar la nómina' })
+  @IsUUID()
+  methodId: string;
+
+  @ApiPropertyOptional({ description: 'Cuenta bancaria de la que sale el dinero' })
+  @IsOptional()
+  @IsUUID()
+  bankAccountId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tasa manual a la moneda funcional. Sin ella se usa la tasa del período',
+    example: 36.5,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0000001)
+  exchangeRate?: number;
+
+  @ApiPropertyOptional({ example: '2026-11-01' })
+  @IsOptional()
+  @IsISO8601()
+  date?: string;
+
+  @ApiPropertyOptional({ example: 'Nómina octubre 2026' })
+  @IsOptional()
+  @IsString()
+  reference?: string;
+}
+
+export class PayrollPaymentResponseDto {
+  @ApiProperty()
+  payrollRunId: string;
+
+  @ApiProperty({ example: 'NOM-000001' })
+  runCode: string;
+
+  @ApiProperty({ example: 'PAID' })
+  runStatus: string;
+
+  @ApiProperty({ description: 'true si el run ya estaba pagado y se devuelve el pago existente' })
+  alreadyPaid: boolean;
+
+  @ApiProperty()
+  paymentId: string;
+
+  @ApiProperty({ example: 'PAY-00001' })
+  paymentCode: string;
+
+  @ApiProperty({ description: 'Monto en la moneda del run', example: 10910 })
+  amount: number;
+
+  @ApiProperty({ description: 'Monto en moneda funcional', example: 10910 })
+  amountBase: number;
+
+  @ApiProperty()
+  currencyId: string;
+
+  @ApiProperty({ example: 1 })
+  exchangeRate: number;
+
+  @ApiProperty({ example: '2026-11-01T00:00:00.000Z' })
+  date: string;
+}
+
 export class SettleEmployeeDto {
   @ApiProperty({ description: 'Fecha de egreso (ISO)', example: '2026-10-31' })
   @IsISO8601()

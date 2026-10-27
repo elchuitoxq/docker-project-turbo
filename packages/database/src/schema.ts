@@ -526,30 +526,40 @@ export const bankAccounts = pgTable('bank_accounts', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const payments = pgTable('payments', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  code: text('code').notNull().unique(),
-  invoiceId: uuid('invoice_id'),
-  partnerId: uuid('partner_id').notNull(),
-  branchId: uuid('branch_id').notNull(),
-  methodId: uuid('method_id').notNull(),
-  status: text('status').default('POSTED'),
-  type: text('type').default('INCOME'),
-  amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
-  currencyId: uuid('currency_id').notNull(),
-  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).notNull(),
-  /** Monto en moneda funcional (VES): amount x exchangeRate (M2 de `S-08`). */
-  amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
-  bankAccountId: uuid('bank_account_id'),
-  payrollRunId: uuid('payroll_run_id'),
-  reference: text('reference'),
-  metadata: jsonb('metadata'),
-  date: timestamp('date').defaultNow(),
-  userId: uuid('user_id'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const payments = pgTable(
+  'payments',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    code: text('code').notNull().unique(),
+    invoiceId: uuid('invoice_id'),
+    /** Nulo en pagos de nómina: el beneficiario es un empleado, no un partner. */
+    partnerId: uuid('partner_id'),
+    branchId: uuid('branch_id').notNull(),
+    methodId: uuid('method_id').notNull(),
+    status: text('status').default('POSTED'),
+    type: text('type').default('INCOME'),
+    amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+    currencyId: uuid('currency_id').notNull(),
+    exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).notNull(),
+    /** Monto en moneda funcional (VES): amount x exchangeRate (M2 de `S-08`). */
+    amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
+    bankAccountId: uuid('bank_account_id'),
+    payrollRunId: uuid('payroll_run_id'),
+    reference: text('reference'),
+    metadata: jsonb('metadata'),
+    date: timestamp('date').defaultNow(),
+    userId: uuid('user_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  // Un run de nómina se paga una sola vez: la base lo garantiza además del servicio (RN-24).
+  t => ({
+    payrollRunUnq: uniqueIndex('payments_payroll_run_unq')
+      .on(t.payrollRunId)
+      .where(sql`${t.payrollRunId} is not null`),
+  })
+);
 
 export const paymentAllocations = pgTable('payment_allocations', {
   id: uuid('id')

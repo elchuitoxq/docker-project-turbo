@@ -74,7 +74,11 @@ import {
   RegisterProfitSharingDto,
   SettleEmployeeDto,
   SettlementResponseDto,
+  PayPayrollRunDto,
+  PayrollPaymentResponseDto,
 } from '../dto/hr.dto';
+import { PaymentResponseDto } from '../../treasury/dto/treasury.dto';
+import { TreasuryService } from '../../treasury/services/treasury.service';
 
 @Injectable()
 export class HrService {
@@ -83,7 +87,8 @@ export class HrService {
     private readonly exchangeRate: ExchangeRateService = new ExchangeRateService(
       new ConfigService()
     ),
-    private readonly benefits: LaborBenefits = new LaborBenefits()
+    private readonly benefits: LaborBenefits = new LaborBenefits(),
+    private readonly treasury: TreasuryService = new TreasuryService(new MoneyService())
   ) {}
 
   async findAllEmployees(branchId?: string): Promise<EmployeeResponseDto[]> {
@@ -895,19 +900,27 @@ export class HrService {
     }
 
     // Se registra por qué se necesita cada moneda: si falta la tasa, el mensaje dice qué la necesita.
+    // La moneda del run sólo hace falta si hay algo que convertir: una nómina en divisa con todos
+    // los sueldos en esa misma divisa no necesita tasa para calcularse.
     const needed = new Map<string, string>();
-    needed.set(runCurrency, 'la moneda de la nómina');
-    needed.set(baseCurrency.code, 'la moneda funcional');
+    const sources = new Map<string, string>();
 
     for (const id of employeeCurrencyIds) {
       const code = currenciesById.get(id)?.code;
-      if (code) needed.set(code, 'el sueldo de un empleado');
+      if (code && code !== runCurrency) sources.set(code, 'el sueldo de un empleado');
     }
     for (const row of settings) {
       if (this.isForeignMoney(row.type) && row.value !== 0) {
-        needed.set(row.type.split('_')[1], `el parámetro ${row.key}`);
+        const code = row.type.split('_')[1];
+        if (code !== runCurrency) sources.set(code, `el parámetro ${row.key}`);
       }
     }
+
+    if (sources.size > 0) {
+      needed.set(runCurrency, 'la moneda de la nómina');
+      for (const [code, reason] of sources) needed.set(code, reason);
+    }
+    needed.set(baseCurrency.code, 'la moneda funcional');
 
     const rates = new Map<string, number>();
     for (const [code, reason] of needed) {
@@ -1728,6 +1741,132 @@ export class HrService {
     const months = this.benefits.monthsBetween(start, terminationDate);
 
     return Math.min(12, Math.max(0, months) + 1);
+  }
+
+  /**
+   * Paga el run de nómina contra tesorería (`T-02-06`, RN-24).
+   *
+   * Idempotente: si el run ya tiene pago, devuelve **ese** pago con `alreadyPaid: true` en lugar de
+   * crear un segundo movimiento. El índice único parcial sobre `payroll_run_id` lo garantiza aunque
+   * dos peticiones entren a la vez.
+   */
+  async payPayrollRun(
+    runId: string,
+    dto: PayPayrollRunDto,
+    branchId?: string,
+    userId?: string
+  ): Promise<PayrollPaymentResponseDto> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
+
+    if (!run || (branchId && run.branchId !== branchId)) {
+      throw new NotFoundException(`Payroll run with ID ${runId} not found`);
+    }
+
+    const existing = await this.treasury.findPayrollPayment(runId);
+    if (existing) {
+      if (run.status !== PayrollRunStatus.PAID) {
+        await db
+          .update(payrollRuns)
+          .set({ status: PayrollRunStatus.PAID })
+          .where(eq(payrollRuns.id, runId));
+      }
+
+      return this.toPayrollPaymentResponse(run.code, PayrollRunStatus.PAID, existing, true);
+    }
+
+    if (run.status === PayrollRunStatus.PAID) {
+      throw new ConflictException(
+        'El run figura como pagado pero no tiene un pago registrado en tesorería. Revise la inconsistencia antes de continuar.'
+      );
+    }
+
+    const amount = Number(run.totalAmount ?? 0);
+    if (amount <= 0) {
+      throw new BadRequestException('El run no tiene monto a pagar');
+    }
+
+    const exchangeRate = await this.paymentExchangeRate(run.currencyId, dto.exchangeRate, dto.date);
+
+    const payment = await this.treasury.registerPayrollPayment({
+      payrollRunId: run.id,
+      branchId: run.branchId,
+      methodId: dto.methodId,
+      amount,
+      currencyId: run.currencyId,
+      exchangeRate,
+      bankAccountId: dto.bankAccountId ?? null,
+      reference: dto.reference ?? run.code,
+      date: dto.date ? new Date(dto.date) : new Date(),
+      userId,
+    });
+
+    await db
+      .update(payrollRuns)
+      .set({ status: PayrollRunStatus.PAID })
+      .where(eq(payrollRuns.id, run.id));
+
+    return this.toPayrollPaymentResponse(run.code, PayrollRunStatus.PAID, payment, false);
+  }
+
+  private toPayrollPaymentResponse(
+    runCode: string,
+    runStatus: string,
+    payment: PaymentResponseDto,
+    alreadyPaid: boolean
+  ): PayrollPaymentResponseDto {
+    return {
+      payrollRunId: payment.payrollRunId ?? '',
+      runCode,
+      runStatus,
+      alreadyPaid,
+      paymentId: payment.id,
+      paymentCode: payment.code,
+      amount: payment.amount,
+      amountBase: Number(payment.amountBase ?? 0),
+      currencyId: payment.currencyId,
+      exchangeRate: Number(payment.exchangeRate ?? 1),
+      date: (payment.date ?? new Date()).toISOString(),
+    };
+  }
+
+  /** Tasa a moneda funcional para pagar el run: manual si viene, si no la del período. */
+  private async paymentExchangeRate(
+    currencyId: string,
+    override: number | undefined,
+    date: string | undefined
+  ): Promise<number> {
+    if (override !== undefined) {
+      if (!Number.isFinite(override) || override <= 0) {
+        throw new BadRequestException('La tasa de cambio debe ser mayor que cero');
+      }
+      return override;
+    }
+
+    const currenciesById = await this.loadCurrencies();
+    const currency = currenciesById.get(currencyId);
+    if (!currency) {
+      throw new NotFoundException(`Currency ${currencyId} not found`);
+    }
+
+    const base = [...currenciesById.values()].find(item => item.isBase);
+    if (!base) {
+      throw new NotFoundException('No base currency configured');
+    }
+
+    if (currency.code === base.code) return 1;
+
+    const at = date ? new Date(date) : new Date();
+    try {
+      const rate = await this.exchangeRate.getRateAt(currency.code, at);
+      return rate.rate;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException(
+          `Falta la tasa de cambio de ${currency.code} al ${at.toISOString().slice(0, 10)} para pagar la nómina. Cárguela o envíe una tasa manual.`
+        );
+      }
+      throw error;
+    }
   }
 
   private async findEmployeeOrFail(employeeId: string, branchId?: string) {

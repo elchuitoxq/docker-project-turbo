@@ -45,6 +45,8 @@ import {
   RegisterProfitSharingDto,
   SettleEmployeeDto,
   SettlementResponseDto,
+  PayPayrollRunDto,
+  PayrollPaymentResponseDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
@@ -212,6 +214,25 @@ export class HrController {
   @ApiResponse({ status: 400, description: 'Already processed' })
   async processPayrollRun(@Param('id') id: string): Promise<PayrollRunResponseDto> {
     return this.hrService.processPayrollRun(id);
+  }
+
+  @Post('payroll/:id/pay')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({
+    summary: 'Pay the payroll run through treasury (idempotent: one payment per run)',
+  })
+  @ApiBody({ type: PayPayrollRunDto })
+  @ApiResponse({ status: 200, description: 'Payment registered', type: PayrollPaymentResponseDto })
+  @ApiResponse({ status: 400, description: 'Nothing to pay or missing exchange rate' })
+  @ApiResponse({ status: 409, description: 'Run marked as paid without a registered payment' })
+  async payPayrollRun(
+    @Param('id') id: string,
+    @Body() dto: PayPayrollRunDto,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
+  ): Promise<PayrollPaymentResponseDto> {
+    return this.hrService.payPayrollRun(id, dto, branchId, user.id);
   }
 
   @Get('payroll/:runId/payslip/:itemId')

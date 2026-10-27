@@ -1,0 +1,2 @@
+ALTER TABLE "payments" ALTER COLUMN "partner_id" DROP NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "payments_payroll_run_unq" ON "payments" USING btree ("payroll_run_id") WHERE "payments"."payroll_run_id" is not null;

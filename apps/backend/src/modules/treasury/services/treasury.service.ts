@@ -14,7 +14,7 @@ import {
   paymentMethods,
   partners,
 } from '../../../schema';
-import { eq, and, desc, isNull, like } from 'drizzle-orm';
+import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import {
   CreatePaymentDto,
@@ -31,13 +31,31 @@ import {
 
 const PAYMENT_METHODS_BALANCE_AFFECTING = ['CASH_USD', 'CASH_VES', 'POS', 'ZELLE', 'TRANSFER'];
 
+/** Datos mínimos para registrar el pago de una nómina desde otro módulo. */
+export interface PayrollPaymentInput {
+  payrollRunId: string;
+  branchId: string;
+  methodId: string;
+  /** Monto a pagar en la moneda del run. */
+  amount: number;
+  currencyId: string;
+  exchangeRate: string | number;
+  bankAccountId?: string | null;
+  reference?: string | null;
+  date?: Date;
+  userId?: string | null;
+}
+
 @Injectable()
 export class TreasuryService {
   constructor(private readonly money: MoneyService) {}
-  private async getNextPaymentCode(branchId: string): Promise<string> {
+  private async getNextPaymentCode(
+    branchId: string,
+    executor: Pick<typeof db, 'select'> = db
+  ): Promise<string> {
     // `payments.code` es único a nivel global: la numeración también debe serlo.
     // MÃ¡ximo sobre todos los cÃ³digos PAY-nnnnn, no sÃ³lo sobre el Ãºltimo insertado.
-    const existing = await db
+    const existing = await executor
       .select({ code: payments.code })
       .from(payments)
       .where(like(payments.code, 'PAY-%'));
@@ -82,6 +100,85 @@ export class TreasuryService {
     };
   }
 
+  /**
+   * Pago de una nómina (`T-02-06`). Es el único punto que crea un `payment` con `payrollRunId`,
+   * y la base tiene un índice único parcial para que un run no se pague dos veces (RN-24).
+   */
+  async registerPayrollPayment(input: PayrollPaymentInput): Promise<PaymentResponseDto> {
+    const [method] = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.id, input.methodId))
+      .limit(1);
+
+    if (!method) {
+      throw new NotFoundException(`Payment method with ID ${input.methodId} not found`);
+    }
+
+    const affectsBalance = PAYMENT_METHODS_BALANCE_AFFECTING.includes(method.code);
+    const amountBase = this.money.round(this.money.toBase(input.amount, input.exchangeRate));
+
+    const created = await db.transaction(async tx => {
+      // El código se asigna con advisory lock: `payments.code` es único global.
+      await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
+      const code = await this.getNextPaymentCode(input.branchId, tx);
+
+      const [payment] = await tx
+        .insert(payments)
+        .values({
+          id: uuidv4(),
+          code,
+          partnerId: null,
+          branchId: input.branchId,
+          methodId: input.methodId,
+          status: PaymentStatus.POSTED,
+          type: PaymentType.EXPENSE,
+          amount: String(input.amount),
+          currencyId: input.currencyId,
+          exchangeRate: String(input.exchangeRate),
+          amountBase,
+          bankAccountId: input.bankAccountId ?? null,
+          payrollRunId: input.payrollRunId,
+          reference: input.reference ?? null,
+          metadata: { payrollRunId: input.payrollRunId },
+          date: input.date ?? new Date(),
+          userId: input.userId ?? null,
+        })
+        .returning();
+
+      if (affectsBalance && input.bankAccountId) {
+        const [account] = await tx
+          .select()
+          .from(bankAccounts)
+          .where(eq(bankAccounts.id, input.bankAccountId))
+          .limit(1);
+
+        if (account) {
+          const balance = Number(account.currentBalance ?? 0) - input.amount;
+          await tx
+            .update(bankAccounts)
+            .set({ currentBalance: String(balance), updatedAt: new Date() })
+            .where(eq(bankAccounts.id, account.id));
+        }
+      }
+
+      return payment;
+    });
+
+    return { ...created, amount: Number(created.amount) };
+  }
+
+  /** Pago ya registrado para un run de nómina, si existe. Es la llave de la idempotencia. */
+  async findPayrollPayment(payrollRunId: string): Promise<PaymentResponseDto | null> {
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.payrollRunId, payrollRunId))
+      .limit(1);
+
+    return payment ? { ...payment, amount: Number(payment.amount) } : null;
+  }
+
   async create(
     createPaymentDto: CreatePaymentDto,
     userId: string,
@@ -121,29 +218,38 @@ export class TreasuryService {
       }
     }
 
-    const [newPayment] = await db
-      .insert(payments)
-      .values({
-        id: uuidv4(),
-        code: await this.getNextPaymentCode(paymentBranchId),
-        invoiceId: createPaymentDto.invoiceId,
-        partnerId: createPaymentDto.partnerId,
-        branchId: paymentBranchId,
-        methodId: createPaymentDto.methodId,
-        status: PaymentStatus.POSTED,
-        type: createPaymentDto.type || PaymentType.INCOME,
-        amount: String(createPaymentDto.amount),
-        currencyId: createPaymentDto.currencyId,
-        exchangeRate: String(createPaymentDto.exchangeRate),
-        amountBase: this.money.round(
-          this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
-        ),
-        bankAccountId: createPaymentDto.bankAccountId,
-        reference: createPaymentDto.reference,
-        date: createPaymentDto.date ? new Date(createPaymentDto.date) : new Date(),
-        userId,
-      })
-      .returning();
+    // El código se asigna con advisory lock dentro de una transacción: `payments.code` es único a
+    // nivel global y dos cobros concurrentes podían leer el mismo máximo (H-69).
+    const newPayment = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
+      const code = await this.getNextPaymentCode(paymentBranchId, tx);
+
+      const [row] = await tx
+        .insert(payments)
+        .values({
+          id: uuidv4(),
+          code,
+          invoiceId: createPaymentDto.invoiceId,
+          partnerId: createPaymentDto.partnerId,
+          branchId: paymentBranchId,
+          methodId: createPaymentDto.methodId,
+          status: PaymentStatus.POSTED,
+          type: createPaymentDto.type || PaymentType.INCOME,
+          amount: String(createPaymentDto.amount),
+          currencyId: createPaymentDto.currencyId,
+          exchangeRate: String(createPaymentDto.exchangeRate),
+          amountBase: this.money.round(
+            this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
+          ),
+          bankAccountId: createPaymentDto.bankAccountId,
+          reference: createPaymentDto.reference,
+          date: createPaymentDto.date ? new Date(createPaymentDto.date) : new Date(),
+          userId,
+        })
+        .returning();
+
+      return row;
+    });
 
     if (createPaymentDto.invoiceId) {
       await db.insert(paymentAllocations).values({

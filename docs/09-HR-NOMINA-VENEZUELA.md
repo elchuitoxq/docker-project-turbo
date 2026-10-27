@@ -382,7 +382,7 @@ a un libro descuadrado.
 | Pipeline de cálculo por concepto     | `modules/hr/payroll/payroll.calculator.ts` + `expression-evaluator.ts`                                        | ✅ T-02-03       |
 | Prestaciones, utilidades, vacaciones | `modules/hr/payroll/labor-benefits.ts` + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | ✅ T-02-04       |
 | Liquidación                          | `employee_settlements` + `POST /hr/employees/:id/settle`                                                      | ✅ T-02-05       |
-| Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments` (RN-24)                                                               | T-02-06          |
+| Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments.payrollRunId` (RN-24)                                                  | ✅ T-02-06       |
 | UI parámetros y conceptos            | `settings/payroll-settings`, `settings/payroll-concepts`                                                      | T-02-07, T-02-08 |
 | UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                                                        | T-02-09          |
 | Casos dorados y pruebas              | Este documento §9                                                                                             | T-02-10          |
@@ -396,9 +396,8 @@ patronal aparte y falla con un mensaje claro si el neto queda negativo; y las pr
 vacaciones, bono vacacional y utilidades se calculan con sus topes y se registran con idempotencia
 por trimestre y por ejercicio.
 
-**Lo que falta:** el pago de la nómina integrado a tesorería (T-02-06), la UI de parámetros,
-conceptos, ficha y recibo (T-02-07/08/09) y la retención de ISLR (requiere la tabla progresiva,
-decisión P-28).
+**Lo que falta:** la UI de parámetros, conceptos, ficha y recibo (T-02-07/08/09), los casos legales
+de cierre (T-02-10) y la retención de ISLR (requiere la tabla progresiva, decisión P-28).
 
 ## 15. Decisiones abiertas (requieren validación profesional)
 

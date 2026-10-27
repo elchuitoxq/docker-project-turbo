@@ -85,6 +85,13 @@
       "when": 1793109136262,
       "tag": "0011_employee_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793111143310,
+      "tag": "0012_payroll_payment",
+      "breakpoints": true
     }
   ]
 }

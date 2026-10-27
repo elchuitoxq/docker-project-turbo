@@ -275,7 +275,7 @@ export class BiService {
     const recentPayments: RecentPayment[] = recentPaymentsRaw.map(pay => ({
       id: pay.id,
       code: pay.code,
-      partnerName: partnerMap.get(pay.partnerId) || null,
+      partnerName: (pay.partnerId ? partnerMap.get(pay.partnerId) : null) || null,
       amount: Number(pay.amount),
       status: pay.status || undefined,
       date: pay.date,

@@ -4,9 +4,10 @@ import { HrService } from './services/hr.service';
 import { PayrollCalculator } from './payroll/payroll.calculator';
 import { LaborBenefits } from './payroll/labor-benefits';
 import { CurrenciesModule } from '../settings/currencies/currencies.module';
+import { TreasuryModule } from '../treasury/treasury.module';
 
 @Module({
-  imports: [CurrenciesModule],
+  imports: [CurrenciesModule, TreasuryModule],
   controllers: [HrController],
   providers: [HrService, PayrollCalculator, LaborBenefits],
   exports: [HrService],

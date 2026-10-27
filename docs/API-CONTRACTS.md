@@ -321,6 +321,27 @@ Cuerpo del `POST`: `{ terminationDate, cause, notes? }`.
   con la fecha y la causa.
 - `GET` responde `404` mientras no exista liquidación.
 
+## Nómina: pago del run contra tesorería (desde 2026-10-27)
+
+`T-02-06`. Implementa RN-24: un run de nómina genera **un solo** movimiento de tesorería.
+
+`POST /v1/hr/payroll/:id/pay` (`hr:payroll:process`)
+
+Cuerpo: `{ methodId, bankAccountId?, exchangeRate?, date?, reference? }`.
+
+- Registra **un** `payment` de tipo `EXPENSE` con `payrollRunId`, por el neto del run
+  (`payroll_runs.totalAmount`), y marca el run como `PAID`.
+- **Idempotente**: la segunda llamada no crea otro pago; devuelve el mismo con `alreadyPaid: true`.
+  Además del control en el servicio, hay un índice único parcial sobre `payroll_run_id`.
+- `payments.partnerId` queda **nulo** en los pagos de nómina: el beneficiario es un empleado, no un
+  partner.
+- `methodId` debe existir (`404` si no). Si el método afecta saldo (`CASH_*`, `POS`, `ZELLE`,
+  `TRANSFER`) y se envía `bankAccountId`, se descuenta el monto de la cuenta.
+- La tasa se toma del período; `exchangeRate` permite una tasa manual (auditable) y es obligatoria
+  si la moneda del run no es la funcional y no hay tasa cargada (`400`).
+- `400` si el run no tiene monto (`totalAmount` 0). `409` si el run figura `PAID` pero no tiene pago
+  registrado (inconsistencia que hay que revisar, no tapar).
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
