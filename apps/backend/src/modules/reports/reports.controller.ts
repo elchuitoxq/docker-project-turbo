@@ -1,14 +1,28 @@
-import { Controller, Get, Query, Res, UseGuards, Header } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Query, Res, UseGuards, Header } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ReportsService } from './reports.service';
+import { FiscalBookService, type BookType } from './fiscal/fiscal-book.service';
+import { FiscalValidationService } from './fiscal/fiscal-validation.service';
+import {
+  FiscalExportService,
+  type FiscalFormat,
+  type FiscalReportType,
+} from './fiscal/fiscal-export.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('reports')
 @Controller('v1/reports/fiscal')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly books: FiscalBookService = new FiscalBookService(),
+    private readonly validation: FiscalValidationService = new FiscalValidationService(),
+    private readonly exports: FiscalExportService = new FiscalExportService()
+  ) {}
 
   @Get('retenciones-txt')
   @ApiOperation({
@@ -38,11 +52,12 @@ export class ReportsController {
     },
   })
   async getRetencionesIvaTxt(
+    @CurrentBranch() branchId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Res() res?: Response
   ) {
-    const content = await this.reportsService.getRetencionesIvaTxt(dateFrom, dateTo);
+    const content = await this.reportsService.getRetencionesIvaTxt(dateFrom, dateTo, branchId);
 
     if (res) {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -82,11 +97,12 @@ export class ReportsController {
     },
   })
   async getRetencionesIslrXml(
+    @CurrentBranch() branchId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Res() res?: Response
   ) {
-    const content = await this.reportsService.getRetencionesIslrXml(dateFrom, dateTo);
+    const content = await this.reportsService.getRetencionesIslrXml(dateFrom, dateTo, branchId);
 
     if (res) {
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
@@ -130,11 +146,15 @@ export class ReportsController {
       },
     },
   })
-  async getFiscalSummary(@Query('dateFrom') dateFrom?: string, @Query('dateTo') dateTo?: string) {
-    return this.reportsService.getFiscalSummary(dateFrom, dateTo);
+  async getFiscalSummary(
+    @CurrentBranch() branchId: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string
+  ) {
+    return this.reportsService.getFiscalSummary(dateFrom, dateTo, branchId);
   }
 
-  @Get('libro-ventas')
+  @Get('libro-ventas/csv')
   @ApiOperation({
     summary: 'Get Sales Book (Libro de Ventas) CSV',
     description: 'Generates a CSV file with the Sales Book data',
@@ -163,11 +183,12 @@ export class ReportsController {
     },
   })
   async getLibroVentas(
+    @CurrentBranch() branchId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Res() res?: Response
   ) {
-    const content = await this.reportsService.getLibroVentas(dateFrom, dateTo);
+    const content = await this.reportsService.getLibroVentas(dateFrom, dateTo, branchId);
 
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -178,7 +199,7 @@ export class ReportsController {
     return content;
   }
 
-  @Get('libro-compras')
+  @Get('libro-compras/csv')
   @ApiOperation({
     summary: 'Get Purchases Book (Libro de Compras) CSV',
     description: 'Generates a CSV file with the Purchases Book data',
@@ -207,11 +228,12 @@ export class ReportsController {
     },
   })
   async getLibroCompras(
+    @CurrentBranch() branchId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Res() res?: Response
   ) {
-    const content = await this.reportsService.getLibroCompras(dateFrom, dateTo);
+    const content = await this.reportsService.getLibroCompras(dateFrom, dateTo, branchId);
 
     if (res) {
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -220,5 +242,122 @@ export class ReportsController {
     }
 
     return content;
+  }
+
+  // ── Libros con totales por alícuota (T-06-02) ───────────────────────────────────────────────
+
+  @Get('libro-ventas')
+  @RequirePermissions('finance:retentions:view')
+  @ApiOperation({
+    summary: 'Libro de ventas con totales por alícuota',
+    description:
+      'Asientos de la sucursal en moneda funcional; las notas de crédito restan. Sólo documentos POSTED',
+  })
+  @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
+  @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Libro de ventas' })
+  async getLibroVentasJson(
+    @CurrentBranch() branchId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    return this.book(branchId, 'SALES', from, to);
+  }
+
+  @Get('libro-compras')
+  @RequirePermissions('finance:retentions:view')
+  @ApiOperation({ summary: 'Libro de compras con totales por alícuota' })
+  @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
+  @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Libro de compras' })
+  async getLibroComprasJson(
+    @CurrentBranch() branchId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    return this.book(branchId, 'PURCHASES', from, to);
+  }
+
+  @Get('validation')
+  @RequirePermissions('finance:retentions:view')
+  @ApiOperation({
+    summary: 'Validaciones previas a exportar (T-06-04)',
+    description:
+      'RIF, número de control, huecos de secuencia y cierres. `canExport` es false si hay errores',
+  })
+  @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
+  @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Hallazgos fiscales' })
+  async getValidation(
+    @CurrentBranch() branchId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    return this.validation.validate(branchId, from, to);
+  }
+
+  @Post('exports')
+  @RequirePermissions('finance:reports:view')
+  @ApiOperation({
+    summary: 'Exportar un reporte fiscal (T-06-05)',
+    description:
+      'Genera el archivo, lo registra con hash y correlativo, y devuelve el contenido. `409` si la validación tiene errores',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['reportType', 'format'],
+      properties: {
+        reportType: {
+          type: 'string',
+          enum: ['LIBRO_VENTAS', 'LIBRO_COMPRAS', 'RETENCIONES_IVA', 'RETENCIONES_ISLR'],
+        },
+        format: { type: 'string', enum: ['CSV', 'TXT', 'XML'] },
+        from: { type: 'string', example: '2026-10-01' },
+        to: { type: 'string', example: '2026-10-31' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Archivo generado y registrado' })
+  @ApiResponse({ status: 409, description: 'La validación tiene errores' })
+  async createExport(
+    @CurrentBranch() branchId: string,
+    @CurrentUser('id') userId: string,
+    @Body()
+    body: {
+      reportType: FiscalReportType;
+      format: FiscalFormat;
+      from?: string;
+      to?: string;
+    }
+  ) {
+    return this.exportReport(branchId, userId, body);
+  }
+
+  private async book(branchId: string, type: BookType, from?: string, to?: string) {
+    return this.books.build(branchId, type, from, to);
+  }
+
+  private async exportReport(
+    branchId: string,
+    userId: string | undefined,
+    body: { reportType: FiscalReportType; format: FiscalFormat; from?: string; to?: string }
+  ) {
+    const content =
+      body.reportType === 'RETENCIONES_IVA'
+        ? await this.reportsService.getRetencionesIvaTxt(body.from, body.to, branchId)
+        : body.reportType === 'RETENCIONES_ISLR'
+          ? await this.reportsService.getRetencionesIslrXml(body.from, body.to, branchId)
+          : undefined;
+
+    return this.exports.export({
+      branchId,
+      reportType: body.reportType,
+      format: body.format,
+      from: body.from,
+      to: body.to,
+      userId,
+      content,
+    });
   }
 }

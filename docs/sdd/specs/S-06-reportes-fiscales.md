@@ -2,10 +2,16 @@
 
 | Campo          | Valor                                                      |
 | -------------- | ---------------------------------------------------------- |
-| **Estado**     | ⬜ Especificada                                            |
+| **Estado**     | ✅ Implementada (T-06-01 … T-06-06)                        |
 | **Prioridad**  | 🟡 P2                                                      |
 | **Depende de** | S-03 (compras/retenciones), S-04 (asientos)                |
 | **Épica**      | E6 · **Fuente:** `audit-report/08-FISCALIDAD-VENEZUELA.md` |
+
+> **Nota de implementación (2026-10-27):** los libros y el resumen ahora **filtran por sucursal** (H-78)
+> y **convierten a moneda funcional** (H-79); el resumen ya no falla con fechas (H-77). La numeración
+> correlativa vive en `fiscal_sequences` y las exportaciones en `fiscal_exports` con hash. El dígito
+> verificador del RIF queda como **advertencia** hasta confirmar el tratamiento del residuo 10 contra la
+> Providencia 0102. Los comprobantes de retención se siguen creando en E3, no aquí.
 
 ---
 

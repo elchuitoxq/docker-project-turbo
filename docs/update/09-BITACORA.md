@@ -1522,3 +1522,71 @@ movimientos) y queda anotado: **`seed-test` no debe correrse contra la base de d
   **39/39** · frontend **102/102** · turbo `lint typecheck build test:coverage` **16/16** ·
   `format:check` verde · 0 vulnerabilidades.
 - Plan: **61 de 100 tareas**; **E4 cerrada, 9 de 9**.
+
+---
+
+### BT-047 · 2026-10-27 · E6: los reportes fiscales dejan de mentir (T-06-01 … T-06-06)
+
+**Lo que había**
+
+El módulo de reportes fiscales ya generaba TXT/XML y libros en CSV, pero:
+
+1. **No filtraba por sucursal** (H-78): el libro de una sucursal incluía los documentos de todas.
+2. **Sumaba monedas distintas** (H-79): `invoice_items.total` entraba crudo, así que una factura en
+   USD se sumaba con una en bolívares.
+3. **El resumen devolvía 500** al filtrar por fechas (H-77): reutilizaba condiciones de `invoices`
+   para consultar `credit_notes` y el SQL quedaba con una tabla que no estaba en el `FROM`.
+4. La UI llamaba a `/reports/iva-book` y `/reports/islr-book`, **rutas que nunca existieron**. El
+   `catch` mostraba "depende del cierre contable" y nadie se enteraba.
+5. No había validación previa, ni numeración correlativa, ni registro de lo exportado.
+
+**Qué se entregó, en orden**
+
+| Tarea   | Contenido                                                                                                                  |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| T-06-01 | `fiscal_sequences` (`branchId`, `documentType`, `year`) con `pg_advisory_xact_lock(42005)`; `RET-2026-000042` como formato |
+| T-06-02 | Libros de venta y compra: JSON con totales por alícuota + CSV con fila de totales, por sucursal y en moneda funcional      |
+| T-06-03 | Retenciones TXT/XML ahora filtran por sucursal y su exportación consume un correlativo                                     |
+| T-06-04 | `GET /reports/fiscal/validation`: RIF, número de control, duplicados, huecos de secuencia y cierres contables              |
+| T-06-05 | `fiscal_exports` + `POST /reports/fiscal/exports`: hash SHA-256, correlativo y `409` si la validación tiene errores        |
+| T-06-06 | UI `finance/reports` reescrita: panel de validación, resumen, libros con desglose por alícuota y descargas                 |
+
+**Decisiones**
+
+- **`invoice_items.total` es la base, no el total con IVA** (`cantidad × precio`, ver
+  `billing.service`). Lo di por hecho al revés y el test unitario del libro lo cazó: el descuadre
+  habría inflado el IVA de cada factura un 16 %. Queda anotado en el código y en el test.
+- **El RIF se valida en dos niveles**: formato (error) y dígito verificador módulo 11 (advertencia).
+  El tratamiento del residuo 10 no está confirmado contra la Providencia 0102, así que **no bloquea
+  la exportación**: prefiero un aviso a bloquear por una regla mal copiada. Marcado ⚠️.
+- **El libro se arma con la aritmética del propio libro** (base + IVA + exento), no con el total del
+  encabezado, que puede incluir IGTF. La consistencia se verifica contra el documento y se expone
+  como `consistent`.
+- **Las notas de crédito entran en negativo**: restan en los totales sin que el consumidor tenga que
+  saber que existen.
+- **Exportar consume un correlativo propio** (`FIS-2026-000001`) y guarda el hash: dos exportaciones
+  del mismo período dan el mismo hash con números distintos, que es lo correcto (mismo contenido,
+  dos entregas).
+
+**Verificación en vivo**
+
+| Prueba                             | Resultado                                                          |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `GET /reports/fiscal/libro-ventas` | base **300**, IVA **48**, total **348**, `byRate [{16,300,48}]`    |
+| `GET /reports/fiscal/summary`      | base 300, IVA 48, tasa de cierre 36,5, equivalentes en USD         |
+| `GET /reports/fiscal/validation`   | 0 errores, 1 advertencia: "dígito verificador no coincide"         |
+| `POST /reports/fiscal/exports`     | `FIS-2026-000002`, hash `603bc03f…`, 248 bytes, CSV con `TOTALES`  |
+| UI `finance/reports`               | Panel de validación, tarjetas de resumen y libro con alícuota 16 % |
+
+**Estado**
+
+- Backend **897/897** (20 pruebas nuevas: 6 del validador de RIF y 14 de reportes fiscales) ·
+  database **39/39** · frontend **102/102** · turbo **16/16** · `format:check` verde · 0
+  vulnerabilidades.
+- Plan: **67 de 100 tareas**; **E6 cerrada, 6 de 6**.
+
+**Deuda que queda anotada**
+
+- Los comprobantes de retención **no se crean** en ningún punto del backend (sólo se leen y se borran
+  al anular un pago): eso llega con E3 (compras/CxP), que es quien emite la retención.
+- El dígito verificador del RIF necesita confirmación normativa antes de convertirlo en error.

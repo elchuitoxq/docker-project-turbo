@@ -240,12 +240,12 @@ asientos; E2E de cierre.
 
 | ID      | Tarea                                                      | Artefactos                    | Depende | Verificación                         | Talla | Estado |
 | ------- | ---------------------------------------------------------- | ----------------------------- | ------- | ------------------------------------ | ----- | ------ |
-| T-06-01 | `fiscal_sequences` (correlativo por sucursal y año)        | tabla nueva                   | E3      | dos comprobantes seguidos sin huecos | M     | ⬜     |
-| T-06-02 | Libro de ventas y de compras con totales por alícuota      | `modules/reports/*` + índices | E4      | cuadra con contabilidad              | L     | ⬜     |
-| T-06-03 | Retenciones TXT/XML con numeración correlativa             | `modules/reports/*`           | T-06-01 | archivo válido contra formato SENIAT | L     | ⬜     |
-| T-06-04 | `GET /reports/fiscal/validation` (RIF, secuencia, cierres) | ídem                          | T-06-02 | detecta hueco y RIF inválido         | M     | ⬜     |
-| T-06-05 | `fiscal_exports` + `POST /reports/fiscal/exports`          | tabla nueva                   | T-06-03 | archivo con hash y usuario           | S     | ⬜     |
-| T-06-06 | UI `finance/reports` y `finance/retentions` con descarga   | `app/(dashboard)/finance/*`   | T-06-03 | descarga TXT/XML/CSV                 | M     | ⬜     |
+| T-06-01 | `fiscal_sequences` (correlativo por sucursal y año)        | tabla nueva                   | E3      | dos comprobantes seguidos sin huecos | M     | ✅     |
+| T-06-02 | Libro de ventas y de compras con totales por alícuota      | `modules/reports/*` + índices | E4      | cuadra con contabilidad              | L     | ✅     |
+| T-06-03 | Retenciones TXT/XML con numeración correlativa             | `modules/reports/*`           | T-06-01 | archivo válido contra formato SENIAT | L     | ✅     |
+| T-06-04 | `GET /reports/fiscal/validation` (RIF, secuencia, cierres) | ídem                          | T-06-02 | detecta hueco y RIF inválido         | M     | ✅     |
+| T-06-05 | `fiscal_exports` + `POST /reports/fiscal/exports`          | tabla nueva                   | T-06-03 | archivo con hash y usuario           | S     | ✅     |
+| T-06-06 | UI `finance/reports` y `finance/retentions` con descarga   | `app/(dashboard)/finance/*`   | T-06-03 | descarga TXT/XML/CSV                 | M     | ✅     |
 
 **Gate de salida E6:** libro de ventas del mes cuadra con la contabilidad y la exportación queda
 trazada.
@@ -292,12 +292,12 @@ trazada.
 | 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
 | 4   | 6-7     | E2 nómina                              | 11      | 11     |
 | 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
-| 6   | 10-11   | E6 reportes fiscales                   | 6       | 0      |
+| 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 0      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 0      |
 | 9   | 16      | E7 frontend restante                   | 7       | 0      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **61** |
+| —   | —       | **Total**                              | **100** | **67** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

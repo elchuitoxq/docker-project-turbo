@@ -415,6 +415,36 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 - `income-statement` rechaza un rango invertido (`400`).
 - Todo va filtrado por la sucursal activa (`x-branch-id`).
 
+## Reportes fiscales (desde 2026-10-27)
+
+`T-06-01 … T-06-06`. Todos filtran por la sucursal activa (`x-branch-id`) y sólo leen documentos
+`POSTED`.
+
+| Método | Ruta                                         | Permiso                   |
+| ------ | -------------------------------------------- | ------------------------- |
+| `GET`  | `/v1/reports/fiscal/libro-ventas?from&to`    | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/libro-compras?from&to`   | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/libro-ventas/csv`        | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/libro-compras/csv`       | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/retenciones-txt`         | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/retenciones-xml`         | `finance:retentions:view` |
+| `GET`  | `/v1/reports/fiscal/summary?dateFrom&dateTo` | `finance:reports:view`    |
+| `GET`  | `/v1/reports/fiscal/validation?from&to`      | `finance:retentions:view` |
+| `POST` | `/v1/reports/fiscal/exports`                 | `finance:reports:view`    |
+
+- **Importes en moneda funcional**: cada documento se convierte con su tasa congelada (M3 de `S-08`).
+  `invoice_items.total` es `cantidad × precio`, **sin IVA**: la base es ese importe y el IVA se calcula
+  encima.
+- El libro devuelve `rows[]` (con `rate` por línea cuando hay una sola alícuota) y `totals.byRate[]`.
+  Las **notas de crédito** entran con importes negativos: restan sin que el consumidor lo sepa.
+- `consistent` compara la aritmética del libro (base + IVA + exento) contra el total de los documentos.
+- `validation` devuelve hallazgos con `severity: ERROR | WARNING`: RIF (formato = error, dígito
+  verificador = advertencia ⚠️), número de control faltante o duplicado, huecos en `A-nnnnn` y períodos
+  contables cerrados en el rango. `canExport` es `false` si hay errores.
+- `POST /exports` genera el archivo, lo registra en `fiscal_exports` con **hash SHA-256** y un
+  correlativo `FIS-aaaa-nnnnnn` por sucursal, y devuelve el contenido. Responde `409` con el detalle
+  de los hallazgos si la validación tiene errores.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

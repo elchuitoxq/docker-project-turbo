@@ -122,8 +122,11 @@ export class ReportsService {
     return parseFloat(String(value)) || 0;
   }
 
-  private buildDateConditions(dateFrom?: string, dateTo?: string) {
+  private buildDateConditions(dateFrom?: string, dateTo?: string, branchId?: string) {
     const conditions = [];
+    if (branchId) {
+      conditions.push(eq(taxRetentions.branchId, branchId));
+    }
     if (dateFrom) {
       conditions.push(gte(taxRetentions.date, new Date(dateFrom)));
     }
@@ -133,8 +136,11 @@ export class ReportsService {
     return conditions.length > 0 ? and(...conditions) : undefined;
   }
 
-  private buildInvoiceDateConditions(dateFrom?: string, dateTo?: string) {
+  private buildInvoiceDateConditions(dateFrom?: string, dateTo?: string, branchId?: string) {
     const conditions = [];
+    if (branchId) {
+      conditions.push(eq(invoices.branchId, branchId));
+    }
     if (dateFrom) {
       conditions.push(gte(invoices.date, new Date(dateFrom)));
     }
@@ -144,9 +150,33 @@ export class ReportsService {
     return conditions.length > 0 ? and(...conditions) : undefined;
   }
 
-  async getRetencionesIvaTxt(dateFrom?: string, dateTo?: string): Promise<string> {
+  /**
+   * Condiciones sobre `credit_notes`. **No** se pueden reutilizar las de `invoices`: Drizzle arma el
+   * SQL con las columnas calificadas de la tabla original, y el `where` terminaba diciendo
+   * `"invoices"."date"` dentro de un `select ... from "credit_notes"` (H-77).
+   */
+  private buildCreditNoteConditions(dateFrom?: string, dateTo?: string, branchId?: string) {
+    const conditions = [];
+    if (branchId) {
+      conditions.push(eq(creditNotes.branchId, branchId));
+    }
+    if (dateFrom) {
+      conditions.push(gte(creditNotes.date, new Date(dateFrom)));
+    }
+    if (dateTo) {
+      conditions.push(lte(creditNotes.date, new Date(dateTo + 'T23:59:59')));
+    }
+    return conditions.length > 0 ? and(...conditions) : undefined;
+  }
+
+  async getRetencionesIvaTxt(
+    dateFrom?: string,
+    dateTo?: string,
+    branchId?: string
+  ): Promise<string> {
     const conditions = [
       eq(taxRetentions.type, 'IVA'),
+      ...(branchId ? [eq(taxRetentions.branchId, branchId)] : []),
       ...(dateFrom ? [gte(taxRetentions.date, new Date(dateFrom))] : []),
       ...(dateTo ? [lte(taxRetentions.date, new Date(dateTo + 'T23:59:59'))] : []),
     ];
@@ -191,9 +221,14 @@ export class ReportsService {
     return lines.join('\n');
   }
 
-  async getRetencionesIslrXml(dateFrom?: string, dateTo?: string): Promise<string> {
+  async getRetencionesIslrXml(
+    dateFrom?: string,
+    dateTo?: string,
+    branchId?: string
+  ): Promise<string> {
     const conditions = [
       eq(taxRetentions.type, 'ISLR'),
+      ...(branchId ? [eq(taxRetentions.branchId, branchId)] : []),
       ...(dateFrom ? [gte(taxRetentions.date, new Date(dateFrom))] : []),
       ...(dateTo ? [lte(taxRetentions.date, new Date(dateTo + 'T23:59:59'))] : []),
     ];
@@ -289,9 +324,14 @@ export class ReportsService {
     };
   }
 
-  async getFiscalSummary(dateFrom?: string, dateTo?: string): Promise<FiscalSummary> {
-    const invoiceConditions = this.buildInvoiceDateConditions(dateFrom, dateTo);
-    const retentionConditions = this.buildDateConditions(dateFrom, dateTo);
+  async getFiscalSummary(
+    dateFrom?: string,
+    dateTo?: string,
+    branchId?: string
+  ): Promise<FiscalSummary> {
+    const invoiceConditions = this.buildInvoiceDateConditions(dateFrom, dateTo, branchId);
+    const retentionConditions = this.buildDateConditions(dateFrom, dateTo, branchId);
+    const creditNoteConditions = this.buildCreditNoteConditions(dateFrom, dateTo, branchId);
 
     const allInvoices = invoiceConditions
       ? await db.select().from(invoices).where(invoiceConditions)
@@ -311,8 +351,8 @@ export class ReportsService {
           .where(and(retentionConditions, eq(taxRetentions.type, 'ISLR')))
       : await db.select().from(taxRetentions).where(eq(taxRetentions.type, 'ISLR'));
 
-    const allCreditNotes = invoiceConditions
-      ? await db.select().from(creditNotes).where(invoiceConditions)
+    const allCreditNotes = creditNoteConditions
+      ? await db.select().from(creditNotes).where(creditNoteConditions)
       : await db.select().from(creditNotes);
 
     let totalBaseImponible = 0;
@@ -375,9 +415,10 @@ export class ReportsService {
     };
   }
 
-  async getLibroVentas(dateFrom?: string, dateTo?: string): Promise<string> {
+  async getLibroVentas(dateFrom?: string, dateTo?: string, branchId?: string): Promise<string> {
     const conditions = [
       eq(invoices.status, 'POSTED'),
+      ...(branchId ? [eq(invoices.branchId, branchId)] : []),
       ...(dateFrom ? [gte(invoices.date, new Date(dateFrom))] : []),
       ...(dateTo ? [lte(invoices.date, new Date(dateTo + 'T23:59:59'))] : []),
     ];
@@ -425,21 +466,27 @@ export class ReportsService {
       let ivaReducido = 0;
       let ivaAdicional = 0;
 
+      const invoiceRate = this.parseNumeric(inv.exchangeRate) || 1;
+
       for (const item of invoiceItemsList) {
         const taxRate = this.parseNumeric(item.taxRate);
-        const totalItem = this.parseNumeric(item.total);
+        // A moneda funcional antes de sumar: el libro no puede mezclar divisas (M3 de `S-08`).
+        // `invoice_items.total` viene **con** IVA: la base se despeja (total / (1 + al?cuota)).
+        // `invoice_items.total` es cantidad x precio, sin IVA (ver `billing.service`).
+        const gross = this.parseNumeric(item.total) * invoiceRate;
+        const tax = taxRate > 0 ? (gross * taxRate) / 100 : 0;
 
         if (taxRate === 0) {
-          exento += totalItem;
+          exento += gross;
         } else if (taxRate === 16) {
-          baseGeneral += totalItem;
-          ivaGeneral += totalItem * 0.16;
+          baseGeneral += gross;
+          ivaGeneral += tax;
         } else if (taxRate === 8) {
-          baseReducido += totalItem;
-          ivaReducido += totalItem * 0.08;
+          baseReducido += gross;
+          ivaReducido += tax;
         } else {
-          baseAdicional += totalItem;
-          ivaAdicional += totalItem * (taxRate / 100);
+          baseAdicional += gross;
+          ivaAdicional += tax;
         }
       }
 
@@ -448,7 +495,7 @@ export class ReportsService {
       const nroControl = inv.invoiceNumber || '';
       const rifCliente = partner?.taxId || '';
       const nombreCliente = partner?.name || '';
-      const total = this.parseNumeric(inv.total).toFixed(2);
+      const total = (this.parseNumeric(inv.total) * invoiceRate).toFixed(2);
       const exentoStr = exento.toFixed(2);
       const baseImponible = (baseGeneral + baseReducido + baseAdicional).toFixed(2);
       const iva = (ivaGeneral + ivaReducido + ivaAdicional).toFixed(2);
@@ -464,9 +511,10 @@ export class ReportsService {
     return lines.join('\n');
   }
 
-  async getLibroCompras(dateFrom?: string, dateTo?: string): Promise<string> {
+  async getLibroCompras(dateFrom?: string, dateTo?: string, branchId?: string): Promise<string> {
     const conditions = [
       eq(invoices.type, 'PURCHASE'),
+      ...(branchId ? [eq(invoices.branchId, branchId)] : []),
       ...(dateFrom ? [gte(invoices.date, new Date(dateFrom))] : []),
       ...(dateTo ? [lte(invoices.date, new Date(dateTo + 'T23:59:59'))] : []),
     ];
@@ -537,21 +585,25 @@ export class ReportsService {
       let ivaReducido = 0;
       let ivaAdicional = 0;
 
+      const invoiceRate = this.parseNumeric(inv.exchangeRate) || 1;
+
       for (const item of invoiceItemsList) {
         const taxRate = this.parseNumeric(item.taxRate);
-        const totalItem = this.parseNumeric(item.total);
+        // `invoice_items.total` es cantidad x precio, sin IVA (ver `billing.service`).
+        const gross = this.parseNumeric(item.total) * invoiceRate;
+        const tax = taxRate > 0 ? (gross * taxRate) / 100 : 0;
 
         if (taxRate === 0) {
-          exento += totalItem;
+          exento += gross;
         } else if (taxRate === 16) {
-          baseGeneral += totalItem;
-          ivaGeneral += totalItem * 0.16;
+          baseGeneral += gross;
+          ivaGeneral += tax;
         } else if (taxRate === 8) {
-          baseReducido += totalItem;
-          ivaReducido += totalItem * 0.08;
+          baseReducido += gross;
+          ivaReducido += tax;
         } else {
-          baseAdicional += totalItem;
-          ivaAdicional += totalItem * (taxRate / 100);
+          baseAdicional += gross;
+          ivaAdicional += tax;
         }
       }
 
@@ -560,7 +612,7 @@ export class ReportsService {
       const nroControl = inv.invoiceNumber || '';
       const rifProveedor = partner?.taxId || '';
       const nombreProveedor = partner?.name || '';
-      const total = this.parseNumeric(inv.total).toFixed(2);
+      const total = (this.parseNumeric(inv.total) * invoiceRate).toFixed(2);
       const exentoStr = exento.toFixed(2);
       const baseImponible = (baseGeneral + baseReducido + baseAdicional).toFixed(2);
       const iva = (ivaGeneral + ivaReducido + ivaAdicional).toFixed(2);

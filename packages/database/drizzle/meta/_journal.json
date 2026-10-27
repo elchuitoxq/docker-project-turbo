@@ -99,6 +99,13 @@
       "when": 1793114000000,
       "tag": "0013_accounting_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793117000000,
+      "tag": "0014_fiscal_reports",
+      "breakpoints": true
     }
   ]
 }

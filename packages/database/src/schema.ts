@@ -1057,6 +1057,57 @@ export const accountingEntryLines = pgTable('accounting_entry_lines', {
   description: text('description'),
 });
 
+/**
+ * Correlativos fiscales por sucursal, tipo de documento y año (`T-06-01`).
+ *
+ * La secuencia no admite huecos ni duplicados (regla 4 de `S-06`): se reserva dentro de una
+ * transacción con advisory lock, igual que los códigos `A-` y `PAY-`.
+ */
+export const fiscalSequences = pgTable(
+  'fiscal_sequences',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    branchId: uuid('branch_id').notNull(),
+    /** `RETENTION_IVA`, `RETENTION_ISLR`, `INVOICE`, `CREDIT_NOTE`… */
+    documentType: text('document_type').notNull(),
+    year: integer('year').notNull(),
+    lastNumber: integer('last_number').default(0).notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  table => [
+    uniqueIndex('fiscal_sequences_branch_doc_year_unq').on(
+      table.branchId,
+      table.documentType,
+      table.year
+    ),
+  ]
+);
+
+/** Archivos fiscales generados, con su hash para trazabilidad (`T-06-05`). */
+export const fiscalExports = pgTable(
+  'fiscal_exports',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    branchId: uuid('branch_id').notNull(),
+    /** `LIBRO_VENTAS`, `LIBRO_COMPRAS`, `RETENCIONES_IVA`, `RETENCIONES_ISLR` */
+    reportType: text('report_type').notNull(),
+    /** `CSV`, `TXT`, `XML` */
+    format: text('format').notNull(),
+    periodFrom: timestamp('period_from'),
+    periodTo: timestamp('period_to'),
+    sequenceNumber: integer('sequence_number'),
+    hash: text('hash').notNull(),
+    sizeBytes: integer('size_bytes'),
+    userId: uuid('user_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  table => [index('fiscal_exports_branch_created_idx').on(table.branchId, table.createdAt)]
+);
+
 export const accountingMaps = pgTable('accounting_maps', {
   id: uuid('id')
     .primaryKey()
