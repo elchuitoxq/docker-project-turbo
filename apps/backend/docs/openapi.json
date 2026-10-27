@@ -609,6 +609,109 @@
         ]
       }
     },
+    "/v1/billing/invoices/payables": {
+      "get": {
+        "description": "Saldo = total ? pagado ? notas de crédito de compra. Sólo compras POSTED/PAID",
+        "operationId": "BillingController_findPayables",
+        "parameters": [
+          {
+            "name": "partnerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "PENDING",
+                "PARTIAL",
+                "PAID",
+                "OVERDUE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "asOf",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Facturas por pagar con su saldo"
+          }
+        },
+        "summary": "Cuentas por pagar por factura",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/invoices/payables/aging": {
+      "get": {
+        "description": "Buckets: por vencer, 1-30, 31-60, 61-90 y más de 90 días",
+        "operationId": "BillingController_findPayablesAging",
+        "parameters": [
+          {
+            "name": "asOf",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Antigüedad por bucket y por proveedor"
+          }
+        },
+        "summary": "Antigüedad de saldos (aging)",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/v1/billing/invoices/supplier-retention-settings": {
+      "get": {
+        "operationId": "BillingController_getRetentionSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Parámetros vigentes"
+          }
+        },
+        "summary": "Parámetros de retención al proveedor de la empresa",
+        "tags": [
+          "billing"
+        ]
+      },
+      "patch": {
+        "description": "IVA (ordinario y especial), ISLR y su umbral. Cambian por decreto: son parámetro",
+        "operationId": "BillingController_updateRetentionSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Parámetros actualizados"
+          }
+        },
+        "summary": "Actualizar parámetros de retención",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/v1/billing/invoices/{id}": {
       "get": {
         "description": "Retrieves a specific invoice with its items",
@@ -944,6 +1047,61 @@
         ]
       }
     },
+    "/v1/treasury/retentions": {
+      "get": {
+        "description": "Retenciones IVA/ISLR de la sucursal con su factura de origen",
+        "operationId": "TreasuryController_findRetentions",
+        "parameters": [
+          {
+            "name": "partnerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "enum": [
+                "IVA",
+                "ISLR"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comprobantes de retención"
+          }
+        },
+        "summary": "Comprobantes de retención emitidos",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
     "/v1/treasury/methods": {
       "get": {
         "description": "Retrieves all available payment methods",
@@ -996,6 +1154,74 @@
           }
         },
         "summary": "Create a payment method",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/methods/all": {
+      "get": {
+        "description": "Pantalla de administración: un método desactivado no aparece al cobrar",
+        "operationId": "TreasuryController_getAllMethods",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaymentMethodResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Métodos de pago incluidos los desactivados",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/methods/{id}": {
+      "patch": {
+        "description": "Nombre, banderas (IGTF, referencia, efectivo) y activación",
+        "operationId": "TreasuryController_updateMethod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentMethodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentMethodResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Actualizar un método de pago",
         "tags": [
           "treasury"
         ]
@@ -1058,6 +1284,48 @@
         ]
       }
     },
+    "/v1/treasury/bank-accounts/{id}": {
+      "patch": {
+        "description": "Nombre, número, banco, saldo inicial, notas y activación (T-05-02)",
+        "operationId": "TreasuryController_updateBankAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBankAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankAccountResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Actualizar una cuenta bancaria",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
     "/v1/treasury/statements/{partnerId}": {
       "get": {
         "description": "Retrieves payment history and outstanding invoices for a partner",
@@ -1067,6 +1335,22 @@
             "name": "partnerId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -1093,9 +1377,128 @@
         ]
       }
     },
+    "/v1/treasury/daily-close/{date}": {
+      "get": {
+        "description": "Totales por método y moneda. Si el día está cerrado devuelve el snapshot guardado (T-05-03)",
+        "operationId": "TreasuryController_getDailyCloseByDate",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyCloseDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cierre diario de una fecha",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/daily-close/{date}/close": {
+      "post": {
+        "description": "Guarda el snapshot de totales y bloquea nuevos movimientos con esa fecha",
+        "operationId": "TreasuryController_closeDailyClose",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseDailyCloseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyCloseDetailDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El día ya estaba cerrado"
+          }
+        },
+        "summary": "Cerrar el día",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/daily-close/{date}/reopen": {
+      "post": {
+        "description": "Exige motivo y queda auditado; recalcula los totales al leer",
+        "operationId": "TreasuryController_reopenDailyClose",
+        "parameters": [
+          {
+            "name": "date",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenDailyCloseDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyCloseDetailDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Reabrir el día",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
     "/v1/treasury/daily-close": {
       "get": {
-        "description": "Retrieves daily payment summary grouped by method and currency",
+        "description": "Igual que `/daily-close/:date` con la fecha por query string",
         "operationId": "TreasuryController_getDailyClose",
         "parameters": [
           {
@@ -1110,17 +1513,333 @@
         ],
         "responses": {
           "200": {
-            "description": "Daily close summary",
+            "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DailyCloseDto"
+                  "$ref": "#/components/schemas/DailyCloseDetailDto"
                 }
               }
             }
           }
         },
-        "summary": "Get daily close",
+        "summary": "Cierre diario (compatibilidad)",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/reconciliation/import": {
+      "post": {
+        "description": "Formato fecha,monto,referencia,descripción. Es idempotente por hash del archivo",
+        "operationId": "TreasuryController_importStatement",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportStatementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Líneas importadas"
+          }
+        },
+        "summary": "Importar extracto bancario (CSV)",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/reconciliation/{bankAccountId}": {
+      "get": {
+        "description": "Líneas del extracto, pagos sin conciliar y sugerencias por monto y fecha",
+        "operationId": "TreasuryController_getReconciliation",
+        "parameters": [
+          {
+            "name": "bankAccountId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReconciliationReportDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Estado de conciliación de una cuenta",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/reconciliation/{lineId}/match": {
+      "post": {
+        "description": "Una línea se concilia con un pago y viceversa (`409` si ya está tomado)",
+        "operationId": "TreasuryController_matchLine",
+        "parameters": [
+          {
+            "name": "lineId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MatchStatementLineDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementLineDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Conciliar una línea con un pago",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/reconciliation/{lineId}/unmatch": {
+      "post": {
+        "operationId": "TreasuryController_unmatchLine",
+        "parameters": [
+          {
+            "name": "lineId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatementLineDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Desconciliar una línea",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/petty-cash": {
+      "get": {
+        "operationId": "TreasuryController_listPettyCash",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PettyCashFundResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Fondos de caja chica de la sucursal",
+        "tags": [
+          "treasury"
+        ]
+      },
+      "post": {
+        "operationId": "TreasuryController_createPettyCash",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePettyCashFundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PettyCashFundResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Crear un fondo de caja chica",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/petty-cash/{id}": {
+      "get": {
+        "operationId": "TreasuryController_getPettyCash",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PettyCashFundResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Detalle de un fondo",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/petty-cash/{id}/movements": {
+      "post": {
+        "description": "El fondo nunca queda negativo (regla 5 de S-05)",
+        "operationId": "TreasuryController_addPettyCashMovement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePettyCashMovementDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PettyCashFundResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Registrar gasto o reposición",
+        "tags": [
+          "treasury"
+        ]
+      }
+    },
+    "/v1/treasury/petty-cash/{id}/close": {
+      "post": {
+        "operationId": "TreasuryController_closePettyCash",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClosePettyCashFundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PettyCashFundResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Cerrar el fondo devolviendo el saldo",
         "tags": [
           "treasury"
         ]
@@ -4253,6 +4972,75 @@
         "tags": [
           "accounting"
         ]
+      },
+      "patch": {
+        "description": "No permite cambiar el tipo de una cuenta con movimientos ni volver imputable una cuenta con hijas",
+        "operationId": "AccountingController_updateAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "La cuenta tiene movimientos o cuentas hijas"
+          }
+        },
+        "summary": "Update an account",
+        "tags": [
+          "accounting"
+        ]
+      },
+      "delete": {
+        "description": "Desactiva la cuenta. Responde 409 si tiene movimientos o cuentas hijas (T-04-01)",
+        "operationId": "AccountingController_deleteAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Account deactivated"
+          },
+          "409": {
+            "description": "La cuenta tiene movimientos o cuentas hijas"
+          }
+        },
+        "summary": "Delete an account",
+        "tags": [
+          "accounting"
+        ]
       }
     },
     "/v1/accounting/entries": {
@@ -4261,10 +5049,30 @@
         "operationId": "AccountingController_findAllEntries",
         "parameters": [
           {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Desde (YYYY-MM-DD). Alias de `dateFrom`",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Hasta (YYYY-MM-DD). Alias de `dateTo`",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          },
+          {
             "name": "dateFrom",
             "required": false,
             "in": "query",
-            "description": "Filter entries from this date",
+            "description": "Filter entries from this date (compatibilidad)",
             "schema": {
               "example": "2026-01-01T00:00:00.000Z",
               "type": "string"
@@ -4274,7 +5082,7 @@
             "name": "dateTo",
             "required": false,
             "in": "query",
-            "description": "Filter entries up to this date",
+            "description": "Filter entries up to this date (compatibilidad)",
             "schema": {
               "example": "2026-12-31T23:59:59.999Z",
               "type": "string"
@@ -4287,6 +5095,23 @@
             "description": "Filter entries containing this account",
             "schema": {
               "example": "550e8400-e29b-41d4-a716-446655440001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceType",
+            "required": false,
+            "in": "query",
+            "description": "Filtra por documento de origen",
+            "schema": {
+              "enum": [
+                "INVOICE",
+                "PAYMENT",
+                "CREDIT_NOTE",
+                "PAYROLL",
+                "INVENTORY",
+                "MANUAL"
+              ],
               "type": "string"
             }
           }
@@ -4312,7 +5137,7 @@
         ]
       },
       "post": {
-        "description": "Creates a new accounting entry. Entry lines must sum to zero (debit = credit)",
+        "description": "Crea un asiento. Las líneas deben sumar cero; `status: DRAFT` lo deja editable sin afectar el libro",
         "operationId": "AccountingController_createEntry",
         "parameters": [],
         "requestBody": {
@@ -4337,7 +5162,10 @@
             }
           },
           "400": {
-            "description": "Invalid request data or entry lines do not sum to zero"
+            "description": "Invalid request data, entry lines do not sum to zero or account not postable"
+          },
+          "409": {
+            "description": "El período está cerrado"
           }
         },
         "summary": "Create a new entry",
@@ -4378,6 +5206,84 @@
           }
         },
         "summary": "Get entry by ID",
+        "tags": [
+          "accounting"
+        ]
+      },
+      "patch": {
+        "description": "Sólo se puede editar un asiento en borrador (T-04-02)",
+        "operationId": "AccountingController_updateEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Entry updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El asiento ya está posteado"
+          }
+        },
+        "summary": "Update a draft entry",
+        "tags": [
+          "accounting"
+        ]
+      }
+    },
+    "/v1/accounting/entries/{id}/post": {
+      "post": {
+        "description": "DRAFT → POSTED. Valida partida doble, cuentas imputables y período abierto",
+        "operationId": "AccountingController_postEntry",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Entry posted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntryResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Ya está posteado o el período está cerrado"
+          }
+        },
+        "summary": "Post a draft entry",
         "tags": [
           "accounting"
         ]
@@ -4590,6 +5496,290 @@
         "summary": "Apply map to transaction",
         "tags": [
           "accounting"
+        ]
+      }
+    },
+    "/v1/accounting/periods": {
+      "get": {
+        "description": "Materializa los 12 meses (los que faltan nacen OPEN) y resume asientos y totales",
+        "operationId": "AccountingController_findPeriods",
+        "parameters": [
+          {
+            "name": "year",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 2026,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Períodos del año",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PeriodResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List the accounting periods of a year",
+        "tags": [
+          "accounting"
+        ]
+      }
+    },
+    "/v1/accounting/periods/{id}/close": {
+      "post": {
+        "description": "Un período cerrado rechaza asientos con 409. Queda auditado con usuario y fecha",
+        "operationId": "AccountingController_closePeriod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Período cerrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El período ya está cerrado"
+          }
+        },
+        "summary": "Close an accounting period",
+        "tags": [
+          "accounting"
+        ]
+      }
+    },
+    "/v1/accounting/periods/{id}/reopen": {
+      "post": {
+        "description": "Exige motivo; el motivo y el usuario quedan en la auditoría",
+        "operationId": "AccountingController_reopenPeriod",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopenPeriodDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Período reabierto",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Falta el motivo"
+          },
+          "409": {
+            "description": "El período ya está abierto"
+          }
+        },
+        "summary": "Reopen an accounting period",
+        "tags": [
+          "accounting"
+        ]
+      }
+    },
+    "/v1/audit/entities": {
+      "get": {
+        "description": "Lista de `entityTable` presentes en el registro, para el filtro del visor",
+        "operationId": "AuditController_listEntityTables",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Tablas auditadas"
+          }
+        },
+        "summary": "Tablas auditadas",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/v1/audit": {
+      "get": {
+        "description": "Con `paginated=true` devuelve `{ data, total, page, limit }`; sin el flag mantiene el arreglo plano",
+        "operationId": "AuditController_findAll",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by user ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityTable",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity table name",
+            "schema": {
+              "example": "invoices",
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity ID",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "CREATE, UPDATE, DELETE, VOID…",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "documentCode",
+            "required": false,
+            "in": "query",
+            "description": "Búsqueda parcial por documento",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs from this date (ISO 8601 format)",
+            "schema": {
+              "example": "2026-01-01T00:00:00Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Filter logs until this date (ISO 8601 format)",
+            "schema": {
+              "example": "2026-12-31T23:59:59Z",
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "string"
+            }
+          },
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "description": "`true` para respuesta paginada",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of audit logs"
+          }
+        },
+        "summary": "Get all audit logs",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/v1/audit/{entityTable}/{entityId}": {
+      "get": {
+        "description": "Retrieves the audit history for a specific entity by table name and ID",
+        "operationId": "AuditController_findByEntity",
+        "parameters": [
+          {
+            "name": "entityTable",
+            "required": true,
+            "in": "path",
+            "description": "The name of the entity table",
+            "schema": {
+              "example": "invoices",
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": true,
+            "in": "path",
+            "description": "The UUID of the entity",
+            "schema": {
+              "example": "550e8400-e29b-41d4-a716-446655440000",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Audit history for the entity"
+          }
+        },
+        "summary": "Get audit history for an entity",
+        "tags": [
+          "audit"
         ]
       }
     },
@@ -5092,7 +6282,7 @@
         ]
       }
     },
-    "/v1/reports/fiscal/libro-ventas": {
+    "/v1/reports/fiscal/libro-ventas/csv": {
       "get": {
         "description": "Generates a CSV file with the Sales Book data",
         "operationId": "ReportsController_getLibroVentas",
@@ -5135,7 +6325,7 @@
         ]
       }
     },
-    "/v1/reports/fiscal/libro-compras": {
+    "/v1/reports/fiscal/libro-compras/csv": {
       "get": {
         "description": "Generates a CSV file with the Purchases Book data",
         "operationId": "ReportsController_getLibroCompras",
@@ -5173,6 +6363,266 @@
           }
         },
         "summary": "Get Purchases Book (Libro de Compras) CSV",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/fiscal/libro-ventas": {
+      "get": {
+        "description": "Asientos de la sucursal en moneda funcional; las notas de crédito restan. Sólo documentos POSTED",
+        "operationId": "ReportsController_getLibroVentasJson",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Libro de ventas"
+          }
+        },
+        "summary": "Libro de ventas con totales por alícuota",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/fiscal/libro-compras": {
+      "get": {
+        "operationId": "ReportsController_getLibroComprasJson",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Libro de compras"
+          }
+        },
+        "summary": "Libro de compras con totales por alícuota",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/fiscal/validation": {
+      "get": {
+        "description": "RIF, número de control, huecos de secuencia y cierres. `canExport` es false si hay errores",
+        "operationId": "ReportsController_getValidation",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Hallazgos fiscales"
+          }
+        },
+        "summary": "Validaciones previas a exportar (T-06-04)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/fiscal/exports": {
+      "post": {
+        "description": "Genera el archivo, lo registra con hash y correlativo, y devuelve el contenido. `409` si la validación tiene errores",
+        "operationId": "ReportsController_createExport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reportType",
+                  "format"
+                ],
+                "properties": {
+                  "reportType": {
+                    "type": "string",
+                    "enum": [
+                      "LIBRO_VENTAS",
+                      "LIBRO_COMPRAS",
+                      "RETENCIONES_IVA",
+                      "RETENCIONES_ISLR"
+                    ]
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "CSV",
+                      "TXT",
+                      "XML"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "example": "2026-10-01"
+                  },
+                  "to": {
+                    "type": "string",
+                    "example": "2026-10-31"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Archivo generado y registrado"
+          },
+          "409": {
+            "description": "La validación tiene errores"
+          }
+        },
+        "summary": "Exportar un reporte fiscal (T-06-05)",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/trial-balance": {
+      "get": {
+        "description": "Sumas y saldos por cuenta de los asientos posteados de la sucursal",
+        "operationId": "FinancialReportsController_trialBalance",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance de comprobación"
+          }
+        },
+        "summary": "Balance de comprobación",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/balance-sheet": {
+      "get": {
+        "description": "Activo, pasivo, patrimonio y resultado acumulado hasta la fecha",
+        "operationId": "FinancialReportsController_balanceSheet",
+        "parameters": [
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Balance general"
+          }
+        },
+        "summary": "Balance general al corte",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/v1/reports/income-statement": {
+      "get": {
+        "description": "Ingresos, costos y gastos del rango; resultado = ingresos − costos − gastos",
+        "operationId": "FinancialReportsController_incomeStatement",
+        "parameters": [
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado de resultados"
+          }
+        },
+        "summary": "Estado de resultados",
         "tags": [
           "reports"
         ]
@@ -5546,100 +6996,6 @@
         "summary": "Record loan payment",
         "tags": [
           "loans"
-        ]
-      }
-    },
-    "/v1/audit": {
-      "get": {
-        "description": "Retrieves a list of all audit logs with optional filters",
-        "operationId": "AuditController_findAll",
-        "parameters": [
-          {
-            "name": "userId",
-            "required": false,
-            "in": "query",
-            "description": "Filter by user ID",
-            "schema": {
-              "example": "550e8400-e29b-41d4-a716-446655440000",
-              "type": "string"
-            }
-          },
-          {
-            "name": "entityTable",
-            "required": false,
-            "in": "query",
-            "description": "Filter by entity table name",
-            "schema": {
-              "example": "invoices",
-              "type": "string"
-            }
-          },
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "description": "Filter logs from this date (ISO 8601 format)",
-            "schema": {
-              "example": "2026-01-01T00:00:00Z",
-              "type": "string"
-            }
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "description": "Filter logs until this date (ISO 8601 format)",
-            "schema": {
-              "example": "2026-12-31T23:59:59Z",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of audit logs"
-          }
-        },
-        "summary": "Get all audit logs",
-        "tags": [
-          "audit"
-        ]
-      }
-    },
-    "/v1/audit/{entityTable}/{entityId}": {
-      "get": {
-        "description": "Retrieves the audit history for a specific entity by table name and ID",
-        "operationId": "AuditController_findByEntity",
-        "parameters": [
-          {
-            "name": "entityTable",
-            "required": true,
-            "in": "path",
-            "description": "The name of the entity table",
-            "schema": {
-              "example": "invoices",
-              "type": "string"
-            }
-          },
-          {
-            "name": "entityId",
-            "required": true,
-            "in": "path",
-            "description": "The UUID of the entity",
-            "schema": {
-              "example": "550e8400-e29b-41d4-a716-446655440000",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Audit history for the entity"
-          }
-        },
-        "summary": "Get audit history for an entity",
-        "tags": [
-          "audit"
         ]
       }
     },
@@ -6825,6 +8181,16 @@
             "description": "Due date",
             "example": "2026-06-30T23:59:59.000Z"
           },
+          "supplierInvoiceNumber": {
+            "type": "string",
+            "description": "Número de factura del proveedor (compras)",
+            "example": "00001234"
+          },
+          "supplierInvoiceDate": {
+            "type": "string",
+            "description": "Fecha de emisión de la factura del proveedor; por defecto, la del documento",
+            "example": "2026-06-15T00:00:00.000Z"
+          },
           "items": {
             "description": "Invoice items",
             "type": "array",
@@ -7033,6 +8399,26 @@
           "currencyId"
         ]
       },
+      "PaymentAllocationDto": {
+        "type": "object",
+        "properties": {
+          "invoiceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Factura a cancelar"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0.01,
+            "description": "Importe aplicado a esa factura",
+            "example": 500
+          }
+        },
+        "required": [
+          "invoiceId",
+          "amount"
+        ]
+      },
       "CreatePaymentDto": {
         "type": "object",
         "properties": {
@@ -7102,6 +8488,19 @@
             "type": "string",
             "description": "Payment type",
             "default": "INCOME"
+          },
+          "retentionAmount": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Retención que se descuenta al proveedor (no sale de la cuenta bancaria)",
+            "example": 120
+          },
+          "allocations": {
+            "description": "Facturas a las que se aplica el pago. Si falta, se usa `invoiceId` con el importe completo",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAllocationDto"
+            }
           }
         },
         "required": [
@@ -7142,6 +8541,26 @@
             "type": "string",
             "nullable": true,
             "example": "550e8400-e29b-41d4-a716-446655440002"
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true,
+            "example": true
+          },
+          "appliesIgtf": {
+            "type": "boolean",
+            "example": false,
+            "description": "Aplica IGTF (3 %) al cobrar en divisa"
+          },
+          "requiresReference": {
+            "type": "boolean",
+            "example": true,
+            "description": "Exige referencia bancaria"
+          },
+          "isCash": {
+            "type": "boolean",
+            "example": true,
+            "description": "Es efectivo"
           }
         },
         "required": [
@@ -7149,6 +8568,36 @@
           "name",
           "code"
         ]
+      },
+      "UpdatePaymentMethodDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Efectivo USD"
+          },
+          "appliesIgtf": {
+            "type": "boolean",
+            "description": "Cobra IGTF (3 %) al pagarse en divisa"
+          },
+          "requiresReference": {
+            "type": "boolean",
+            "description": "Exige número de referencia"
+          },
+          "isCash": {
+            "type": "boolean",
+            "description": "Es efectivo"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Un método desactivado no aparece al cobrar"
+          },
+          "currencyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moneda del método"
+          }
+        }
       },
       "CreatePaymentMethodDto": {
         "type": "object",
@@ -7174,6 +8623,18 @@
             "type": "string",
             "format": "uuid",
             "description": "Branch ID"
+          },
+          "appliesIgtf": {
+            "type": "boolean",
+            "description": "Cobra IGTF (3 %) al pagarse en divisa"
+          },
+          "requiresReference": {
+            "type": "boolean",
+            "description": "Exige número de referencia"
+          },
+          "isCash": {
+            "type": "boolean",
+            "description": "Es efectivo"
           }
         },
         "required": [
@@ -7213,6 +8674,21 @@
           "currentBalance": {
             "type": "number",
             "example": 5000
+          },
+          "initialBalance": {
+            "type": "number",
+            "example": 1000,
+            "description": "Saldo con el que se abrió la cuenta"
+          },
+          "bankId": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440003"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "example": "Cuenta operativa"
           },
           "isActive": {
             "type": "boolean",
@@ -7257,6 +8733,20 @@
             "type": "number",
             "minimum": 0,
             "description": "Initial balance"
+          },
+          "initialBalance": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Saldo de apertura (alias de currentBalance)"
+          },
+          "bankId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Banco del catálogo"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Cuenta operativa"
           }
         },
         "required": [
@@ -7265,6 +8755,42 @@
           "type",
           "currencyId"
         ]
+      },
+      "UpdateBankAccountDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Banesco Principal"
+          },
+          "accountNumber": {
+            "type": "string",
+            "example": "0134-0000-00-0000000000"
+          },
+          "type": {
+            "type": "string",
+            "example": "CHECKING"
+          },
+          "bankId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Banco (catálogo `banks`)"
+          },
+          "initialBalance": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Saldo inicial de apertura"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "notes": {
+            "type": "string",
+            "example": "Cuenta operativa"
+          }
+        }
       },
       "PartnerStatementDto": {
         "type": "object",
@@ -7293,6 +8819,35 @@
             "type": "number",
             "example": 1500
           },
+          "from": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-01",
+            "description": "Inicio del rango consultado"
+          },
+          "to": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-31",
+            "description": "Fin del rango consultado"
+          },
+          "openingBalance": {
+            "type": "number",
+            "example": 0,
+            "description": "Saldo del partner antes del rango"
+          },
+          "closingBalance": {
+            "type": "number",
+            "example": 1200,
+            "description": "Saldo del partner al cierre del rango"
+          },
+          "movements": {
+            "description": "Movimientos del rango, en orden",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
           "recentPayments": {
             "type": "array",
             "items": {
@@ -7317,24 +8872,56 @@
           "outstandingInvoices"
         ]
       },
-      "DailyCloseDto": {
+      "DailyCloseDetailDto": {
         "type": "object",
         "properties": {
           "date": {
             "type": "string",
-            "example": "2026-06-01"
+            "example": "2026-10-27"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string",
+            "example": "OPEN"
           },
           "totalIncome": {
             "type": "number",
-            "example": 15000
+            "example": 1500
           },
           "totalExpense": {
             "type": "number",
-            "example": 5000
+            "example": 500
           },
           "netBalance": {
             "type": "number",
-            "example": 10000
+            "example": 1000
+          },
+          "cashCount": {
+            "type": "number",
+            "nullable": true,
+            "example": 1500,
+            "description": "Efectivo contado declarado al cerrar"
+          },
+          "openingCash": {
+            "type": "number",
+            "nullable": true,
+            "example": 0,
+            "description": "Efectivo con el que abrió la caja"
+          },
+          "expectedCash": {
+            "type": "number",
+            "nullable": true,
+            "example": 1500,
+            "description": "Efectivo esperado = apertura + neto de efectivo del día"
+          },
+          "difference": {
+            "type": "number",
+            "nullable": true,
+            "example": 0,
+            "description": "cashCount − expectedCash"
           },
           "byPaymentMethod": {
             "type": "array",
@@ -7347,16 +8934,346 @@
             "items": {
               "type": "object"
             }
+          },
+          "paymentsCount": {
+            "type": "number",
+            "example": 3,
+            "description": "Pagos considerados en el snapshot"
+          },
+          "closedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-27T20:10:00.000Z"
+          },
+          "closedBy": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "reopenedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "example": "2026-10-27T21:00:00.000Z"
+          },
+          "reopenReason": {
+            "type": "string",
+            "nullable": true,
+            "example": "Faltó un pago"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "example": "Cierre con diferencia de caja"
           }
         },
         "required": [
           "date",
+          "status",
           "totalIncome",
           "totalExpense",
           "netBalance",
           "byPaymentMethod",
-          "byCurrency"
+          "byCurrency",
+          "paymentsCount"
         ]
+      },
+      "CloseDailyCloseDto": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "string",
+            "example": "Cierre con diferencia de caja"
+          },
+          "cashCount": {
+            "type": "number",
+            "example": 1450,
+            "description": "Efectivo contado (opcional)"
+          },
+          "openingCash": {
+            "type": "number",
+            "example": 0,
+            "description": "Efectivo con el que abrió la caja"
+          }
+        }
+      },
+      "ReopenDailyCloseDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "Se registró un pago después del cierre"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ImportStatementDto": {
+        "type": "object",
+        "properties": {
+          "bankAccountId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Cuenta bancaria del extracto"
+          },
+          "fileName": {
+            "type": "string",
+            "example": "extracto-octubre.csv"
+          },
+          "content": {
+            "type": "string",
+            "description": "Contenido CSV: fecha,monto,referencia,descripción (monto negativo = egreso)",
+            "example": "2026-10-24,500.00,TRF-001,Pago cliente\n2026-10-24,-120.00,CHQ-9,Proveedor"
+          }
+        },
+        "required": [
+          "bankAccountId",
+          "content"
+        ]
+      },
+      "StatementLineDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-24"
+          },
+          "amount": {
+            "type": "number",
+            "example": 500
+          },
+          "direction": {
+            "enum": [
+              "IN",
+              "OUT"
+            ],
+            "type": "string"
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "matchedPaymentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "matched": {
+            "type": "boolean",
+            "example": false
+          },
+          "suggestions": {
+            "description": "Pagos candidatos por monto y fecha",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "amount",
+          "direction",
+          "matched"
+        ]
+      },
+      "ReconciliationReportDto": {
+        "type": "object",
+        "properties": {
+          "bankAccountId": {
+            "type": "string"
+          },
+          "totalLines": {
+            "type": "number",
+            "example": 3
+          },
+          "matchedLines": {
+            "type": "number",
+            "example": 2
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StatementLineDto"
+            }
+          },
+          "unmatchedPayments": {
+            "description": "Pagos del período sin línea conciliada",
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "bankAccountId",
+          "totalLines",
+          "matchedLines",
+          "lines",
+          "unmatchedPayments"
+        ]
+      },
+      "MatchStatementLineDto": {
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Pago o cobro con el que se concilia la línea"
+          }
+        },
+        "required": [
+          "paymentId"
+        ]
+      },
+      "PettyCashFundResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Caja chica administración"
+          },
+          "currencyId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "example": 200
+          },
+          "balance": {
+            "type": "number",
+            "example": 150
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string"
+          },
+          "responsibleUserId": {
+            "type": "string",
+            "nullable": true
+          },
+          "movements": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "spentSinceReplenishment": {
+            "type": "number",
+            "example": 50,
+            "description": "Gastado desde la última reposición"
+          },
+          "replenishments": {
+            "type": "number",
+            "example": 2,
+            "description": "Veces que se repuso el fondo"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "currencyId",
+          "amount",
+          "balance",
+          "status",
+          "movements",
+          "spentSinceReplenishment"
+        ]
+      },
+      "CreatePettyCashFundDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Caja chica administración"
+          },
+          "currencyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moneda del fondo"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0.01,
+            "example": 200,
+            "description": "Monto del fondo fijo"
+          },
+          "responsibleUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Responsable del fondo"
+          }
+        },
+        "required": [
+          "name",
+          "currencyId",
+          "amount"
+        ]
+      },
+      "CreatePettyCashMovementDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "example": "2026-10-27"
+          },
+          "type": {
+            "enum": [
+              "EXPENSE",
+              "REPLENISHMENT"
+            ],
+            "type": "string",
+            "example": "EXPENSE"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0.01,
+            "example": 25.5
+          },
+          "description": {
+            "type": "string",
+            "example": "Taxi a banco"
+          },
+          "receiptNumber": {
+            "type": "string",
+            "example": "REC-0001"
+          }
+        },
+        "required": [
+          "date",
+          "type",
+          "amount"
+        ]
+      },
+      "ClosePettyCashFundDto": {
+        "type": "object",
+        "properties": {
+          "returnedAmount": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0,
+            "description": "Saldo devuelto al cerrar el fondo"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Se cierra al cambiar de responsable"
+          }
+        }
       },
       "EmployeeBankAccountDto": {
         "type": "object",
@@ -7456,6 +9373,15 @@
           "baseSalary": {
             "type": "number",
             "example": 1500
+          },
+          "salaryCurrencyId": {
+            "type": "string",
+            "description": "Moneda en la que está pactado el sueldo"
+          },
+          "salaryCurrencyCode": {
+            "type": "string",
+            "example": "USD",
+            "description": "Código de la moneda del sueldo"
           },
           "payFrequency": {
             "type": "string",
@@ -8975,6 +10901,11 @@
             "description": "Credit limit",
             "example": 10000
           },
+          "creditDays": {
+            "type": "number",
+            "description": "Días de crédito para el vencimiento de compras",
+            "example": 30
+          },
           "islrConceptId": {
             "type": "string",
             "nullable": true,
@@ -9004,7 +10935,8 @@
           "taxpayerType",
           "retentionRate",
           "isSpecialTaxpayer",
-          "creditLimit"
+          "creditLimit",
+          "creditDays"
         ]
       },
       "PartnerStatsResponseDto": {
@@ -9098,6 +11030,12 @@
             "description": "Credit limit",
             "example": 10000
           },
+          "creditDays": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Días de crédito para calcular el vencimiento de compras (T-03-02)",
+            "example": 30
+          },
           "islrConceptId": {
             "type": "string",
             "format": "uuid",
@@ -9175,6 +11113,12 @@
             "minimum": 0,
             "description": "Credit limit",
             "example": 50000
+          },
+          "creditDays": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Días de crédito para calcular el vencimiento de compras (T-03-02)",
+            "example": 30
           },
           "islrConceptId": {
             "type": "string",
@@ -10086,12 +12030,24 @@
             "type": "string",
             "description": "Batch number",
             "example": "BATCH-2026-001"
+          },
+          "minStock": {
+            "type": "string",
+            "nullable": true,
+            "description": "Stock mínimo del producto",
+            "example": "10.00"
+          },
+          "belowMinimum": {
+            "type": "boolean",
+            "description": "El stock está por debajo del mínimo del producto (T-07-06)",
+            "example": false
           }
         },
         "required": [
           "id",
           "warehouseId",
-          "productId"
+          "productId",
+          "belowMinimum"
         ]
       },
       "InventoryMoveLineResponseDto": {
@@ -10473,6 +12429,15 @@
             "description": "Credit note code",
             "example": "CN-2026-0001"
           },
+          "type": {
+            "enum": [
+              "SALE",
+              "PURCHASE"
+            ],
+            "type": "string",
+            "description": "SALE devuelve a un cliente; PURCHASE es una devolución a proveedor",
+            "example": "SALE"
+          },
           "invoiceId": {
             "type": "string",
             "nullable": true,
@@ -10586,6 +12551,7 @@
         "required": [
           "id",
           "code",
+          "type",
           "partnerId",
           "branchId",
           "currencyId",
@@ -10632,6 +12598,15 @@
       "CreateCreditNoteDto": {
         "type": "object",
         "properties": {
+          "type": {
+            "enum": [
+              "SALE",
+              "PURCHASE"
+            ],
+            "type": "string",
+            "description": "SALE devuelve a un cliente; PURCHASE es una devolución a proveedor",
+            "default": "SALE"
+          },
           "invoiceId": {
             "type": "string",
             "format": "uuid",
@@ -10844,17 +12819,17 @@
           },
           "type": {
             "enum": [
-              "ACTIVO",
-              "PASIVO",
-              "PATRIMONIO",
-              "INGRESO",
-              "EGRESO",
-              "costo",
-              "orden"
+              "ASSET",
+              "LIABILITY",
+              "EQUITY",
+              "REVENUE",
+              "EXPENSE",
+              "COST",
+              "ORDER"
             ],
             "type": "string",
             "description": "Account type",
-            "example": "ACTIVO"
+            "example": "ASSET"
           },
           "branchId": {
             "type": "string",
@@ -10867,6 +12842,11 @@
             "nullable": true,
             "description": "Parent account ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
+          },
+          "isPostable": {
+            "type": "boolean",
+            "description": "Si acepta líneas de asiento",
+            "example": true
           },
           "isActive": {
             "type": "boolean",
@@ -10886,6 +12866,7 @@
           "code",
           "name",
           "type",
+          "isPostable",
           "isActive",
           "children"
         ]
@@ -10910,17 +12891,17 @@
           },
           "type": {
             "enum": [
-              "ACTIVO",
-              "PASIVO",
-              "PATRIMONIO",
-              "INGRESO",
-              "EGRESO",
-              "costo",
-              "orden"
+              "ASSET",
+              "LIABILITY",
+              "EQUITY",
+              "REVENUE",
+              "EXPENSE",
+              "COST",
+              "ORDER"
             ],
             "type": "string",
             "description": "Account type",
-            "example": "ACTIVO"
+            "example": "ASSET"
           },
           "branchId": {
             "type": "string",
@@ -10934,6 +12915,11 @@
             "description": "Parent account ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
+          "isPostable": {
+            "type": "boolean",
+            "description": "Si acepta líneas de asiento",
+            "example": true
+          },
           "isActive": {
             "type": "boolean",
             "description": "Whether the account is active",
@@ -10945,6 +12931,7 @@
           "code",
           "name",
           "type",
+          "isPostable",
           "isActive"
         ]
       },
@@ -10963,13 +12950,13 @@
           },
           "type": {
             "enum": [
-              "ACTIVO",
-              "PASIVO",
-              "PATRIMONIO",
-              "INGRESO",
-              "EGRESO",
-              "costo",
-              "orden"
+              "ASSET",
+              "LIABILITY",
+              "EQUITY",
+              "REVENUE",
+              "EXPENSE",
+              "COST",
+              "ORDER"
             ],
             "type": "string",
             "description": "Account type",
@@ -10984,8 +12971,12 @@
           "parentId": {
             "type": "string",
             "format": "uuid",
-            "description": "Parent account ID for hierarchy",
-            "example": "550e8400-e29b-41d4-a716-446655440002"
+            "description": "Parent account ID for hierarchy"
+          },
+          "isPostable": {
+            "type": "boolean",
+            "description": "Si acepta líneas de asiento. Por defecto `true`; al crear una hija pasa a `false`",
+            "example": true
           }
         },
         "required": [
@@ -10993,6 +12984,41 @@
           "name",
           "type"
         ]
+      },
+      "UpdateAccountDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Caja General"
+          },
+          "type": {
+            "enum": [
+              "ASSET",
+              "LIABILITY",
+              "EQUITY",
+              "REVENUE",
+              "EXPENSE",
+              "COST",
+              "ORDER"
+            ],
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Parent account ID"
+          },
+          "isPostable": {
+            "type": "boolean",
+            "example": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Desactivar la cuenta sin borrarla"
+          }
+        }
       },
       "EntryLineResponseDto": {
         "type": "object",
@@ -11119,6 +13145,31 @@
             "type": "string",
             "description": "Entry status",
             "example": "POSTED"
+          },
+          "sourceType": {
+            "type": "string",
+            "nullable": true,
+            "description": "Documento que originó el asiento",
+            "enum": [
+              "INVOICE",
+              "PAYMENT",
+              "CREDIT_NOTE",
+              "PAYROLL",
+              "INVENTORY",
+              "MANUAL"
+            ],
+            "example": "INVOICE"
+          },
+          "sourceId": {
+            "type": "string",
+            "nullable": true,
+            "description": "ID del documento origen"
+          },
+          "postedAt": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Momento del posteo (DRAFT → POSTED)"
           },
           "userId": {
             "type": "string",
@@ -11249,6 +13300,31 @@
             "items": {
               "$ref": "#/components/schemas/CreateEntryLineDto"
             }
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "POSTED"
+            ],
+            "type": "string",
+            "description": "Por defecto `POSTED`. Un `DRAFT` se edita y se postea después (T-04-02)"
+          },
+          "sourceType": {
+            "enum": [
+              "INVOICE",
+              "PAYMENT",
+              "CREDIT_NOTE",
+              "PAYROLL",
+              "INVENTORY",
+              "MANUAL"
+            ],
+            "type": "string",
+            "description": "Documento que origina el asiento"
+          },
+          "sourceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "ID del documento origen (idempotencia por par)"
           }
         },
         "required": [
@@ -11256,6 +13332,27 @@
           "description",
           "lines"
         ]
+      },
+      "UpdateEntryDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string",
+            "nullable": true
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CreateEntryLineDto"
+            }
+          }
+        }
       },
       "MapResponseDto": {
         "type": "object",
@@ -11434,6 +13531,81 @@
           "success",
           "entryId",
           "message"
+        ]
+      },
+      "PeriodResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440010"
+          },
+          "year": {
+            "type": "number",
+            "example": 2026
+          },
+          "month": {
+            "type": "number",
+            "example": 10
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "CLOSED"
+            ],
+            "type": "string",
+            "example": "OPEN"
+          },
+          "closedAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11-01T12:00:00.000Z"
+          },
+          "closedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "reopenedAt": {
+            "type": "string",
+            "nullable": true,
+            "example": "2026-11-02T09:00:00.000Z"
+          },
+          "reopenReason": {
+            "type": "string",
+            "nullable": true,
+            "example": "Ajuste de retención omitida"
+          },
+          "entries": {
+            "type": "number",
+            "description": "Asientos del período (incluye borradores)"
+          },
+          "totalDebit": {
+            "type": "number",
+            "description": "Total debe de los asientos posteados"
+          },
+          "totalCredit": {
+            "type": "number",
+            "description": "Total haber de los asientos posteados"
+          }
+        },
+        "required": [
+          "id",
+          "year",
+          "month",
+          "status"
+        ]
+      },
+      "ReopenPeriodDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Motivo de la reapertura; queda en la auditoría",
+            "example": "Ajuste"
+          }
+        },
+        "required": [
+          "reason"
         ]
       },
       "BranchResponseDto": {
@@ -11718,6 +13890,15 @@
             "nullable": true,
             "description": "Condition",
             "example": "GOOD"
+          },
+          "kind": {
+            "enum": [
+              "DELIVERED",
+              "RETURNED"
+            ],
+            "type": "string",
+            "description": "Movimiento del ítem: entrega o devolución",
+            "example": "DELIVERED"
           }
         },
         "required": [
@@ -11725,7 +13906,8 @@
           "loanId",
           "productId",
           "quantity",
-          "condition"
+          "condition",
+          "kind"
         ]
       },
       "LoanResponseDto": {

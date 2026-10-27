@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health check (usado por Docker/CI) */
+        get: operations["HealthController_check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/login": {
         parameters: {
             query?: never;
@@ -15,9 +32,43 @@ export interface paths {
         put?: never;
         /**
          * User login
-         * @description Authenticates a user and returns a JWT access token
+         * @description Authenticates a user, devuelve el JWT y además lo deja en una cookie httpOnly.
          */
         post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Perfil del usuario autenticado */
+        get: operations["AuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cierra la sesión (borra la cookie) */
+        post: operations["AuthController_logout"];
         delete?: never;
         options?: never;
         head?: never;
@@ -216,6 +267,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/billing/invoices/payables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuentas por pagar por factura
+         * @description Saldo = total ? pagado ? notas de crédito de compra. Sólo compras POSTED/PAID
+         */
+        get: operations["BillingController_findPayables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/payables/aging": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Antigüedad de saldos (aging)
+         * @description Buckets: por vencer, 1-30, 31-60, 61-90 y más de 90 días
+         */
+        get: operations["BillingController_findPayablesAging"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/billing/invoices/supplier-retention-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Parámetros de retención al proveedor de la empresa */
+        get: operations["BillingController_getRetentionSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar parámetros de retención
+         * @description IVA (ordinario y especial), ISLR y su umbral. Cambian por decreto: son parámetro
+         */
+        patch: operations["BillingController_updateRetentionSettings"];
+        trace?: never;
+    };
     "/v1/billing/invoices/{id}": {
         parameters: {
             query?: never;
@@ -364,6 +476,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/treasury/retentions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Comprobantes de retención emitidos
+         * @description Retenciones IVA/ISLR de la sucursal con su factura de origen
+         */
+        get: operations["TreasuryController_findRetentions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/treasury/methods": {
         parameters: {
             query?: never;
@@ -386,6 +518,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/methods/all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métodos de pago incluidos los desactivados
+         * @description Pantalla de administración: un método desactivado no aparece al cobrar
+         */
+        get: operations["TreasuryController_getAllMethods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/methods/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar un método de pago
+         * @description Nombre, banderas (IGTF, referencia, efectivo) y activación
+         */
+        patch: operations["TreasuryController_updateMethod"];
         trace?: never;
     };
     "/v1/treasury/bank-accounts": {
@@ -412,6 +584,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/treasury/bank-accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar una cuenta bancaria
+         * @description Nombre, número, banco, saldo inicial, notas y activación (T-05-02)
+         */
+        patch: operations["TreasuryController_updateBankAccount"];
+        trace?: never;
+    };
     "/v1/treasury/statements/{partnerId}": {
         parameters: {
             query?: never;
@@ -432,6 +624,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/treasury/daily-close/{date}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cierre diario de una fecha
+         * @description Totales por método y moneda. Si el día está cerrado devuelve el snapshot guardado (T-05-03)
+         */
+        get: operations["TreasuryController_getDailyCloseByDate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/daily-close/{date}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cerrar el día
+         * @description Guarda el snapshot de totales y bloquea nuevos movimientos con esa fecha
+         */
+        post: operations["TreasuryController_closeDailyClose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/daily-close/{date}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reabrir el día
+         * @description Exige motivo y queda auditado; recalcula los totales al leer
+         */
+        post: operations["TreasuryController_reopenDailyClose"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/treasury/daily-close": {
         parameters: {
             query?: never;
@@ -440,12 +692,161 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get daily close
-         * @description Retrieves daily payment summary grouped by method and currency
+         * Cierre diario (compatibilidad)
+         * @description Igual que `/daily-close/:date` con la fecha por query string
          */
         get: operations["TreasuryController_getDailyClose"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/reconciliation/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Importar extracto bancario (CSV)
+         * @description Formato fecha,monto,referencia,descripción. Es idempotente por hash del archivo
+         */
+        post: operations["TreasuryController_importStatement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/reconciliation/{bankAccountId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de conciliación de una cuenta
+         * @description Líneas del extracto, pagos sin conciliar y sugerencias por monto y fecha
+         */
+        get: operations["TreasuryController_getReconciliation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/reconciliation/{lineId}/match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Conciliar una línea con un pago
+         * @description Una línea se concilia con un pago y viceversa (`409` si ya está tomado)
+         */
+        post: operations["TreasuryController_matchLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/reconciliation/{lineId}/unmatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desconciliar una línea */
+        post: operations["TreasuryController_unmatchLine"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/petty-cash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fondos de caja chica de la sucursal */
+        get: operations["TreasuryController_listPettyCash"];
+        put?: never;
+        /** Crear un fondo de caja chica */
+        post: operations["TreasuryController_createPettyCash"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/petty-cash/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalle de un fondo */
+        get: operations["TreasuryController_getPettyCash"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/petty-cash/{id}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registrar gasto o reposición
+         * @description El fondo nunca queda negativo (regla 5 de S-05)
+         */
+        post: operations["TreasuryController_addPettyCashMovement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/treasury/petty-cash/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cerrar el fondo devolviendo el saldo */
+        post: operations["TreasuryController_closePettyCash"];
         delete?: never;
         options?: never;
         head?: never;
@@ -508,6 +909,26 @@ export interface paths {
         patch: operations["HrController_updateEmployee"];
         trace?: never;
     };
+    "/v1/hr/employees/{id}/terminate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Terminate an employee
+         * @description Sets status TERMINATED and the termination date
+         */
+        post: operations["HrController_terminateEmployee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/hr/departments": {
         parameters: {
             query?: never;
@@ -526,6 +947,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/hr/departments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a department */
+        patch: operations["HrController_updateDepartment"];
+        trace?: never;
+    };
     "/v1/hr/positions": {
         parameters: {
             query?: never;
@@ -542,6 +980,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/positions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a position */
+        patch: operations["HrController_updatePosition"];
         trace?: never;
     };
     "/v1/hr/payroll": {
@@ -570,6 +1025,23 @@ export interface paths {
         };
         /** Get payroll run by ID */
         get: operations["HrController_findOnePayrollRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/payroll/{id}/parameters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get frozen payroll parameters of a run */
+        get: operations["HrController_getPayrollRunParameters"];
         put?: never;
         post?: never;
         delete?: never;
@@ -615,6 +1087,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/hr/payroll/{id}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pay the payroll run through treasury (idempotent: one payment per run) */
+        post: operations["HrController_payPayrollRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/hr/payroll/{runId}/payslip/{itemId}": {
         parameters: {
             query?: never;
@@ -650,6 +1139,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/hr/incidents/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a pending incident */
+        post: operations["HrController_approveIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/incidents/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject a pending incident */
+        post: operations["HrController_rejectIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List payroll settings */
+        get: operations["HrController_findPayrollSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Create or update a payroll setting */
+        patch: operations["HrController_updatePayrollSetting"];
+        trace?: never;
+    };
     "/v1/hr/concept-types": {
         parameters: {
             query?: never;
@@ -660,7 +1201,250 @@ export interface paths {
         /** Get payroll concept types */
         get: operations["HrController_getPayrollConceptTypes"];
         put?: never;
+        /** Create a payroll concept type */
+        post: operations["HrController_createPayrollConcept"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/concept-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        /** Delete a payroll concept type */
+        delete: operations["HrController_deletePayrollConcept"];
+        options?: never;
+        head?: never;
+        /** Update a payroll concept type */
+        patch: operations["HrController_updatePayrollConcept"];
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/vacations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get vacation entitlement and pending days */
+        get: operations["HrController_getVacationSummary"];
+        put?: never;
+        /** Register a vacation period and compute vacation and bonus pay */
+        post: operations["HrController_registerVacation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/benefits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get severance benefits: both modalities and the payable one */
+        get: operations["HrController_getBenefitsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/benefits/deposit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deposit the quarterly severance guarantee */
+        post: operations["HrController_depositBenefitGuarantee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/profit-sharing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register annual profit sharing (utilidades) */
+        post: operations["HrController_registerProfitSharing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/settlement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the registered settlement of an employee */
+        get: operations["HrController_getSettlement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/hr/employees/{id}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Settle the employee termination: benefits, vacations, profit sharing and indemnity */
+        post: operations["HrController_settleEmployee"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all currencies
+         * @description Retrieves a list of all currencies
+         */
+        get: operations["CurrenciesController_findAll"];
+        put?: never;
+        /**
+         * Create a new currency
+         * @description Creates a new currency with the provided data
+         */
+        post: operations["CurrenciesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies/rates/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get latest exchange rates
+         * @description Retrieves the most recent exchange rate for each currency
+         */
+        get: operations["CurrenciesController_getLatestRates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies/rates/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the rate of a currency
+         * @description Returns the most recent rate up to the given date (or today) together with its age and staleness flag
+         */
+        get: operations["CurrenciesController_getRate"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies/rates/{code}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the rate history of a currency */
+        get: operations["CurrenciesController_getHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a manual exchange rate
+         * @description Override of the day rate. Requires a reason and leaves the previous days untouched (M9)
+         */
+        post: operations["CurrenciesController_addRate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/currencies/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Synchronise the USD rate from BCV
+         * @description Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST
+         */
+        post: operations["CurrenciesController_refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -994,10 +1778,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a warehouse by id */
+        get: operations["InventoryController_findOneWarehouse"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Deactivate a warehouse
+         * @description Logical delete: rejects with 409 when the warehouse still has stock or movements
+         */
+        delete: operations["InventoryController_deactivateWarehouse"];
         options?: never;
         head?: never;
         /**
@@ -1257,10 +2046,18 @@ export interface paths {
         get: operations["AccountingController_findOneAccount"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an account
+         * @description Desactiva la cuenta. Responde 409 si tiene movimientos o cuentas hijas (T-04-01)
+         */
+        delete: operations["AccountingController_deleteAccount"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update an account
+         * @description No permite cambiar el tipo de una cuenta con movimientos ni volver imputable una cuenta con hijas
+         */
+        patch: operations["AccountingController_updateAccount"];
         trace?: never;
     };
     "/v1/accounting/entries": {
@@ -1278,7 +2075,7 @@ export interface paths {
         put?: never;
         /**
          * Create a new entry
-         * @description Creates a new accounting entry. Entry lines must sum to zero (debit = credit)
+         * @description Crea un asiento. Las líneas deben sumar cero; `status: DRAFT` lo deja editable sin afectar el libro
          */
         post: operations["AccountingController_createEntry"];
         delete?: never;
@@ -1301,6 +2098,30 @@ export interface paths {
         get: operations["AccountingController_findOneEntry"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a draft entry
+         * @description Sólo se puede editar un asiento en borrador (T-04-02)
+         */
+        patch: operations["AccountingController_updateEntry"];
+        trace?: never;
+    };
+    "/v1/accounting/entries/{id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft entry
+         * @description DRAFT → POSTED. Valida partida doble, cuentas imputables y período abierto
+         */
+        post: operations["AccountingController_postEntry"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1385,6 +2206,126 @@ export interface paths {
          * @description Applies an accounting map to a transaction (invoice or payment) to generate an entry
          */
         post: operations["AccountingController_applyMapToTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/accounting/periods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the accounting periods of a year
+         * @description Materializa los 12 meses (los que faltan nacen OPEN) y resume asientos y totales
+         */
+        get: operations["AccountingController_findPeriods"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/accounting/periods/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close an accounting period
+         * @description Un período cerrado rechaza asientos con 409. Queda auditado con usuario y fecha
+         */
+        post: operations["AccountingController_closePeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/accounting/periods/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reopen an accounting period
+         * @description Exige motivo; el motivo y el usuario quedan en la auditoría
+         */
+        post: operations["AccountingController_reopenPeriod"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tablas auditadas
+         * @description Lista de `entityTable` presentes en el registro, para el filtro del visor
+         */
+        get: operations["AuditController_listEntityTables"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get all audit logs
+         * @description Con `paginated=true` devuelve `{ data, total, page, limit }`; sin el flag mantiene el arreglo plano
+         */
+        get: operations["AuditController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audit/{entityTable}/{entityId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get audit history for an entity
+         * @description Retrieves the audit history for a specific entity by table name and ID
+         */
+        get: operations["AuditController_findByEntity"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1571,7 +2512,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/reports/fiscal/libro-ventas": {
+    "/v1/reports/fiscal/libro-ventas/csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -1591,7 +2532,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/reports/fiscal/libro-compras": {
+    "/v1/reports/fiscal/libro-compras/csv": {
         parameters: {
             query?: never;
             header?: never;
@@ -1603,6 +2544,143 @@ export interface paths {
          * @description Generates a CSV file with the Purchases Book data
          */
         get: operations["ReportsController_getLibroCompras"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/fiscal/libro-ventas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Libro de ventas con totales por alícuota
+         * @description Asientos de la sucursal en moneda funcional; las notas de crédito restan. Sólo documentos POSTED
+         */
+        get: operations["ReportsController_getLibroVentasJson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/fiscal/libro-compras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Libro de compras con totales por alícuota */
+        get: operations["ReportsController_getLibroComprasJson"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/fiscal/validation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Validaciones previas a exportar (T-06-04)
+         * @description RIF, número de control, huecos de secuencia y cierres. `canExport` es false si hay errores
+         */
+        get: operations["ReportsController_getValidation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/fiscal/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Exportar un reporte fiscal (T-06-05)
+         * @description Genera el archivo, lo registra con hash y correlativo, y devuelve el contenido. `409` si la validación tiene errores
+         */
+        post: operations["ReportsController_createExport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/trial-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Balance de comprobación
+         * @description Sumas y saldos por cuenta de los asientos posteados de la sucursal
+         */
+        get: operations["FinancialReportsController_trialBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/balance-sheet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Balance general al corte
+         * @description Activo, pasivo, patrimonio y resultado acumulado hasta la fecha
+         */
+        get: operations["FinancialReportsController_balanceSheet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reports/income-statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Estado de resultados
+         * @description Ingresos, costos y gastos del rango; resultado = ingresos − costos − gastos
+         */
+        get: operations["FinancialReportsController_incomeStatement"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1665,90 +2743,6 @@ export interface paths {
         get: operations["BiController_getActivity"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/cron/trigger-bcv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Trigger BCV rate fetch
-         * @description Manually triggers the BCV exchange rate scraping and stores it in the database
-         */
-        get: operations["CronController_triggerBcv"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings/currencies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get all currencies
-         * @description Retrieves a list of all currencies
-         */
-        get: operations["CurrenciesController_findAll"];
-        put?: never;
-        /**
-         * Create a new currency
-         * @description Creates a new currency with the provided data
-         */
-        post: operations["CurrenciesController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings/currencies/rates/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get latest exchange rates
-         * @description Retrieves the most recent exchange rate for each currency
-         */
-        get: operations["CurrenciesController_getLatestRates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings/currencies/rates": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Add a new exchange rate
-         * @description Adds a new exchange rate for a currency
-         */
-        post: operations["CurrenciesController_addRate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1857,46 +2851,6 @@ export interface paths {
          * @description Records payment items for an active loan by creating loan_items
          */
         post: operations["LoansController_pay"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/audit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get all audit logs
-         * @description Retrieves a list of all audit logs with optional filters
-         */
-        get: operations["AuditController_findAll"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/audit/{entityTable}/{entityId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get audit history for an entity
-         * @description Retrieves the audit history for a specific entity by table name and ID
-         */
-        get: operations["AuditController_findByEntity"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2095,6 +3049,8 @@ export interface components {
             name: string;
             permissions: string[];
             branches: components["schemas"]["AuthBranchDto"][];
+            /** @description Sucursal con la que la UI debe arrancar (predeterminada o la única asignada) */
+            defaultBranchId: string | null;
         };
         AuthResponseDto: {
             /**
@@ -2130,8 +3086,8 @@ export interface components {
              */
             message: string;
             /**
-             * @description Mock reset URL for development
-             * @example http://localhost:3000/reset-password?token=mock-token-123
+             * @description Enlace de recuperación. Solo se incluye fuera de producción (desarrollo local).
+             * @example http://localhost:3000/reset-password?token=2f1c...
              */
             mockUrl?: string;
         };
@@ -2234,7 +3190,10 @@ export interface components {
         AssignBranchesDto: {
             /** @description Branch IDs to assign */
             branchIds: string[];
-            /** @description Default branch ID; required when branchIds is non-empty */
+            /**
+             * Format: uuid
+             * @description Default branch ID; required when branchIds is non-empty
+             */
             defaultBranchId?: string;
         };
         InvoiceResponseDto: {
@@ -2309,6 +3268,7 @@ export interface components {
         };
         InvoiceItemDto: {
             /**
+             * Format: uuid
              * @description Product ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -2331,26 +3291,31 @@ export interface components {
         };
         CreateInvoiceDto: {
             /**
+             * Format: uuid
              * @description Partner (customer/supplier) ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
             partnerId: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
             branchId: string;
             /**
+             * Format: uuid
              * @description Currency ID (default USD)
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
             currencyId?: string;
             /**
+             * Format: uuid
              * @description Warehouse ID for inventory
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
             warehouseId?: string;
             /**
+             * Format: uuid
              * @description Order ID (if created from order)
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
@@ -2376,11 +3341,22 @@ export interface components {
              * @example 2026-06-30T23:59:59.000Z
              */
             dueDate?: string;
+            /**
+             * @description Número de factura del proveedor (compras)
+             * @example 00001234
+             */
+            supplierInvoiceNumber?: string;
+            /**
+             * @description Fecha de emisión de la factura del proveedor; por defecto, la del documento
+             * @example 2026-06-15T00:00:00.000Z
+             */
+            supplierInvoiceDate?: string;
             /** @description Invoice items */
             items: components["schemas"]["InvoiceItemDto"][];
         };
         UpdateInvoiceDto: {
             /**
+             * Format: uuid
              * @description Partner ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -2427,10 +3403,15 @@ export interface components {
         PaymentResponseDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
             id: string;
+            /** @example PAY-00001 */
+            code: string;
             /** @example 550e8400-e29b-41d4-a716-446655440001 */
             invoiceId?: string | null;
-            /** @example 550e8400-e29b-41d4-a716-446655440002 */
-            partnerId: string;
+            /**
+             * @description Nulo en pagos de nómina: el beneficiario es un empleado, no un partner
+             * @example 550e8400-e29b-41d4-a716-446655440002
+             */
+            partnerId?: string | null;
             /** @example 550e8400-e29b-41d4-a716-446655440003 */
             branchId: string;
             /** @example 550e8400-e29b-41d4-a716-446655440004 */
@@ -2445,6 +3426,13 @@ export interface components {
             currencyId: string;
             /** @example 50 */
             exchangeRate?: Record<string, never>;
+            /**
+             * @description Monto en moneda funcional
+             * @example 36500
+             */
+            amountBase?: Record<string, never>;
+            /** @description Datos adicionales: diferencia cambiaria del cobro o el run de nómina pagado */
+            metadata?: Record<string, never>;
             /** @example 550e8400-e29b-41d4-a716-446655440006 */
             bankAccountId?: string | null;
             /** @example ZELLE-123456 */
@@ -2462,23 +3450,39 @@ export interface components {
              */
             createdAt?: string | null;
         };
+        PaymentAllocationDto: {
+            /**
+             * Format: uuid
+             * @description Factura a cancelar
+             */
+            invoiceId: string;
+            /**
+             * @description Importe aplicado a esa factura
+             * @example 500
+             */
+            amount: number;
+        };
         CreatePaymentDto: {
             /**
+             * Format: uuid
              * @description Invoice ID to link payment
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
             invoiceId?: string;
             /**
+             * Format: uuid
              * @description Partner ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
             partnerId: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
             branchId: string;
             /**
+             * Format: uuid
              * @description Payment method ID
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
@@ -2489,6 +3493,7 @@ export interface components {
              */
             amount: number;
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
@@ -2499,6 +3504,7 @@ export interface components {
              */
             exchangeRate: number;
             /**
+             * Format: uuid
              * @description Bank account ID
              * @example 550e8400-e29b-41d4-a716-446655440006
              */
@@ -2519,6 +3525,13 @@ export interface components {
              * @enum {string}
              */
             type: "INCOME" | "EXPENSE";
+            /**
+             * @description Retención que se descuenta al proveedor (no sale de la cuenta bancaria)
+             * @example 120
+             */
+            retentionAmount?: number;
+            /** @description Facturas a las que se aplica el pago. Si falta, se usa `invoiceId` con el importe completo */
+            allocations?: components["schemas"]["PaymentAllocationDto"][];
         };
         PaymentMethodResponseDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
@@ -2528,11 +3541,45 @@ export interface components {
             /** @example CASH_USD */
             code: string;
             /** @example false */
-            isDigital?: Record<string, never> | null;
+            isDigital?: boolean | null;
             /** @example 550e8400-e29b-41d4-a716-446655440001 */
             currencyId?: string | null;
             /** @example 550e8400-e29b-41d4-a716-446655440002 */
             branchId?: string | null;
+            /** @example true */
+            isActive?: boolean | null;
+            /**
+             * @description Aplica IGTF (3 %) al cobrar en divisa
+             * @example false
+             */
+            appliesIgtf?: boolean;
+            /**
+             * @description Exige referencia bancaria
+             * @example true
+             */
+            requiresReference?: boolean;
+            /**
+             * @description Es efectivo
+             * @example true
+             */
+            isCash?: boolean;
+        };
+        UpdatePaymentMethodDto: {
+            /** @example Efectivo USD */
+            name?: string;
+            /** @description Cobra IGTF (3 %) al pagarse en divisa */
+            appliesIgtf?: boolean;
+            /** @description Exige número de referencia */
+            requiresReference?: boolean;
+            /** @description Es efectivo */
+            isCash?: boolean;
+            /** @description Un método desactivado no aparece al cobrar */
+            isActive?: boolean;
+            /**
+             * Format: uuid
+             * @description Moneda del método
+             */
+            currencyId?: string;
         };
         CreatePaymentMethodDto: {
             /** @example Efectivo USD */
@@ -2540,11 +3587,23 @@ export interface components {
             /** @example CASH_USD */
             code: string;
             /** @description Is digital payment method */
-            isDigital?: Record<string, never>;
-            /** @description Currency ID */
+            isDigital?: boolean;
+            /**
+             * Format: uuid
+             * @description Currency ID
+             */
             currencyId?: string;
-            /** @description Branch ID */
+            /**
+             * Format: uuid
+             * @description Branch ID
+             */
             branchId?: string;
+            /** @description Cobra IGTF (3 %) al pagarse en divisa */
+            appliesIgtf?: boolean;
+            /** @description Exige número de referencia */
+            requiresReference?: boolean;
+            /** @description Es efectivo */
+            isCash?: boolean;
         };
         BankAccountResponseDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
@@ -2561,8 +3620,17 @@ export interface components {
             branchId?: string | null;
             /** @example 5000 */
             currentBalance: number;
+            /**
+             * @description Saldo con el que se abrió la cuenta
+             * @example 1000
+             */
+            initialBalance?: number;
+            /** @example 550e8400-e29b-41d4-a716-446655440003 */
+            bankId?: string | null;
+            /** @example Cuenta operativa */
+            notes?: string | null;
             /** @example true */
-            isActive?: Record<string, never> | null;
+            isActive?: boolean | null;
         };
         CreateBankAccountDto: {
             /** @example Banesco Principal */
@@ -2571,12 +3639,49 @@ export interface components {
             accountNumber: string;
             /** @example CHECKING */
             type: string;
-            /** @description Currency ID */
+            /**
+             * Format: uuid
+             * @description Currency ID
+             */
             currencyId: string;
-            /** @description Branch ID */
+            /**
+             * Format: uuid
+             * @description Branch ID
+             */
             branchId?: string;
             /** @description Initial balance */
             currentBalance?: number;
+            /** @description Saldo de apertura (alias de currentBalance) */
+            initialBalance?: number;
+            /**
+             * Format: uuid
+             * @description Banco del catálogo
+             */
+            bankId?: string;
+            /** @example Cuenta operativa */
+            notes?: string;
+        };
+        UpdateBankAccountDto: {
+            /** @example Banesco Principal */
+            name?: string;
+            /** @example 0134-0000-00-0000000000 */
+            accountNumber?: string;
+            /** @example CHECKING */
+            type?: string;
+            /**
+             * Format: uuid
+             * @description Banco (catálogo `banks`)
+             */
+            bankId?: string;
+            /**
+             * @description Saldo inicial de apertura
+             * @example 0
+             */
+            initialBalance?: number;
+            /** @example true */
+            isActive?: boolean;
+            /** @example Cuenta operativa */
+            notes?: string;
         };
         PartnerStatementDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
@@ -2591,20 +3696,221 @@ export interface components {
             totalOutstanding: number;
             /** @example 1500 */
             creditBalance: number;
+            /**
+             * @description Inicio del rango consultado
+             * @example 2026-10-01
+             */
+            from?: string | null;
+            /**
+             * @description Fin del rango consultado
+             * @example 2026-10-31
+             */
+            to?: string | null;
+            /**
+             * @description Saldo del partner antes del rango
+             * @example 0
+             */
+            openingBalance?: number;
+            /**
+             * @description Saldo del partner al cierre del rango
+             * @example 1200
+             */
+            closingBalance?: number;
+            /** @description Movimientos del rango, en orden */
+            movements?: Record<string, never>[];
             recentPayments: components["schemas"]["PaymentResponseDto"][];
             outstandingInvoices: Record<string, never>[];
         };
-        DailyCloseDto: {
-            /** @example 2026-06-01 */
+        DailyCloseDetailDto: {
+            /** @example 2026-10-27 */
             date: string;
-            /** @example 15000 */
+            /**
+             * @example OPEN
+             * @enum {string}
+             */
+            status: "OPEN" | "CLOSED";
+            /** @example 1500 */
             totalIncome: number;
-            /** @example 5000 */
+            /** @example 500 */
             totalExpense: number;
-            /** @example 10000 */
+            /** @example 1000 */
             netBalance: number;
+            /**
+             * @description Efectivo contado declarado al cerrar
+             * @example 1500
+             */
+            cashCount?: number | null;
+            /**
+             * @description Efectivo con el que abrió la caja
+             * @example 0
+             */
+            openingCash?: number | null;
+            /**
+             * @description Efectivo esperado = apertura + neto de efectivo del día
+             * @example 1500
+             */
+            expectedCash?: number | null;
+            /**
+             * @description cashCount − expectedCash
+             * @example 0
+             */
+            difference?: number | null;
             byPaymentMethod: Record<string, never>[];
             byCurrency: Record<string, never>[];
+            /**
+             * @description Pagos considerados en el snapshot
+             * @example 3
+             */
+            paymentsCount: number;
+            /**
+             * Format: date-time
+             * @example 2026-10-27T20:10:00.000Z
+             */
+            closedAt?: string | null;
+            /** @example 550e8400-e29b-41d4-a716-446655440000 */
+            closedBy?: string | null;
+            /**
+             * Format: date-time
+             * @example 2026-10-27T21:00:00.000Z
+             */
+            reopenedAt?: string | null;
+            /** @example Faltó un pago */
+            reopenReason?: string | null;
+            /** @example Cierre con diferencia de caja */
+            notes?: string | null;
+        };
+        CloseDailyCloseDto: {
+            /** @example Cierre con diferencia de caja */
+            notes?: string;
+            /**
+             * @description Efectivo contado (opcional)
+             * @example 1450
+             */
+            cashCount?: number;
+            /**
+             * @description Efectivo con el que abrió la caja
+             * @example 0
+             */
+            openingCash?: number;
+        };
+        ReopenDailyCloseDto: {
+            /** @example Se registró un pago después del cierre */
+            reason: string;
+        };
+        ImportStatementDto: {
+            /**
+             * Format: uuid
+             * @description Cuenta bancaria del extracto
+             */
+            bankAccountId: string;
+            /** @example extracto-octubre.csv */
+            fileName?: string;
+            /**
+             * @description Contenido CSV: fecha,monto,referencia,descripción (monto negativo = egreso)
+             * @example 2026-10-24,500.00,TRF-001,Pago cliente
+             *     2026-10-24,-120.00,CHQ-9,Proveedor
+             */
+            content: string;
+        };
+        StatementLineDto: {
+            id: string;
+            /** @example 2026-10-24 */
+            date: string;
+            /** @example 500 */
+            amount: number;
+            /** @enum {string} */
+            direction: "IN" | "OUT";
+            reference?: string | null;
+            description?: string | null;
+            matchedPaymentId?: string | null;
+            /** @example false */
+            matched: boolean;
+            /** @description Pagos candidatos por monto y fecha */
+            suggestions?: Record<string, never>[];
+        };
+        ReconciliationReportDto: {
+            bankAccountId: string;
+            /** @example 3 */
+            totalLines: number;
+            /** @example 2 */
+            matchedLines: number;
+            lines: components["schemas"]["StatementLineDto"][];
+            /** @description Pagos del período sin línea conciliada */
+            unmatchedPayments: Record<string, never>[];
+        };
+        MatchStatementLineDto: {
+            /**
+             * Format: uuid
+             * @description Pago o cobro con el que se concilia la línea
+             */
+            paymentId: string;
+        };
+        PettyCashFundResponseDto: {
+            id: string;
+            /** @example Caja chica administración */
+            name: string;
+            currencyId: string;
+            /** @example 200 */
+            amount: number;
+            /** @example 150 */
+            balance: number;
+            /** @enum {string} */
+            status: "OPEN" | "CLOSED";
+            responsibleUserId?: string | null;
+            movements: Record<string, never>[];
+            /**
+             * @description Gastado desde la última reposición
+             * @example 50
+             */
+            spentSinceReplenishment: number;
+            /**
+             * @description Veces que se repuso el fondo
+             * @example 2
+             */
+            replenishments?: number;
+        };
+        CreatePettyCashFundDto: {
+            /** @example Caja chica administración */
+            name: string;
+            /**
+             * Format: uuid
+             * @description Moneda del fondo
+             */
+            currencyId: string;
+            /**
+             * @description Monto del fondo fijo
+             * @example 200
+             */
+            amount: number;
+            /**
+             * Format: uuid
+             * @description Responsable del fondo
+             */
+            responsibleUserId?: string;
+        };
+        CreatePettyCashMovementDto: {
+            /** @example 2026-10-27 */
+            date: string;
+            /**
+             * @example EXPENSE
+             * @enum {string}
+             */
+            type: "EXPENSE" | "REPLENISHMENT";
+            /** @example 25.5 */
+            amount: number;
+            /** @example Taxi a banco */
+            description?: string;
+            /** @example REC-0001 */
+            receiptNumber?: string;
+        };
+        ClosePettyCashFundDto: {
+            /**
+             * @description Saldo devuelto al cerrar el fondo
+             * @example 0
+             */
+            returnedAmount?: number;
+            /** @example Se cierra al cambiar de responsable */
+            notes?: string;
         };
         EmployeeBankAccountDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
@@ -2618,9 +3924,9 @@ export interface components {
             /** @example 550e8400-e29b-41d4-a716-446655440002 */
             currencyId?: string;
             /** @example true */
-            isPrimary: Record<string, never>;
+            isPrimary: boolean;
             /** @example true */
-            isActive: Record<string, never>;
+            isActive: boolean;
         };
         EmployeeResponseDto: {
             /** @example 550e8400-e29b-41d4-a716-446655440000 */
@@ -2655,6 +3961,13 @@ export interface components {
             terminationReason?: string;
             /** @example 1500 */
             baseSalary: number;
+            /** @description Moneda en la que está pactado el sueldo */
+            salaryCurrencyId?: string;
+            /**
+             * @description Código de la moneda del sueldo
+             * @example USD
+             */
+            salaryCurrencyCode?: string;
             /** @example BIWEEKLY */
             payFrequency?: string;
             /** @example BANK_TRANSFER */
@@ -2678,15 +3991,27 @@ export interface components {
             email?: string;
             /** @example +58 412 1234567 */
             phone?: string;
-            /** @description Position ID */
+            /**
+             * Format: uuid
+             * @description Position ID
+             */
             positionId: string;
-            /** @description Department ID */
+            /**
+             * Format: uuid
+             * @description Department ID
+             */
             departmentId: string;
-            /** @description Branch ID */
+            /**
+             * Format: uuid
+             * @description Branch ID
+             */
             branchId?: string;
             /** @description Base salary */
             baseSalary: number;
-            /** @description Salary currency ID */
+            /**
+             * Format: uuid
+             * @description Salary currency ID
+             */
             salaryCurrencyId?: string;
             /**
              * @default BIWEEKLY
@@ -2695,7 +4020,10 @@ export interface components {
             payFrequency: "WEEKLY" | "BIWEEKLY" | "MONTHLY";
             /** @example BANK_TRANSFER */
             paymentMethod?: string;
-            /** @description Bank ID */
+            /**
+             * Format: uuid
+             * @description Bank ID
+             */
             bankId?: string;
             /** @description Bank account number */
             accountNumber?: string;
@@ -2707,9 +4035,15 @@ export interface components {
             lastName?: string;
             /** @example +58 412 7654321 */
             phone?: string;
-            /** @description Position ID */
+            /**
+             * Format: uuid
+             * @description Position ID
+             */
             positionId?: string;
-            /** @description Department ID */
+            /**
+             * Format: uuid
+             * @description Department ID
+             */
             departmentId?: string;
             /** @description Base salary */
             baseSalary?: number;
@@ -2720,20 +4054,64 @@ export interface components {
             /** @description Termination date */
             terminationDate?: string;
         };
+        TerminateEmployeeDto: {
+            /**
+             * @description Fecha de egreso (ISO)
+             * @example 2026-10-31
+             */
+            date: string;
+            /**
+             * @description Motivo del egreso
+             * @example Renuncia voluntaria
+             */
+            reason?: string;
+            /**
+             * @description Causa legal del egreso (LOTTT)
+             * @example RENUNCIA
+             */
+            cause?: string;
+        };
+        UpdateDepartmentDto: {
+            /** @example AdministraciÃ³n */
+            name?: string;
+            /**
+             * Format: uuid
+             * @description Departamento padre
+             */
+            parentId?: string | null;
+        };
         CreateDepartmentDto: {
             /** @example Ventas */
             name: string;
-            /** @description Parent department ID */
+            /**
+             * Format: uuid
+             * @description Parent department ID
+             */
             parentId?: string;
-            /** @description Branch ID */
+            /**
+             * Format: uuid
+             * @description Branch ID
+             */
             branchId: string;
+        };
+        UpdatePositionDto: {
+            /** @example Analista de nÃ³mina */
+            name?: string;
+            description?: string;
+            /** @example 250 */
+            baseSalaryMin?: number;
+            /** @example 450 */
+            baseSalaryMax?: number;
         };
         CreatePositionDto: {
             /** @example Gerente de Ventas */
             name: string;
             /** @example Responsible for sales team */
             description?: string;
-            /** @description Currency ID */
+            /**
+             * Format: uuid
+             * @description Currency ID
+             */
             currencyId?: string;
             /** @description Minimum salary */
             baseSalaryMin?: number;
@@ -2772,8 +4150,27 @@ export interface components {
             createdAt?: string | null;
             items?: Record<string, never>[];
         };
+        PayrollSettingResponseDto: {
+            id: string;
+            companyId: string;
+            /** @example SALARIO_MINIMO */
+            key: string;
+            /** @example Salario mínimo */
+            label: string;
+            /** @example 130 */
+            value: number;
+            /** @example CURRENCY */
+            type: string;
+            branchId: string | null;
+            /** @example 2026-10-01T00:00:00.000Z */
+            effectiveFrom: string;
+            isActive: boolean;
+        };
         CreatePayrollRunDto: {
-            /** @description Branch ID */
+            /**
+             * Format: uuid
+             * @description Branch ID
+             */
             branchId: string;
             /** @enum {string} */
             frequency: "WEEKLY" | "BIWEEKLY" | "MONTHLY";
@@ -2781,8 +4178,59 @@ export interface components {
             startDate: string;
             /** @description End date */
             endDate: string;
-            /** @description Currency ID */
+            /**
+             * Format: uuid
+             * @description Currency ID
+             */
             currencyId: string;
+        };
+        PayPayrollRunDto: {
+            /**
+             * Format: uuid
+             * @description Método de pago usado para pagar la nómina
+             */
+            methodId: string;
+            /**
+             * Format: uuid
+             * @description Cuenta bancaria de la que sale el dinero
+             */
+            bankAccountId?: string;
+            /**
+             * @description Tasa manual a la moneda funcional. Sin ella se usa la tasa del período
+             * @example 36.5
+             */
+            exchangeRate?: number;
+            /** @example 2026-11-01 */
+            date?: string;
+            /** @example Nómina octubre 2026 */
+            reference?: string;
+        };
+        PayrollPaymentResponseDto: {
+            payrollRunId: string;
+            /** @example NOM-000001 */
+            runCode: string;
+            /** @example PAID */
+            runStatus: string;
+            /** @description true si el run ya estaba pagado y se devuelve el pago existente */
+            alreadyPaid: boolean;
+            paymentId: string;
+            /** @example PAY-00001 */
+            paymentCode: string;
+            /**
+             * @description Monto en la moneda del run
+             * @example 10910
+             */
+            amount: number;
+            /**
+             * @description Monto en moneda funcional
+             * @example 10910
+             */
+            amountBase: number;
+            currencyId: string;
+            /** @example 1 */
+            exchangeRate: number;
+            /** @example 2026-11-01T00:00:00.000Z */
+            date: string;
         };
         PayslipDto: {
             /** @example Juan Pérez */
@@ -2805,9 +4253,15 @@ export interface components {
             netSalary: number;
         };
         CreateIncidentDto: {
-            /** @description Employee ID */
+            /**
+             * Format: uuid
+             * @description Employee ID
+             */
             employeeId: string;
-            /** @description Concept type ID */
+            /**
+             * Format: uuid
+             * @description Concept type ID
+             */
             conceptId: string;
             /** @description Incident date */
             date: string;
@@ -2817,6 +4271,460 @@ export interface components {
             amount?: number;
             /** @description Notes */
             notes?: string;
+        };
+        UpdatePayrollSettingDto: {
+            /**
+             * @description Clave del parámetro
+             * @example SALARIO_MINIMO
+             */
+            key: string;
+            /**
+             * @description Valor numérico
+             * @example 130
+             */
+            value: number;
+            /** @description Etiqueta legible; si se omite se conserva la existente o se usa la clave */
+            label?: string;
+            /**
+             * @description Tipo del parámetro. PERCENT/PERCENTAGE se expresan como porcentaje entero
+             * @example PERCENT
+             */
+            type?: string;
+            /**
+             * @description Fecha de vigencia (ISO 8601). Por defecto, la fecha actual
+             * @example 2026-10-01
+             */
+            effectiveFrom?: string;
+        };
+        PayrollConceptResponseDto: {
+            id: string;
+            /** @example PRIMA_ANTIGUEDAD */
+            code: string;
+            /** @example Prima de antigüedad */
+            name: string;
+            /** @enum {string} */
+            category: "ASSIGNMENT" | "DEDUCTION" | "EMPLOYER_CONTRIBUTION" | "INFORMATIVE";
+            /** @enum {string} */
+            kind: "FIXED" | "PERCENT" | "FORMULA" | "BASE";
+            /** @example SALARY_NORMAL * 0.05 */
+            expression: string | null;
+            affectsIntegralSalary: boolean;
+            isSalarial: boolean;
+            isSystem: boolean;
+            branchId: string | null;
+        };
+        CreatePayrollConceptDto: {
+            /**
+             * @description Código único del concepto
+             * @example PRIMA_ANTIGUEDAD
+             */
+            code: string;
+            /**
+             * @description Nombre visible en el recibo
+             * @example Prima de antigüedad
+             */
+            name: string;
+            /** @enum {string} */
+            category: "ASSIGNMENT" | "DEDUCTION" | "EMPLOYER_CONTRIBUTION" | "INFORMATIVE";
+            /**
+             * @default FIXED
+             * @enum {string}
+             */
+            kind: "FIXED" | "PERCENT" | "FORMULA" | "BASE";
+            /**
+             * @description Fórmula declarativa. Obligatoria cuando kind = FORMULA
+             * @example SALARY_NORMAL * 0.05
+             */
+            expression?: string;
+            /**
+             * @description Si el concepto entra en el salario integral (LOTTT Art. 105)
+             * @default false
+             */
+            affectsIntegralSalary: boolean;
+            /**
+             * @description Si el concepto es salarial. El cestaticket no lo es (Ley de Alimentación)
+             * @default true
+             */
+            isSalarial: boolean;
+        };
+        UpdatePayrollConceptDto: {
+            /** @example Prima de antigüedad */
+            name?: string;
+            /** @enum {string} */
+            category?: "ASSIGNMENT" | "DEDUCTION" | "EMPLOYER_CONTRIBUTION" | "INFORMATIVE";
+            /** @enum {string} */
+            kind?: "FIXED" | "PERCENT" | "FORMULA" | "BASE";
+            /** @example SALARY_NORMAL * 0.05 */
+            expression?: string;
+            affectsIntegralSalary?: boolean;
+            isSalarial?: boolean;
+        };
+        VacationSummaryDto: {
+            employeeId: string;
+            /**
+             * @description Años de servicio cumplidos
+             * @example 3
+             */
+            years: number;
+            /**
+             * @description Días de vacaciones que corresponden
+             * @example 17
+             */
+            vacationDays: number;
+            /**
+             * @description Días de bono vacacional que corresponden
+             * @example 9
+             */
+            bonusDays: number;
+            /** @example 0 */
+            daysTaken: number;
+            /** @example 17 */
+            daysPending: number;
+            /**
+             * @description Salario normal diario
+             * @example 333.33
+             */
+            normalDaily: number;
+        };
+        RegisterVacationDto: {
+            /**
+             * @description Año del período vacacional
+             * @example 2026
+             */
+            year: number;
+            /**
+             * @description Días de vacaciones a tomar
+             * @example 15
+             */
+            days: number;
+            /** @example 2026-11-02 */
+            startDate?: string;
+            /** @example 2026-11-20 */
+            endDate?: string;
+            notes?: string;
+        };
+        BenefitsSummaryDto: {
+            employeeId: string;
+            /** @example 5 */
+            years: number;
+            /**
+             * @description Salario integral diario
+             * @example 367.59
+             */
+            integralDaily: number;
+            /**
+             * @description Trimestres depositados
+             * @example 20
+             */
+            quartersDeposited: number;
+            /** @example 113218.52 */
+            guaranteeAccumulated: number;
+            /** @example 55138.89 */
+            retroactive: number;
+            /**
+             * @description Monto que se paga: la modalidad mayor (RN-11)
+             * @example 113218.52
+             */
+            payable: number;
+            /** @enum {string} */
+            modality: "GUARANTEE" | "RETROACTIVE";
+        };
+        DepositBenefitDto: {
+            /** @example 2026 */
+            year: number;
+            /**
+             * @description Trimestre 1-4
+             * @example 4
+             */
+            quarter: number;
+            /**
+             * @description Si en el trimestre se cumple el aniversario, se suman los días adicionales
+             * @default false
+             */
+            isAnniversaryQuarter: boolean;
+            notes?: string;
+        };
+        RegisterProfitSharingDto: {
+            /**
+             * @description Ejercicio fiscal
+             * @example 2025
+             */
+            year: number;
+            /**
+             * @description Meses completos trabajados en el ejercicio
+             * @example 12
+             */
+            monthsWorked: number;
+            /** @example 2026-03-15 */
+            paymentDate?: string;
+            notes?: string;
+        };
+        SettlementResponseDto: {
+            id: string;
+            employeeId: string;
+            /** @example 2026-10-31T00:00:00.000Z */
+            terminationDate: string;
+            /** @example RENUNCIA */
+            cause: string;
+            /** @example 3 */
+            years: number;
+            /**
+             * @description Salario integral diario
+             * @example 367.59
+             */
+            integralSalary: number;
+            /**
+             * @description Salario normal diario
+             * @example 333.33
+             */
+            normalSalary: number;
+            /** @example 5513.89 */
+            guaranteeAccumulated: number;
+            /** @example 33083.33 */
+            retroactive: number;
+            /**
+             * @description Prestaciones que se pagan: la modalidad mayor
+             * @example 33083.33
+             */
+            benefitsAmount: number;
+            /** @enum {string} */
+            benefitsModality: "GUARANTEE" | "RETROACTIVE";
+            /** @example 2 */
+            vacationDays: number;
+            /** @example 666.67 */
+            vacationAmount: number;
+            /** @example 9 */
+            bonusDays: number;
+            /** @example 3000 */
+            bonusAmount: number;
+            /** @example 10 */
+            profitDays: number;
+            /** @example 3333.33 */
+            profitAmount: number;
+            /** @example 0 */
+            indemnificationDays: number;
+            /** @example 0 */
+            indemnificationAmount: number;
+            /** @example 40083.33 */
+            totalAmount: number;
+            /** @example CALCULATED */
+            status: string;
+        };
+        SettleEmployeeDto: {
+            /**
+             * @description Fecha de egreso (ISO)
+             * @example 2026-10-31
+             */
+            terminationDate: string;
+            /**
+             * @description Causa legal del egreso. Sólo el despido injustificado indemniza (Art. 92)
+             * @example RENUNCIA
+             * @enum {string}
+             */
+            cause: "RENUNCIA" | "DESPIDO_JUSTIFICADO" | "DESPIDO_INJUSTIFICADO" | "MUTUO_ACUERDO" | "JUBILACION" | "MUERTE" | "INCAPACIDAD";
+            /** @description Observaciones de la liquidación */
+            notes?: string;
+        };
+        CurrencyResponseDto: {
+            /**
+             * @description Currency ID
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            id: string;
+            /**
+             * @description Currency code
+             * @example USD
+             */
+            code: string;
+            /**
+             * @description Currency name
+             * @example US Dollar
+             */
+            name: string;
+            /**
+             * @description Currency symbol
+             * @example $
+             */
+            symbol: string;
+            /**
+             * @description Is base currency
+             * @example false
+             */
+            isBase: boolean;
+        };
+        CreateCurrencyDto: {
+            /**
+             * @description Currency code (ISO 4217)
+             * @example USD
+             */
+            code: string;
+            /**
+             * @description Currency name
+             * @example US Dollar
+             */
+            name: string;
+            /**
+             * @description Currency symbol
+             * @example $
+             */
+            symbol: string;
+            /**
+             * @description Is this the base currency
+             * @example false
+             */
+            isBase?: boolean;
+        };
+        LatestRatesResponseDto: {
+            /**
+             * @description Exchange rate ID
+             * @example 550e8400-e29b-41d4-a716-446655440001
+             */
+            id: string;
+            /**
+             * @description Currency ID
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            currencyId: string;
+            /**
+             * @description Exchange rate value
+             * @example 1.2345
+             */
+            rate: number;
+            /**
+             * Format: date-time
+             * @description Rate date
+             * @example 2026-06-01T12:00:00.000Z
+             */
+            date: string | null;
+            /**
+             * @description Rate source
+             * @example MANUAL
+             */
+            source: string;
+            /**
+             * @description Currency code
+             * @example EUR
+             */
+            currencyCode: string;
+            /**
+             * @description Currency name
+             * @example Euro
+             */
+            currencyName: string;
+            /**
+             * @description Currency symbol
+             * @example €
+             */
+            currencySymbol: string;
+        };
+        RateWithFreshnessDto: {
+            /** @example 550e8400-e29b-41d4-a716-446655440001 */
+            id: string;
+            /** @example USD */
+            currencyCode: string;
+            /** @example 36.5 */
+            rate: number;
+            /**
+             * Format: date-time
+             * @example 2026-10-26T00:00:00.000Z
+             */
+            date: string;
+            /** @example BCV */
+            source: string;
+            /** @example BCV no publicó tasa */
+            reason: string | null;
+            /** @example 550e8400-e29b-41d4-a716-446655440000 */
+            createdBy: string | null;
+            /**
+             * @description Horas desde la publicación de la tasa
+             * @example 2.5
+             */
+            ageHours: number;
+            /**
+             * @description true si supera el umbral de antigüedad
+             * @example false
+             */
+            isStale: boolean;
+        };
+        RateHistoryDto: {
+            /** @example 550e8400-e29b-41d4-a716-446655440001 */
+            id: string;
+            /** @example USD */
+            currencyCode: string;
+            /** @example 36.5 */
+            rate: number;
+            /**
+             * Format: date-time
+             * @example 2026-10-26T00:00:00.000Z
+             */
+            date: string;
+            /** @example BCV */
+            source: string;
+            /** @example BCV no publicó tasa */
+            reason: string | null;
+            /** @example 550e8400-e29b-41d4-a716-446655440000 */
+            createdBy: string | null;
+        };
+        CreateExchangeRateDto: {
+            /**
+             * Format: uuid
+             * @description Currency ID (alternativa a currencyCode)
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            currencyId?: string;
+            /**
+             * @description Currency code (preferido sobre currencyId)
+             * @example USD
+             */
+            currencyCode?: string;
+            /**
+             * @description Motivo del override manual (obligatorio si source=MANUAL)
+             * @example BCV no publicó tasa por feriado bancario
+             */
+            reason?: string;
+            /**
+             * @description Fecha de vigencia (ISO). Por defecto, hoy
+             * @example 2026-10-26
+             */
+            date?: string;
+            /**
+             * @description Exchange rate value
+             * @example 1.2345
+             */
+            rate: number;
+            /**
+             * @description Rate source
+             * @example MANUAL
+             */
+            source?: string;
+        };
+        ExchangeRateResponseDto: {
+            /**
+             * @description Exchange rate ID
+             * @example 550e8400-e29b-41d4-a716-446655440001
+             */
+            id: string;
+            /**
+             * @description Currency ID
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            currencyId: string;
+            /**
+             * @description Exchange rate value
+             * @example 1.2345
+             */
+            rate: number;
+            /**
+             * Format: date-time
+             * @description Rate date
+             * @example 2026-06-01T12:00:00.000Z
+             */
+            date: string | null;
+            /**
+             * @description Rate source
+             * @example MANUAL
+             */
+            source: string;
         };
         PartnerResponseDto: {
             /**
@@ -2870,12 +4778,17 @@ export interface components {
              * @description Is special taxpayer
              * @example false
              */
-            isSpecialTaxpayer: Record<string, never>;
+            isSpecialTaxpayer: boolean;
             /**
              * @description Credit limit
              * @example 10000
              */
             creditLimit: number;
+            /**
+             * @description Días de crédito para el vencimiento de compras
+             * @example 30
+             */
+            creditDays: number;
             /**
              * @description ISLR concept ID
              * @example 550e8400-e29b-41d4-a716-446655440000
@@ -2959,13 +4872,19 @@ export interface components {
              * @description Is special taxpayer
              * @example false
              */
-            isSpecialTaxpayer?: Record<string, never>;
+            isSpecialTaxpayer?: boolean;
             /**
              * @description Credit limit
              * @example 10000
              */
             creditLimit?: number;
             /**
+             * @description Días de crédito para calcular el vencimiento de compras (T-03-02)
+             * @example 30
+             */
+            creditDays?: number;
+            /**
+             * Format: uuid
              * @description ISLR concept ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -3019,13 +4938,19 @@ export interface components {
              * @description Is special taxpayer
              * @example true
              */
-            isSpecialTaxpayer?: Record<string, never>;
+            isSpecialTaxpayer?: boolean;
             /**
              * @description Credit limit
              * @example 50000
              */
             creditLimit?: number;
             /**
+             * @description Días de crédito para calcular el vencimiento de compras (T-03-02)
+             * @example 30
+             */
+            creditDays?: number;
+            /**
+             * Format: uuid
              * @description ISLR concept ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -3093,7 +5018,7 @@ export interface components {
              * @description Is tax exempt
              * @example false
              */
-            isExempt: Record<string, never>;
+            isExempt: boolean;
             /**
              * @description Tax rate percentage
              * @example 16
@@ -3114,7 +5039,7 @@ export interface components {
              * @description Has batch tracking
              * @example true
              */
-            hasBatches: Record<string, never>;
+            hasBatches: boolean;
             /**
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440002
@@ -3152,6 +5077,7 @@ export interface components {
              */
             description?: string;
             /**
+             * Format: uuid
              * @description Category ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -3170,7 +5096,7 @@ export interface components {
              * @description Is tax exempt
              * @example false
              */
-            isExempt?: Record<string, never>;
+            isExempt?: boolean;
             /**
              * @description Tax rate percentage
              * @example 16
@@ -3191,8 +5117,9 @@ export interface components {
              * @description Has batch tracking
              * @example true
              */
-            hasBatches?: Record<string, never>;
+            hasBatches?: boolean;
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
@@ -3215,6 +5142,7 @@ export interface components {
              */
             description?: string;
             /**
+             * Format: uuid
              * @description Category ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -3233,7 +5161,7 @@ export interface components {
              * @description Is tax exempt
              * @example false
              */
-            isExempt?: Record<string, never>;
+            isExempt?: boolean;
             /**
              * @description Tax rate percentage
              * @example 16
@@ -3254,8 +5182,9 @@ export interface components {
              * @description Has batch tracking
              * @example false
              */
-            hasBatches?: Record<string, never>;
+            hasBatches?: boolean;
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
@@ -3273,6 +5202,7 @@ export interface components {
              */
             description?: string;
             /**
+             * Format: uuid
              * @description Parent category ID for hierarchical categories
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -3290,6 +5220,7 @@ export interface components {
              */
             description?: string;
             /**
+             * Format: uuid
              * @description Parent category ID for hierarchical categories
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -3374,7 +5305,7 @@ export interface components {
              * @description Exchange rate
              * @example 1
              */
-            exchangeRate?: Record<string, never> | null;
+            exchangeRate?: number | null;
             /**
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440005
@@ -3445,11 +5376,13 @@ export interface components {
         };
         CreateOrderItemDto: {
             /**
+             * Format: uuid
              * @description Product ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
             productId: string;
             /**
+             * Format: uuid
              * @description Batch ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
@@ -3472,16 +5405,19 @@ export interface components {
              */
             code: string;
             /**
+             * Format: uuid
              * @description Partner ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
             partnerId: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
             branchId: string;
             /**
+             * Format: uuid
              * @description Warehouse ID
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
@@ -3493,6 +5429,7 @@ export interface components {
              */
             type?: "SALE" | "PURCHASE";
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
@@ -3521,6 +5458,7 @@ export interface components {
         };
         UpdateOrderDto: {
             /**
+             * Format: uuid
              * @description Warehouse ID
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
@@ -3532,6 +5470,7 @@ export interface components {
              */
             status?: "DRAFT" | "CONFIRMED" | "PROCESSING" | "COMPLETED" | "CANCELLED";
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
@@ -3608,7 +5547,7 @@ export interface components {
              * @description Is active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
         };
         CreateWarehouseDto: {
             /**
@@ -3617,6 +5556,7 @@ export interface components {
              */
             name: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -3634,6 +5574,7 @@ export interface components {
              */
             name?: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -3696,6 +5637,16 @@ export interface components {
              * @example BATCH-2026-001
              */
             batchNumber?: string;
+            /**
+             * @description Stock mínimo del producto
+             * @example 10.00
+             */
+            minStock?: string | null;
+            /**
+             * @description El stock está por debajo del mínimo del producto (T-07-06)
+             * @example false
+             */
+            belowMinimum: boolean;
         };
         InventoryMoveLineResponseDto: {
             /**
@@ -3805,21 +5756,25 @@ export interface components {
              */
             type: "ENTRADA" | "SALIDA" | "TRANSFERENCIA";
             /**
+             * Format: uuid
              * @description Warehouse ID (for ENTRADA)
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
             warehouseId?: string;
             /**
+             * Format: uuid
              * @description From warehouse ID (for TRANSFERENCIA)
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
             fromWarehouseId?: string;
             /**
+             * Format: uuid
              * @description To warehouse ID (for TRANSFERENCIA)
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
             toWarehouseId?: string;
             /**
+             * Format: uuid
              * @description Reason ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
@@ -3966,6 +5921,12 @@ export interface components {
              */
             code: string;
             /**
+             * @description SALE devuelve a un cliente; PURCHASE es una devolución a proveedor
+             * @example SALE
+             * @enum {string}
+             */
+            type: "SALE" | "PURCHASE";
+            /**
              * @description Invoice ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
@@ -4056,6 +6017,7 @@ export interface components {
         };
         CreateCreditNoteItemDto: {
             /**
+             * Format: uuid
              * @description Product ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -4073,26 +6035,37 @@ export interface components {
         };
         CreateCreditNoteDto: {
             /**
+             * @description SALE devuelve a un cliente; PURCHASE es una devolución a proveedor
+             * @default SALE
+             * @enum {string}
+             */
+            type: "SALE" | "PURCHASE";
+            /**
+             * Format: uuid
              * @description Invoice ID this credit note is related to
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
             invoiceId?: string;
             /**
+             * Format: uuid
              * @description Partner ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
             partnerId: string;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
             branchId: string;
             /**
+             * Format: uuid
              * @description Warehouse ID
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
             warehouseId?: string;
             /**
+             * Format: uuid
              * @description Currency ID
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
@@ -4113,6 +6086,7 @@ export interface components {
         };
         UpdateCreditNoteDto: {
             /**
+             * Format: uuid
              * @description Warehouse ID
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
@@ -4217,10 +6191,10 @@ export interface components {
             name: string;
             /**
              * @description Account type
-             * @example ACTIVO
+             * @example ASSET
              * @enum {string}
              */
-            type: "ACTIVO" | "PASIVO" | "PATRIMONIO" | "INGRESO" | "EGRESO" | "costo" | "orden";
+            type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "COST" | "ORDER";
             /**
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440001
@@ -4232,10 +6206,15 @@ export interface components {
              */
             parentId?: string | null;
             /**
+             * @description Si acepta líneas de asiento
+             * @example true
+             */
+            isPostable: boolean;
+            /**
              * @description Whether the account is active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
             /** @description Child accounts */
             children: components["schemas"]["AccountTreeDto"][];
         };
@@ -4257,10 +6236,10 @@ export interface components {
             name: string;
             /**
              * @description Account type
-             * @example ACTIVO
+             * @example ASSET
              * @enum {string}
              */
-            type: "ACTIVO" | "PASIVO" | "PATRIMONIO" | "INGRESO" | "EGRESO" | "costo" | "orden";
+            type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "COST" | "ORDER";
             /**
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440001
@@ -4272,10 +6251,15 @@ export interface components {
              */
             parentId?: string | null;
             /**
+             * @description Si acepta líneas de asiento
+             * @example true
+             */
+            isPostable: boolean;
+            /**
              * @description Whether the account is active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
         };
         CreateAccountDto: {
             /**
@@ -4293,19 +6277,50 @@ export interface components {
              * @example ACTIVO
              * @enum {string}
              */
-            type: "ACTIVO" | "PASIVO" | "PATRIMONIO" | "INGRESO" | "EGRESO" | "costo" | "orden";
+            type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "COST" | "ORDER";
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
             branchId?: string;
             /**
+             * Format: uuid
              * @description Parent account ID for hierarchy
-             * @example 550e8400-e29b-41d4-a716-446655440002
              */
             parentId?: string;
+            /**
+             * @description Si acepta líneas de asiento. Por defecto `true`; al crear una hija pasa a `false`
+             * @example true
+             */
+            isPostable?: boolean;
+        };
+        UpdateAccountDto: {
+            /** @example Caja General */
+            name?: string;
+            /** @enum {string} */
+            type?: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | "COST" | "ORDER";
+            /**
+             * Format: uuid
+             * @description Parent account ID
+             */
+            parentId?: string | null;
+            /** @example true */
+            isPostable?: boolean;
+            /** @description Desactivar la cuenta sin borrarla */
+            isActive?: boolean;
         };
         EntryLineResponseDto: {
+            /**
+             * @description Importe original en la moneda del documento
+             * @example 100
+             */
+            originalAmount?: number | null;
+            /**
+             * @description Moneda del importe original
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            originalCurrencyId?: string | null;
             /**
              * @description Line ID
              * @example 550e8400-e29b-41d4-a716-446655440001
@@ -4349,6 +6364,16 @@ export interface components {
         };
         EntryResponseDto: {
             /**
+             * @description Moneda funcional del libro (VES)
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            baseCurrencyId?: string | null;
+            /**
+             * @description Tasa del documento origen congelada al registrar el asiento
+             * @example 36.5
+             */
+            exchangeRate?: number;
+            /**
              * @description Entry ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -4386,6 +6411,19 @@ export interface components {
              */
             status: "DRAFT" | "POSTED" | "CANCELLED";
             /**
+             * @description Documento que originó el asiento
+             * @example INVOICE
+             * @enum {string|null}
+             */
+            sourceType?: "INVOICE" | "PAYMENT" | "CREDIT_NOTE" | "PAYROLL" | "INVENTORY" | "MANUAL" | null;
+            /** @description ID del documento origen */
+            sourceId?: string | null;
+            /**
+             * Format: date-time
+             * @description Momento del posteo (DRAFT → POSTED)
+             */
+            postedAt?: string | null;
+            /**
              * @description User ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
@@ -4406,6 +6444,7 @@ export interface components {
         };
         CreateEntryLineDto: {
             /**
+             * Format: uuid
              * @description Account ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -4415,6 +6454,17 @@ export interface components {
              * @example 1000.5
              */
             debit?: number;
+            /**
+             * @description Importe original en la moneda del documento (si difiere de la funcional)
+             * @example 100
+             */
+            originalAmount?: number;
+            /**
+             * Format: uuid
+             * @description Moneda del importe original
+             * @example 550e8400-e29b-41d4-a716-446655440000
+             */
+            originalCurrencyId?: string;
             /**
              * @description Credit amount
              * @example 0
@@ -4443,11 +6493,13 @@ export interface components {
              */
             reference?: string | null;
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
             branchId?: string;
             /**
+             * Format: uuid
              * @description User ID
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
@@ -4470,6 +6522,27 @@ export interface components {
              *     ]
              */
             lines: components["schemas"]["CreateEntryLineDto"][];
+            /**
+             * @description Por defecto `POSTED`. Un `DRAFT` se edita y se postea después (T-04-02)
+             * @enum {string}
+             */
+            status?: "DRAFT" | "POSTED";
+            /**
+             * @description Documento que origina el asiento
+             * @enum {string}
+             */
+            sourceType?: "INVOICE" | "PAYMENT" | "CREDIT_NOTE" | "PAYROLL" | "INVENTORY" | "MANUAL";
+            /**
+             * Format: uuid
+             * @description ID del documento origen (idempotencia por par)
+             */
+            sourceId?: string;
+        };
+        UpdateEntryDto: {
+            date?: string;
+            description?: string;
+            reference?: string | null;
+            lines?: components["schemas"]["CreateEntryLineDto"][];
         };
         MapResponseDto: {
             /**
@@ -4541,7 +6614,7 @@ export interface components {
              * @description Whether the map is active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
             /**
              * Format: date-time
              * @description Creation timestamp
@@ -4551,6 +6624,7 @@ export interface components {
         };
         CreateMapDto: {
             /**
+             * Format: uuid
              * @description Branch ID
              * @example 550e8400-e29b-41d4-a716-446655440001
              */
@@ -4566,26 +6640,31 @@ export interface components {
              */
             transactionType?: string;
             /**
+             * Format: uuid
              * @description Category ID for filtering
              * @example 550e8400-e29b-41d4-a716-446655440002
              */
             categoryId?: string;
             /**
+             * Format: uuid
              * @description Product ID for filtering
              * @example 550e8400-e29b-41d4-a716-446655440003
              */
             productId?: string;
             /**
+             * Format: uuid
              * @description Payment method ID for filtering
              * @example 550e8400-e29b-41d4-a716-446655440004
              */
             paymentMethodId?: string;
             /**
+             * Format: uuid
              * @description Debit account ID
              * @example 550e8400-e29b-41d4-a716-446655440005
              */
             debitAccountId: string;
             /**
+             * Format: uuid
              * @description Credit account ID
              * @example 550e8400-e29b-41d4-a716-446655440006
              */
@@ -4596,7 +6675,7 @@ export interface components {
              * @description Whether the operation was successful
              * @example true
              */
-            success: Record<string, never>;
+            success: boolean;
             /**
              * @description Created entry ID
              * @example 550e8400-e29b-41d4-a716-446655440001
@@ -4607,6 +6686,39 @@ export interface components {
              * @example Map applied successfully. Entry created.
              */
             message: string;
+        };
+        PeriodResponseDto: {
+            /** @example 550e8400-e29b-41d4-a716-446655440010 */
+            id: string;
+            /** @example 2026 */
+            year: number;
+            /** @example 10 */
+            month: number;
+            /**
+             * @example OPEN
+             * @enum {string}
+             */
+            status: "OPEN" | "CLOSED";
+            /** @example 2026-11-01T12:00:00.000Z */
+            closedAt?: string | null;
+            closedBy?: string | null;
+            /** @example 2026-11-02T09:00:00.000Z */
+            reopenedAt?: string | null;
+            /** @example Ajuste de retención omitida */
+            reopenReason?: string | null;
+            /** @description Asientos del período (incluye borradores) */
+            entries?: number;
+            /** @description Total debe de los asientos posteados */
+            totalDebit?: number;
+            /** @description Total haber de los asientos posteados */
+            totalCredit?: number;
+        };
+        ReopenPeriodDto: {
+            /**
+             * @description Motivo de la reapertura; queda en la auditoría
+             * @example Ajuste
+             */
+            reason: string;
         };
         BranchResponseDto: {
             /**
@@ -4645,7 +6757,7 @@ export interface components {
              * @description Is branch active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
             /**
              * Format: date-time
              * @description Branch creation timestamp
@@ -4673,7 +6785,7 @@ export interface components {
             /** @example info@acme.com */
             email?: string | null;
             /** @example true */
-            isActive: Record<string, never>;
+            isActive: boolean;
             /**
              * @description Number of branches belonging to this company
              * @example 3
@@ -4690,10 +6802,13 @@ export interface components {
             address?: string;
             /** @example +58-212-555-1234 */
             phone?: string;
-            /** @example info@acme.com */
+            /**
+             * Format: email
+             * @example info@acme.com
+             */
             email?: string;
             /** @example true */
-            isActive?: Record<string, never>;
+            isActive?: boolean;
         };
         UpdateCompanyDto: {
             /** @example Acme Holdings C.A. */
@@ -4704,13 +6819,19 @@ export interface components {
             address?: string;
             /** @example +58-212-555-1234 */
             phone?: string;
-            /** @example info@acme.com */
+            /**
+             * Format: email
+             * @example info@acme.com
+             */
             email?: string;
             /** @example true */
-            isActive?: Record<string, never>;
+            isActive?: boolean;
         };
         CreateBranchDto: {
-            /** @description Company UUID */
+            /**
+             * Format: uuid
+             * @description Company UUID
+             */
             companyId: string;
             /**
              * @description Branch name
@@ -4735,7 +6856,10 @@ export interface components {
             email?: string;
         };
         UpdateBranchDto: {
-            /** @description Company UUID */
+            /**
+             * Format: uuid
+             * @description Company UUID
+             */
             companyId?: string;
             /**
              * @description Branch name
@@ -4758,143 +6882,6 @@ export interface components {
              * @example newbranch@company.com
              */
             email?: string;
-        };
-        CurrencyResponseDto: {
-            /**
-             * @description Currency ID
-             * @example 550e8400-e29b-41d4-a716-446655440000
-             */
-            id: string;
-            /**
-             * @description Currency code
-             * @example USD
-             */
-            code: string;
-            /**
-             * @description Currency name
-             * @example US Dollar
-             */
-            name: string;
-            /**
-             * @description Currency symbol
-             * @example $
-             */
-            symbol: string;
-            /**
-             * @description Is base currency
-             * @example false
-             */
-            isBase: Record<string, never>;
-        };
-        CreateCurrencyDto: {
-            /**
-             * @description Currency code (ISO 4217)
-             * @example USD
-             */
-            code: string;
-            /**
-             * @description Currency name
-             * @example US Dollar
-             */
-            name: string;
-            /**
-             * @description Currency symbol
-             * @example $
-             */
-            symbol: string;
-            /**
-             * @description Is this the base currency
-             * @example false
-             */
-            isBase?: Record<string, never>;
-        };
-        LatestRatesResponseDto: {
-            /**
-             * @description Exchange rate ID
-             * @example 550e8400-e29b-41d4-a716-446655440001
-             */
-            id: string;
-            /**
-             * @description Currency ID
-             * @example 550e8400-e29b-41d4-a716-446655440000
-             */
-            currencyId: string;
-            /**
-             * @description Exchange rate value
-             * @example 1.2345
-             */
-            rate: number;
-            /**
-             * Format: date-time
-             * @description Rate date
-             * @example 2026-06-01T12:00:00.000Z
-             */
-            date: string | null;
-            /**
-             * @description Rate source
-             * @example MANUAL
-             */
-            source: string;
-            /**
-             * @description Currency code
-             * @example EUR
-             */
-            currencyCode: string;
-            /**
-             * @description Currency name
-             * @example Euro
-             */
-            currencyName: string;
-            /**
-             * @description Currency symbol
-             * @example €
-             */
-            currencySymbol: string;
-        };
-        CreateExchangeRateDto: {
-            /**
-             * @description Currency ID
-             * @example 550e8400-e29b-41d4-a716-446655440000
-             */
-            currencyId: string;
-            /**
-             * @description Exchange rate value
-             * @example 1.2345
-             */
-            rate: number;
-            /**
-             * @description Rate source
-             * @example MANUAL
-             */
-            source?: string;
-        };
-        ExchangeRateResponseDto: {
-            /**
-             * @description Exchange rate ID
-             * @example 550e8400-e29b-41d4-a716-446655440001
-             */
-            id: string;
-            /**
-             * @description Currency ID
-             * @example 550e8400-e29b-41d4-a716-446655440000
-             */
-            currencyId: string;
-            /**
-             * @description Exchange rate value
-             * @example 1.2345
-             */
-            rate: number;
-            /**
-             * Format: date-time
-             * @description Rate date
-             * @example 2026-06-01T12:00:00.000Z
-             */
-            date: string | null;
-            /**
-             * @description Rate source
-             * @example MANUAL
-             */
-            source: string;
         };
         LoanItemResponseDto: {
             /**
@@ -4927,6 +6914,12 @@ export interface components {
              * @example GOOD
              */
             condition: string | null;
+            /**
+             * @description Movimiento del ítem: entrega o devolución
+             * @example DELIVERED
+             * @enum {string}
+             */
+            kind: "DELIVERED" | "RETURNED";
         };
         LoanResponseDto: {
             /**
@@ -4984,6 +6977,7 @@ export interface components {
         };
         CreateLoanItemDto: {
             /**
+             * Format: uuid
              * @description Product ID
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -5011,6 +7005,7 @@ export interface components {
              */
             code: string;
             /**
+             * Format: uuid
              * @description Partner ID (employee)
              * @example 550e8400-e29b-41d4-a716-446655440000
              */
@@ -5081,7 +7076,7 @@ export interface components {
              * @description Is bank active
              * @example true
              */
-            isActive: Record<string, never>;
+            isActive: boolean;
             /**
              * Format: date-time
              * @description Bank creation timestamp
@@ -5104,7 +7099,7 @@ export interface components {
              * @description Is bank active
              * @example true
              */
-            isActive?: Record<string, never>;
+            isActive?: boolean;
         };
         UpdateBankDto: {
             /**
@@ -5121,7 +7116,7 @@ export interface components {
              * @description Is bank active
              * @example true
              */
-            isActive?: Record<string, never>;
+            isActive?: boolean;
         };
         TaxConceptResponseDto: {
             /**
@@ -5158,7 +7153,7 @@ export interface components {
              * @description Is concept enabled
              * @example true
              */
-            isEnabled: Record<string, never>;
+            isEnabled: boolean;
         };
         CreateTaxConceptDto: {
             /**
@@ -5190,7 +7185,7 @@ export interface components {
              * @description Is concept enabled
              * @example true
              */
-            isEnabled?: Record<string, never>;
+            isEnabled?: boolean;
         };
         UpdateTaxConceptDto: {
             /**
@@ -5222,7 +7217,7 @@ export interface components {
              * @description Is concept enabled
              * @example true
              */
-            isEnabled?: Record<string, never>;
+            isEnabled?: boolean;
         };
         PermissionResponseDto: {
             id: string;
@@ -5234,7 +7229,7 @@ export interface components {
             id: string;
             name: string;
             description: string | null;
-            isSystem: Record<string, never>;
+            isSystem: boolean;
             permissions: components["schemas"]["PermissionResponseDto"][];
         };
         CreateRoleDto: {
@@ -5262,6 +7257,31 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    HealthController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Servicio y base de datos disponibles */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Dependencia no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AuthController_login: {
         parameters: {
             query?: never;
@@ -5286,6 +7306,50 @@ export interface operations {
             };
             /** @description Invalid credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthUserResponseDto"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sesión cerrada */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5567,10 +7631,14 @@ export interface operations {
     BillingController_findAll: {
         parameters: {
             query?: {
-                /** @description Filter by branch ID */
-                branchId?: string;
                 /** @description Filter by invoice status */
                 status?: "DRAFT" | "POSTED" | "PAID" | "VOID";
+                /** @description SALE o PURCHASE */
+                type?: string;
+                /** @description Con `true` devuelve { data, total, page, limit } (aditivo, no rompe clientes) */
+                paginated?: string;
+                page?: string;
+                limit?: string;
             };
             header?: never;
             path?: never;
@@ -5622,10 +7690,7 @@ export interface operations {
     };
     BillingController_getStats: {
         parameters: {
-            query?: {
-                /** @description Filter by branch ID */
-                branchId?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -5640,6 +7705,84 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InvoiceStatsDto"];
                 };
+            };
+        };
+    };
+    BillingController_findPayables: {
+        parameters: {
+            query?: {
+                partnerId?: string;
+                status?: "PENDING" | "PARTIAL" | "PAID" | "OVERDUE";
+                asOf?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Facturas por pagar con su saldo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BillingController_findPayablesAging: {
+        parameters: {
+            query?: {
+                asOf?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Antigüedad por bucket y por proveedor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BillingController_getRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Parámetros vigentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BillingController_updateRetentionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Parámetros actualizados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5816,7 +7959,6 @@ export interface operations {
     TreasuryController_findAllPayments: {
         parameters: {
             query?: {
-                branchId?: string;
                 status?: "POSTED" | "VOID";
             };
             header?: never;
@@ -5925,11 +8067,32 @@ export interface operations {
             };
         };
     };
-    TreasuryController_getMethods: {
+    TreasuryController_findRetentions: {
         parameters: {
             query?: {
-                branchId?: string;
+                partnerId?: string;
+                type?: "IVA" | "ISLR";
+                from?: string;
+                to?: string;
             };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comprobantes de retención */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TreasuryController_getMethods: {
+        parameters: {
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -5971,11 +8134,53 @@ export interface operations {
             };
         };
     };
+    TreasuryController_getAllMethods: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodResponseDto"][];
+                };
+            };
+        };
+    };
+    TreasuryController_updateMethod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePaymentMethodDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentMethodResponseDto"];
+                };
+            };
+        };
+    };
     TreasuryController_getBankAccounts: {
         parameters: {
-            query?: {
-                branchId?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -6017,9 +8222,37 @@ export interface operations {
             };
         };
     };
-    TreasuryController_getPartnerStatement: {
+    TreasuryController_updateBankAccount: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBankAccountDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankAccountResponseDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_getPartnerStatement: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
             header?: never;
             path: {
                 partnerId: string;
@@ -6046,12 +8279,89 @@ export interface operations {
             };
         };
     };
+    TreasuryController_getDailyCloseByDate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCloseDetailDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_closeDailyClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CloseDailyCloseDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCloseDetailDto"];
+                };
+            };
+            /** @description El día ya estaba cerrado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TreasuryController_reopenDailyClose: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                date: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenDailyCloseDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailyCloseDetailDto"];
+                };
+            };
+        };
+    };
     TreasuryController_getDailyClose: {
         parameters: {
             query: {
                 /** @description Date in YYYY-MM-DD format */
                 date: string;
-                branchId?: string;
             };
             header?: never;
             path?: never;
@@ -6059,13 +8369,217 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Daily close summary */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DailyCloseDto"];
+                    "application/json": components["schemas"]["DailyCloseDetailDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_importStatement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportStatementDto"];
+            };
+        };
+        responses: {
+            /** @description Líneas importadas */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TreasuryController_getReconciliation: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path: {
+                bankAccountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReconciliationReportDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_matchLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MatchStatementLineDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementLineDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_unmatchLine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                lineId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatementLineDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_listPettyCash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PettyCashFundResponseDto"][];
+                };
+            };
+        };
+    };
+    TreasuryController_createPettyCash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePettyCashFundDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PettyCashFundResponseDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_getPettyCash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PettyCashFundResponseDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_addPettyCashMovement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePettyCashMovementDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PettyCashFundResponseDto"];
+                };
+            };
+        };
+    };
+    TreasuryController_closePettyCash: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClosePettyCashFundDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PettyCashFundResponseDto"];
                 };
             };
         };
@@ -6093,7 +8607,7 @@ export interface operations {
     HrController_findAllEmployees: {
         parameters: {
             query?: {
-                branchId?: string;
+                branchId?: unknown;
             };
             header?: never;
             path?: never;
@@ -6198,10 +8712,48 @@ export interface operations {
             };
         };
     };
+    HrController_terminateEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminateEmployeeDto"];
+            };
+        };
+        responses: {
+            /** @description Employee terminated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee already terminated */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HrController_findAllDepartments: {
         parameters: {
             query?: {
-                branchId?: string;
+                branchId?: unknown;
             };
             header?: never;
             path?: never;
@@ -6233,6 +8785,30 @@ export interface operations {
         responses: {
             /** @description Department created */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_updateDepartment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDepartmentDto"];
+            };
+        };
+        responses: {
+            /** @description Department updated */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6280,10 +8856,34 @@ export interface operations {
             };
         };
     };
+    HrController_updatePosition: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePositionDto"];
+            };
+        };
+        responses: {
+            /** @description Position updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HrController_findAllPayrollRuns: {
         parameters: {
             query?: {
-                branchId?: string;
+                branchId?: unknown;
             };
             header?: never;
             path?: never;
@@ -6320,6 +8920,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PayrollRunResponseDto"];
+                };
+            };
+            /** @description Payroll run not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_getPayrollRunParameters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Parameters snapshot taken when the run was created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollSettingResponseDto"][];
                 };
             };
             /** @description Payroll run not found */
@@ -6377,6 +9006,46 @@ export interface operations {
             };
             /** @description Already processed */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_payPayrollRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayPayrollRunDto"];
+            };
+        };
+        responses: {
+            /** @description Payment registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollPaymentResponseDto"];
+                };
+            };
+            /** @description Nothing to pay or missing exchange rate */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Run marked as paid without a registered payment */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6449,6 +9118,111 @@ export interface operations {
             };
         };
     };
+    HrController_approveIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incident approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Incident is not pending */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_rejectIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incident rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Incident is not pending */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_findPayrollSettings: {
+        parameters: {
+            query?: {
+                asOf?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Payroll settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollSettingResponseDto"][];
+                };
+            };
+        };
+    };
+    HrController_updatePayrollSetting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePayrollSettingDto"];
+            };
+        };
+        responses: {
+            /** @description Payroll setting stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid value for the parameter type */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     HrController_getPayrollConceptTypes: {
         parameters: {
             query?: never;
@@ -6463,6 +9237,538 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptResponseDto"][];
+                };
+            };
+        };
+    };
+    HrController_createPayrollConcept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePayrollConceptDto"];
+            };
+        };
+        responses: {
+            /** @description Concept created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptResponseDto"];
+                };
+            };
+            /** @description Invalid expression */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Concept code already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_deletePayrollConcept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Concept deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Concept not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description System concept or already used in a payroll */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_updatePayrollConcept: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePayrollConceptDto"];
+            };
+        };
+        responses: {
+            /** @description Concept updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayrollConceptResponseDto"];
+                };
+            };
+            /** @description Invalid expression */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Concept not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_getVacationSummary: {
+        parameters: {
+            query?: {
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vacation summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VacationSummaryDto"];
+                };
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_registerVacation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterVacationDto"];
+            };
+        };
+        responses: {
+            /** @description Vacation registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More days than entitled */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vacation period already registered for that year */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_getBenefitsSummary: {
+        parameters: {
+            query?: {
+                asOf?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Benefits summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitsSummaryDto"];
+                };
+            };
+            /** @description Employee not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_depositBenefitGuarantee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DepositBenefitDto"];
+            };
+        };
+        responses: {
+            /** @description Deposit registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenefitsSummaryDto"];
+                };
+            };
+            /** @description Quarter already deposited */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_registerProfitSharing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterProfitSharingDto"];
+            };
+        };
+        responses: {
+            /** @description Profit sharing registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Profit sharing already registered for that year */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_getSettlement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settlement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementResponseDto"];
+                };
+            };
+            /** @description Employee not found or not settled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HrController_settleEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettleEmployeeDto"];
+            };
+        };
+        responses: {
+            /** @description Settlement registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettlementResponseDto"];
+                };
+            };
+            /** @description Invalid termination cause */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Employee already settled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CurrenciesController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of currencies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrencyResponseDto"][];
+                };
+            };
+        };
+    };
+    CurrenciesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCurrencyDto"];
+            };
+        };
+        responses: {
+            /** @description Currency created successfully */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrencyResponseDto"];
+                };
+            };
+            /** @description Currency with this code already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CurrenciesController_getLatestRates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest exchange rates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LatestRatesResponseDto"][];
+                };
+            };
+        };
+    };
+    CurrenciesController_getRate: {
+        parameters: {
+            query?: {
+                /** @description ISO date to look up */
+                date?: string;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate with freshness */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateWithFreshnessDto"];
+                };
+            };
+            /** @description Currency or rate not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CurrenciesController_getHistory: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                limit?: string;
+            };
+            header?: never;
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateHistoryDto"][];
+                };
+            };
+        };
+    };
+    CurrenciesController_addRate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateExchangeRateDto"];
+            };
+        };
+        responses: {
+            /** @description Rate stored */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExchangeRateResponseDto"];
+                };
+            };
+            /** @description Invalid rate or missing reason */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CurrenciesController_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rate synchronised */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description BCV unavailable or rate failed the sanity check */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
         };
@@ -6472,6 +9778,10 @@ export interface operations {
             query?: {
                 /** @description Search by name, email, or tax ID */
                 search?: string;
+                /** @description Con `true` devuelve { data, total, page, limit } */
+                paginated?: string;
+                page?: string;
+                limit?: string;
             };
             header?: never;
             path?: never;
@@ -7173,6 +10483,60 @@ export interface operations {
             };
         };
     };
+    InventoryController_findOneWarehouse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Warehouse detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Warehouse not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InventoryController_deactivateWarehouse: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Warehouse deactivated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Warehouse has stock or movements */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     InventoryController_updateWarehouse: {
         parameters: {
             query?: never;
@@ -7719,15 +11083,81 @@ export interface operations {
             };
         };
     };
+    AccountingController_deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account deactivated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La cuenta tiene movimientos o cuentas hijas */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountingController_updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAccountDto"];
+            };
+        };
+        responses: {
+            /** @description Account updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountResponseDto"];
+                };
+            };
+            /** @description La cuenta tiene movimientos o cuentas hijas */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     AccountingController_findAllEntries: {
         parameters: {
             query?: {
-                /** @description Filter entries from this date */
+                /** @description Desde (YYYY-MM-DD). Alias de `dateFrom` */
+                from?: string;
+                /** @description Hasta (YYYY-MM-DD). Alias de `dateTo` */
+                to?: string;
+                /** @description Filter entries from this date (compatibilidad) */
                 dateFrom?: string;
-                /** @description Filter entries up to this date */
+                /** @description Filter entries up to this date (compatibilidad) */
                 dateTo?: string;
                 /** @description Filter entries containing this account */
                 accountId?: string;
+                /** @description Filtra por documento de origen */
+                sourceType?: "INVOICE" | "PAYMENT" | "CREDIT_NOTE" | "PAYROLL" | "INVENTORY" | "MANUAL";
             };
             header?: never;
             path?: never;
@@ -7768,8 +11198,15 @@ export interface operations {
                     "application/json": components["schemas"]["EntryResponseDto"];
                 };
             };
-            /** @description Invalid request data or entry lines do not sum to zero */
+            /** @description Invalid request data, entry lines do not sum to zero or account not postable */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El período está cerrado */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7800,6 +11237,68 @@ export interface operations {
             };
             /** @description Entry not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountingController_updateEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEntryDto"];
+            };
+        };
+        responses: {
+            /** @description Entry updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryResponseDto"];
+                };
+            };
+            /** @description El asiento ya está posteado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountingController_postEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Entry posted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EntryResponseDto"];
+                };
+            };
+            /** @description Ya está posteado o el período está cerrado */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7887,7 +11386,7 @@ export interface operations {
                 /** @description Filter by module */
                 module?: string;
                 /** @description Filter by branch ID */
-                branchId?: string;
+                branchId?: unknown;
             };
             header?: never;
             path?: never;
@@ -7969,6 +11468,175 @@ export interface operations {
             };
             /** @description Map or transaction not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountingController_findPeriods: {
+        parameters: {
+            query?: {
+                year?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Períodos del año */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodResponseDto"][];
+                };
+            };
+        };
+    };
+    AccountingController_closePeriod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Período cerrado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodResponseDto"];
+                };
+            };
+            /** @description El período ya está cerrado */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AccountingController_reopenPeriod: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReopenPeriodDto"];
+            };
+        };
+        responses: {
+            /** @description Período reabierto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodResponseDto"];
+                };
+            };
+            /** @description Falta el motivo */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description El período ya está abierto */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuditController_listEntityTables: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tablas auditadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuditController_findAll: {
+        parameters: {
+            query?: {
+                /** @description Filter by user ID */
+                userId?: string;
+                /** @description Filter by entity table name */
+                entityTable?: string;
+                /** @description Filter by entity ID */
+                entityId?: string;
+                /** @description CREATE, UPDATE, DELETE, VOID… */
+                action?: string;
+                /** @description Búsqueda parcial por documento */
+                documentCode?: string;
+                /** @description Filter logs from this date (ISO 8601 format) */
+                from?: string;
+                /** @description Filter logs until this date (ISO 8601 format) */
+                to?: string;
+                page?: string;
+                limit?: string;
+                /** @description `true` para respuesta paginada */
+                paginated?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of audit logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuditController_findByEntity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The name of the entity table */
+                entityTable: string;
+                /** @description The UUID of the entity */
+                entityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit history for the entity */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8343,6 +12011,169 @@ export interface operations {
             };
         };
     };
+    ReportsController_getLibroVentasJson: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Libro de ventas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReportsController_getLibroComprasJson: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Libro de compras */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReportsController_getValidation: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hallazgos fiscales */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReportsController_createExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    reportType: "LIBRO_VENTAS" | "LIBRO_COMPRAS" | "RETENCIONES_IVA" | "RETENCIONES_ISLR";
+                    /** @enum {string} */
+                    format: "CSV" | "TXT" | "XML";
+                    /** @example 2026-10-01 */
+                    from?: string;
+                    /** @example 2026-10-31 */
+                    to?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Archivo generado y registrado */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description La validación tiene errores */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FinancialReportsController_trialBalance: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Balance de comprobación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FinancialReportsController_balanceSheet: {
+        parameters: {
+            query?: {
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Balance general */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FinancialReportsController_incomeStatement: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de resultados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     BiController_getKpis: {
         parameters: {
             query?: never;
@@ -8395,149 +12226,6 @@ export interface operations {
         responses: {
             /** @description Recent activity data */
             200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CronController_triggerBcv: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description BCV rate fetch completed */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example true */
-                        success?: boolean;
-                        /** @example 36.12 */
-                        rate?: number;
-                        /** @example BCV rate fetched and stored successfully: 36.12 */
-                        message?: string;
-                    };
-                };
-            };
-            /** @description Failed to fetch BCV rate */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @example false */
-                        success?: boolean;
-                        /** @example Failed to fetch BCV rate: Could not parse USD rate from BCV page */
-                        message?: string;
-                    };
-                };
-            };
-        };
-    };
-    CurrenciesController_findAll: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of currencies */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CurrencyResponseDto"][];
-                };
-            };
-        };
-    };
-    CurrenciesController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateCurrencyDto"];
-            };
-        };
-        responses: {
-            /** @description Currency created successfully */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CurrencyResponseDto"];
-                };
-            };
-            /** @description Currency with this code already exists */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CurrenciesController_getLatestRates: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Latest exchange rates */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LatestRatesResponseDto"][];
-                };
-            };
-        };
-    };
-    CurrenciesController_addRate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateExchangeRateDto"];
-            };
-        };
-        responses: {
-            /** @description Exchange rate added successfully */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ExchangeRateResponseDto"];
-                };
-            };
-            /** @description Currency not found */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8773,56 +12461,6 @@ export interface operations {
             };
             /** @description Loan not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AuditController_findAll: {
-        parameters: {
-            query?: {
-                /** @description Filter by user ID */
-                userId?: string;
-                /** @description Filter by entity table name */
-                entityTable?: string;
-                /** @description Filter logs from this date (ISO 8601 format) */
-                from?: string;
-                /** @description Filter logs until this date (ISO 8601 format) */
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description List of audit logs */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AuditController_findByEntity: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The name of the entity table */
-                entityTable: string;
-                /** @description The UUID of the entity */
-                entityId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Audit history for the entity */
-            200: {
                 headers: {
                     [name: string]: unknown;
                 };

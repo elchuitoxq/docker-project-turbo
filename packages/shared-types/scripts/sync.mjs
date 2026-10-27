@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
-const backendOpenapi = resolve(root, '..', 'apps', 'backend', 'docs', 'openapi.json');
+// `root` es packages/shared-types: hay que subir dos niveles para llegar a la raíz del monorepo.
+const backendOpenapi = resolve(root, '..', '..', 'apps', 'backend', 'docs', 'openapi.json');
 const localOpenapi = join(root, 'openapi.json');
 const outTypes = join(root, 'src', 'api-types.ts');
 
