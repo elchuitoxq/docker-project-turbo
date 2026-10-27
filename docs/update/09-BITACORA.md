@@ -727,6 +727,60 @@ eliminó; la base de desarrollo queda como estaba.
 | T-08-12 | Frontend: formato por moneda, monto dual y aviso de tasa vencida                            |
 | T-08-13 | Reporte dual obligatorio (columnas VES + USD a tasa de corte)                               |
 
+---
+
+### BT-037 · 2026-10-26 · Ola 2 cerrada en backend: libro, cobros y reporte dual
+
+**Decisiones del usuario**
+
+Backend completo teniendo la tasa como eje; el frontend (T-08-12) se aborda **después**, cuando los
+tests de facturación estén sólidos. Se hizo así.
+
+**Qué se implementó**
+
+| Tarea   | Resultado                                                                                                                                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-08-07 | `accounting_entries.baseCurrencyId` + `exchangeRate`; las líneas guardan importes en moneda funcional y conservan `originalAmount`/`originalCurrencyId`. Los asientos desde factura y pago convierten con la tasa del documento |
+| T-08-11 | `payment_allocations.amountBase`; el cobro se compara contra la factura **en moneda funcional** y la diferencia cambiaria queda en `payments.metadata`                                                                          |
+| T-08-13 | El resumen fiscal convierte cada documento con su tasa antes de sumar y publica columna paralela en USD con `closingRate`/`closingRateDate`                                                                                     |
+
+**Tres bugs reales que destaparon los tests nuevos**
+
+1. **Código de factura duplicado entre sucursales**: `getNextInvoiceCode` filtraba por sucursal, pero
+   `invoices.code` es único global. Mismo defecto en `getNextPaymentCode`.
+2. **El generador retrocedía a `A-00001`**: tomaba sólo el último insertado y, si ese código tenía otro
+   formato (los documentos sembrados usan `INV-…`), reiniciaba la numeración.
+3. **Numeración no atómica**: dos emisiones concurrentes leían el mismo máximo. Ahora la asignación de
+   código va en una transacción con `pg_advisory_xact_lock`, lo que también corrige el caso real de dos
+   usuarios facturando a la vez.
+
+**Tests nuevos (los que pediste para facturación)**
+
+- `src/test/billing-multicurrency.test.ts` — 7 casos contra Postgres: emisión en moneda base (tasa 1,
+  sin IGTF), emisión en divisa con tasa del día (IGTF aplicado y totales que cuadran), tasa vencida
+  rechazada, moneda sin tasa rechazada, tasa explícita que salta la validación de frescura, tasa
+  congelada (cambiar la tasa después no altera la factura) y listado por sucursal.
+- `src/test/treasury-multicurrency.test.ts` — 2 casos: cobro en VES de factura en USD deja saldo 0 y
+  registra la diferencia (80,00), y cobro insuficiente no marca `PAID`.
+
+**Nota de estabilidad**
+
+Los tests de integración comparten una sola base. Al añadir archivos nuevos aparecieron fallos
+intermitentes; el origen era la numeración, no el paralelismo. Se probó serializando los archivos
+(`fileParallelism: false`) y, una vez corregido el generador, se devolvió el paralelismo: **737/737**
+en tres corridas consecutivas (~30 s).
+
+**Estado**
+
+- Plan: **24 de 100 tareas**; E8 con **12 de 13** (falta sólo T-08-12, frontend, por acuerdo).
+- `pnpm turbo run lint typecheck build test:coverage` → 16/16 · `pnpm audit --prod` sin hallazgos.
+
+**Pendiente anotado para cuando se retome**
+
+- La diferencia cambiaria **no genera asiento**: `accounting_maps` no tiene cuenta de diferencia
+  cambiaria. Requiere agregarla en S-04 antes de poder postear la línea.
+- El frontend (T-08-12) debe mostrar el monto dual y el aviso de tasa vencida.
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
