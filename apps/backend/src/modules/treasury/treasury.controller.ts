@@ -19,6 +19,9 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { TreasuryService } from './services/treasury.service';
+import { DailyCloseService } from './operations/daily-close.service';
+import { ReconciliationService } from './operations/reconciliation.service';
+import { PettyCashService } from './operations/petty-cash.service';
 import {
   CreatePaymentDto,
   PaymentResponseDto,
@@ -27,9 +30,23 @@ import {
   CreatePaymentMethodDto,
   CreateBankAccountDto,
   PartnerStatementDto,
-  DailyCloseDto,
   PaymentStatus,
 } from './dto/treasury.dto';
+import {
+  CloseDailyCloseDto,
+  ClosePettyCashFundDto,
+  CreatePettyCashFundDto,
+  CreatePettyCashMovementDto,
+  DailyCloseDetailDto,
+  ImportStatementDto,
+  MatchStatementLineDto,
+  PettyCashFundResponseDto,
+  ReconciliationReportDto,
+  ReopenDailyCloseDto,
+  StatementLineDto,
+  UpdateBankAccountDto,
+  UpdatePaymentMethodDto,
+} from './dto/treasury-operations.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
@@ -37,7 +54,12 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 @ApiTags('treasury')
 @Controller('v1/treasury')
 export class TreasuryController {
-  constructor(private readonly treasuryService: TreasuryService) {}
+  constructor(
+    private readonly treasuryService: TreasuryService,
+    private readonly dailyClose: DailyCloseService = new DailyCloseService(),
+    private readonly reconciliation: ReconciliationService = new ReconciliationService(),
+    private readonly pettyCash: PettyCashService = new PettyCashService()
+  ) {}
 
   @Get('payments')
   @ApiOperation({
@@ -150,6 +172,30 @@ export class TreasuryController {
     return this.treasuryService.getMethods(branchId);
   }
 
+  @Get('methods/all')
+  @ApiOperation({
+    summary: 'Métodos de pago incluidos los desactivados',
+    description: 'Pantalla de administración: un método desactivado no aparece al cobrar',
+  })
+  @ApiResponse({ status: 200, type: [PaymentMethodResponseDto] })
+  async getAllMethods(@CurrentBranch() branchId: string): Promise<PaymentMethodResponseDto[]> {
+    return this.treasuryService.getAllMethods(branchId);
+  }
+
+  @Patch('methods/:id')
+  @ApiOperation({
+    summary: 'Actualizar un método de pago',
+    description: 'Nombre, banderas (IGTF, referencia, efectivo) y activación',
+  })
+  @ApiBody({ type: UpdatePaymentMethodDto })
+  @ApiResponse({ status: 200, type: PaymentMethodResponseDto })
+  async updateMethod(
+    @Param('id') id: string,
+    @Body() dto: UpdatePaymentMethodDto
+  ): Promise<PaymentMethodResponseDto> {
+    return this.treasuryService.updateMethod(id, dto);
+  }
+
   @Post('methods')
   @ApiOperation({
     summary: 'Create a payment method',
@@ -198,6 +244,21 @@ export class TreasuryController {
     return this.treasuryService.createBankAccount(createBankAccountDto);
   }
 
+  @Patch('bank-accounts/:id')
+  @ApiOperation({
+    summary: 'Actualizar una cuenta bancaria',
+    description: 'Nombre, número, banco, saldo inicial, notas y activación (T-05-02)',
+  })
+  @ApiBody({ type: UpdateBankAccountDto })
+  @ApiResponse({ status: 200, type: BankAccountResponseDto })
+  async updateBankAccount(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @Body() dto: UpdateBankAccountDto
+  ): Promise<BankAccountResponseDto> {
+    return this.treasuryService.updateBankAccount(id, branchId, dto);
+  }
+
   @Get('statements/:partnerId')
   @ApiOperation({
     summary: 'Get partner statement',
@@ -211,27 +272,194 @@ export class TreasuryController {
   @ApiResponse({ status: 404, description: 'Partner not found' })
   async getPartnerStatement(
     @Param('partnerId') partnerId: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
   ): Promise<PartnerStatementDto> {
-    return this.treasuryService.getPartnerStatement(partnerId, branchId);
+    return this.treasuryService.getPartnerStatement(partnerId, branchId, { from, to });
+  }
+
+  @Get('daily-close/:date')
+  @ApiOperation({
+    summary: 'Cierre diario de una fecha',
+    description:
+      'Totales por método y moneda. Si el día está cerrado devuelve el snapshot guardado (T-05-03)',
+  })
+  @ApiResponse({ status: 200, type: DailyCloseDetailDto })
+  async getDailyCloseByDate(
+    @Param('date') date: string,
+    @CurrentBranch() branchId: string
+  ): Promise<DailyCloseDetailDto> {
+    return this.dailyClose.summary(branchId, date);
+  }
+
+  @Post('daily-close/:date/close')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cerrar el día',
+    description: 'Guarda el snapshot de totales y bloquea nuevos movimientos con esa fecha',
+  })
+  @ApiBody({ type: CloseDailyCloseDto })
+  @ApiResponse({ status: 200, type: DailyCloseDetailDto })
+  @ApiResponse({ status: 409, description: 'El día ya estaba cerrado' })
+  async closeDailyClose(
+    @Param('date') date: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CloseDailyCloseDto
+  ): Promise<DailyCloseDetailDto> {
+    return this.dailyClose.close(branchId, date, user?.id ?? null, dto);
+  }
+
+  @Post('daily-close/:date/reopen')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reabrir el día',
+    description: 'Exige motivo y queda auditado; recalcula los totales al leer',
+  })
+  @ApiBody({ type: ReopenDailyCloseDto })
+  @ApiResponse({ status: 200, type: DailyCloseDetailDto })
+  async reopenDailyClose(
+    @Param('date') date: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: ReopenDailyCloseDto
+  ): Promise<DailyCloseDetailDto> {
+    return this.dailyClose.reopen(branchId, date, user?.id ?? null, dto.reason);
   }
 
   @Get('daily-close')
   @ApiOperation({
-    summary: 'Get daily close',
-    description: 'Retrieves daily payment summary grouped by method and currency',
+    summary: 'Cierre diario (compatibilidad)',
+    description: 'Igual que `/daily-close/:date` con la fecha por query string',
   })
   @ApiQuery({ name: 'date', required: true, description: 'Date in YYYY-MM-DD format' })
-  @ApiResponse({
-    status: 200,
-    description: 'Daily close summary',
-    type: DailyCloseDto,
-  })
+  @ApiResponse({ status: 200, type: DailyCloseDetailDto })
   async getDailyClose(
     @Query('date') date: string,
     @CurrentBranch() branchId: string
-  ): Promise<DailyCloseDto> {
-    return this.treasuryService.getDailyClose(date, branchId);
+  ): Promise<DailyCloseDetailDto> {
+    return this.dailyClose.summary(branchId, date);
+  }
+
+  // -- Conciliación bancaria (T-05-04, T-05-05)
+
+  @Post('reconciliation/import')
+  @ApiOperation({
+    summary: 'Importar extracto bancario (CSV)',
+    description: 'Formato fecha,monto,referencia,descripción. Es idempotente por hash del archivo',
+  })
+  @ApiBody({ type: ImportStatementDto })
+  @ApiResponse({ status: 201, description: 'Líneas importadas' })
+  async importStatement(
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: ImportStatementDto
+  ) {
+    return this.reconciliation.importCsv(branchId, user?.id ?? null, dto);
+  }
+
+  @Get('reconciliation/:bankAccountId')
+  @ApiOperation({
+    summary: 'Estado de conciliación de una cuenta',
+    description: 'Líneas del extracto, pagos sin conciliar y sugerencias por monto y fecha',
+  })
+  @ApiResponse({ status: 200, type: ReconciliationReportDto })
+  async getReconciliation(
+    @Param('bankAccountId') bankAccountId: string,
+    @CurrentBranch() branchId: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ): Promise<ReconciliationReportDto> {
+    return this.reconciliation.report(branchId, bankAccountId, { from, to });
+  }
+
+  @Post('reconciliation/:lineId/match')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Conciliar una línea con un pago',
+    description: 'Una línea se concilia con un pago y viceversa (`409` si ya está tomado)',
+  })
+  @ApiBody({ type: MatchStatementLineDto })
+  @ApiResponse({ status: 200, type: StatementLineDto })
+  async matchLine(
+    @Param('lineId') lineId: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: MatchStatementLineDto
+  ): Promise<StatementLineDto> {
+    return this.reconciliation.match(branchId, lineId, dto.paymentId, user?.id ?? null);
+  }
+
+  @Post('reconciliation/:lineId/unmatch')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Desconciliar una línea' })
+  @ApiResponse({ status: 200, type: StatementLineDto })
+  async unmatchLine(
+    @Param('lineId') lineId: string,
+    @CurrentBranch() branchId: string
+  ): Promise<StatementLineDto> {
+    return this.reconciliation.unmatch(branchId, lineId);
+  }
+
+  // -- Caja chica (T-05-07)
+
+  @Get('petty-cash')
+  @ApiOperation({ summary: 'Fondos de caja chica de la sucursal' })
+  @ApiResponse({ status: 200, type: [PettyCashFundResponseDto] })
+  async listPettyCash(@CurrentBranch() branchId: string): Promise<PettyCashFundResponseDto[]> {
+    return this.pettyCash.list(branchId);
+  }
+
+  @Post('petty-cash')
+  @ApiOperation({ summary: 'Crear un fondo de caja chica' })
+  @ApiBody({ type: CreatePettyCashFundDto })
+  @ApiResponse({ status: 201, type: PettyCashFundResponseDto })
+  async createPettyCash(
+    @CurrentBranch() branchId: string,
+    @Body() dto: CreatePettyCashFundDto
+  ): Promise<PettyCashFundResponseDto> {
+    return this.pettyCash.create(branchId, dto);
+  }
+
+  @Get('petty-cash/:id')
+  @ApiOperation({ summary: 'Detalle de un fondo' })
+  @ApiResponse({ status: 200, type: PettyCashFundResponseDto })
+  async getPettyCash(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<PettyCashFundResponseDto> {
+    return this.pettyCash.findOne(branchId, id);
+  }
+
+  @Post('petty-cash/:id/movements')
+  @ApiOperation({
+    summary: 'Registrar gasto o reposición',
+    description: 'El fondo nunca queda negativo (regla 5 de S-05)',
+  })
+  @ApiBody({ type: CreatePettyCashMovementDto })
+  @ApiResponse({ status: 201, type: PettyCashFundResponseDto })
+  async addPettyCashMovement(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CreatePettyCashMovementDto
+  ): Promise<PettyCashFundResponseDto> {
+    return this.pettyCash.addMovement(branchId, id, dto, user?.id ?? null);
+  }
+
+  @Post('petty-cash/:id/close')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cerrar el fondo devolviendo el saldo' })
+  @ApiBody({ type: ClosePettyCashFundDto })
+  @ApiResponse({ status: 200, type: PettyCashFundResponseDto })
+  async closePettyCash(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: ClosePettyCashFundDto
+  ): Promise<PettyCashFundResponseDto> {
+    return this.pettyCash.close(branchId, id, user?.id ?? null, dto);
   }
 
   @Get('available-credit-notes')

@@ -486,6 +486,60 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 - **Notas de crédito de compra**: `credit_notes.type = 'PURCHASE'` y la respuesta incluye `type`.
   Descuentan el saldo del proveedor mientras estén `POSTED`.
 
+## Tesorería y cobranzas (desde 2026-10-27)
+
+`T-05-01 … T-05-09`. Todo se resuelve contra la sucursal activa (`x-branch-id`).
+
+| Método  | Ruta                                                 | Permiso                           |
+| ------- | ---------------------------------------------------- | --------------------------------- |
+| `GET`   | `/v1/treasury/methods`                               | `finance:treasury:view`           |
+| `GET`   | `/v1/treasury/methods/all`                           | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/methods`                               | `finance:treasury:view`           |
+| `PATCH` | `/v1/treasury/methods/:id`                           | `finance:treasury:view`           |
+| `GET`   | `/v1/treasury/bank-accounts`                         | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/bank-accounts`                         | `finance:treasury:create_account` |
+| `PATCH` | `/v1/treasury/bank-accounts/:id`                     | `finance:treasury:create_account` |
+| `GET`   | `/v1/treasury/daily-close/:date`                     | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/daily-close/:date/close`               | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/daily-close/:date/reopen`              | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/reconciliation/import`                 | `finance:treasury:view`           |
+| `GET`   | `/v1/treasury/reconciliation/:bankAccountId?from&to` | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/reconciliation/:lineId/match`          | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/reconciliation/:lineId/unmatch`        | `finance:treasury:view`           |
+| `GET`   | `/v1/treasury/statements/:partnerId?from&to`         | `finance:treasury:view`           |
+| `GET`   | `/v1/treasury/petty-cash`                            | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/petty-cash`                            | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/petty-cash/:id/movements`              | `finance:treasury:view`           |
+| `POST`  | `/v1/treasury/petty-cash/:id/close`                  | `finance:treasury:view`           |
+
+- **Métodos de pago**: `GET /methods` devuelve sólo los activos (es lo que ve un cajero);
+  `GET /methods/all` incluye los desactivados para administrarlos. Las banderas son `appliesIgtf`
+  (IGTF 3 % en divisa), `requiresReference` e `isCash` (el efectivo entra en el cuadre de caja).
+- **Cuentas bancarias**: `initialBalance` es el saldo de apertura y `currentBalance` lo mueven los
+  pagos. Una cuenta inactiva no se ofrece al cobrar. `PATCH` no toca `currentBalance`.
+- **Cierre diario**: se identifica por `fecha + sucursal` (índice único). Un día **sin fila está
+  abierto**. `POST …/close` guarda un **snapshot inmutable** en `totals`; `GET` devuelve ese snapshot
+  mientras el día esté cerrado. `POST …/reopen` exige `reason` (400 si falta) y deja `reopenedBy/At`.
+- **Regla 1 de `S-05`**: registrar un pago, anularlo, conciliar o desconciliar en un día cerrado
+  responde `409 El cierre del <fecha> está cerrado`.
+- **Agregados en moneda funcional**: `totalIncome`, `totalExpense`, `netBalance` y el desglose por
+  método usan `amount_base`; `byCurrency` conserva el importe original de cada documento.
+- **Cuadre de caja**: `openingCash` (apertura declarada) + neto de efectivo del día = `expectedCash`;
+  `difference = cashCount − expectedCash`. Sólo cuentan los métodos con `isCash`.
+- **Importación de extracto**: `POST /reconciliation/import` recibe `{ bankAccountId, fileName,
+content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comillas opcionales). Monto
+  negativo = egreso. Es **idempotente por hash SHA-256 del contenido**: reimportar devuelve
+  `duplicated: true` sin crear líneas. Una fila inválida aborta toda la importación (`400`).
+- **Conciliación**: una línea se concilia con **un** pago y un pago con **una** línea (índice único
+  parcial). Repetir el mismo match es idempotente; usar un pago ya tomado responde `409`. Las líneas
+  pendientes traen `suggestions[]` con pagos del mismo importe (±0,01) y fecha (±3 días).
+- **Estado de cuenta**: con `from`/`to` devuelve `openingBalance`, `movements[]` (con `balance`
+  corrido) y `closingBalance`. Los cargos son documentos emitidos; los abonos, pagos y notas de
+  crédito.
+- **Caja chica**: el fondo nace con el monto disponible; `EXPENSE` resta y `REPLENISHMENT` suma. Un
+  gasto mayor al saldo responde `400 El fondo no puede quedar negativo`. Para cerrar hay que devolver
+  el saldo completo (`400` si no coincide).
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

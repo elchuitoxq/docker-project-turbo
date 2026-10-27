@@ -68,10 +68,10 @@ export function useDeletePartner() {
   });
 }
 
-export function usePartnerStatement(id: string | null) {
+export function usePartnerStatement(id: string | null, range: { from?: string; to?: string } = {}) {
   return useQuery<PartnerStatement>({
-    queryKey: partnersKeys.statement(id ?? ''),
-    queryFn: () => partnersApi.statement(id as string),
+    queryKey: [...partnersKeys.statement(id ?? ''), range.from ?? '', range.to ?? ''],
+    queryFn: () => partnersApi.statement(id as string, range),
     enabled: !!id,
   });
 }

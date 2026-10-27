@@ -10,6 +10,7 @@ import {
   integer,
   index,
   uniqueIndex,
+  date,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -514,26 +515,173 @@ export const paymentMethods = pgTable(
     isDigital: boolean('is_digital').default(false),
     currencyId: uuid('currency_id'),
     branchId: uuid('branch_id'),
+    /** El IGTF (3 %) se aplica en los pagos con divisa en efectivo. */
+    appliesIgtf: boolean('applies_igtf').default(false).notNull(),
+    /** Transferencias, Zelle y Pago Móvil no se pueden cobrar sin referencia bancaria. */
+    requiresReference: boolean('requires_reference').default(false).notNull(),
+    isCash: boolean('is_cash').default(false).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
   },
   t => ({
     unq: uniqueIndex('payment_methods_code_branch_unq').on(t.code, t.branchId),
   })
 );
 
-export const bankAccounts = pgTable('bank_accounts', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  name: text('name').notNull(),
-  accountNumber: text('account_number'),
-  type: text('type').notNull(),
-  currencyId: uuid('currency_id').notNull(),
-  branchId: uuid('branch_id'),
-  currentBalance: numeric('current_balance', { precision: 20, scale: 2 }).default('0'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
+export const bankAccounts = pgTable(
+  'bank_accounts',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    name: text('name').notNull(),
+    accountNumber: text('account_number'),
+    type: text('type').notNull(),
+    currencyId: uuid('currency_id').notNull(),
+    branchId: uuid('branch_id'),
+    bankId: uuid('bank_id'),
+    initialBalance: numeric('initial_balance', { precision: 20, scale: 2 }).default('0').notNull(),
+    currentBalance: numeric('current_balance', { precision: 20, scale: 2 }).default('0'),
+    isActive: boolean('is_active').default(true),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  t => ({
+    branchIdx: index('bank_accounts_branch_idx').on(t.branchId, t.isActive),
+  })
+);
+
+/**
+ * Cierre diario por sucursal (`T-05-03`).
+ *
+ * `totals` es el snapshot del día al momento del cierre: no se recalcula al leer, para que reabrir
+ * sea un acto explícito y auditado. Un día sin fila está simplemente abierto.
+ */
+export const dailyCloses = pgTable(
+  'daily_closes',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id, { onDelete: 'restrict' }),
+    date: date('date').notNull(),
+    status: text('status').default('OPEN').notNull(),
+    totals: jsonb('totals'),
+    notes: text('notes'),
+    closedBy: uuid('closed_by'),
+    closedAt: timestamp('closed_at'),
+    reopenedBy: uuid('reopened_by'),
+    reopenedAt: timestamp('reopened_at'),
+    reopenReason: text('reopen_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  t => ({
+    branchDateUnq: uniqueIndex('daily_closes_branch_date_unq').on(t.branchId, t.date),
+  })
+);
+
+/** Cabecera de importación de extracto; el hash evita importar dos veces el mismo archivo. */
+export const bankStatementImports = pgTable(
+  'bank_statement_imports',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    bankAccountId: uuid('bank_account_id').notNull(),
+    branchId: uuid('branch_id').notNull(),
+    fileHash: text('file_hash').notNull(),
+    fileName: text('file_name'),
+    linesCount: integer('lines_count').default(0).notNull(),
+    importedBy: uuid('imported_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    hashUnq: uniqueIndex('bank_statement_imports_hash_unq').on(t.bankAccountId, t.fileHash),
+  })
+);
+
+/** Línea del extracto bancario, conciliable con un pago (`T-05-04`, `T-05-05`). */
+export const bankStatementLines = pgTable(
+  'bank_statement_lines',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    importId: uuid('import_id')
+      .notNull()
+      .references(() => bankStatementImports.id, { onDelete: 'cascade' }),
+    bankAccountId: uuid('bank_account_id').notNull(),
+    branchId: uuid('branch_id').notNull(),
+    date: date('date').notNull(),
+    amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+    direction: text('direction').default('IN').notNull(),
+    reference: text('reference'),
+    description: text('description'),
+    matchedPaymentId: uuid('matched_payment_id'),
+    matchedAt: timestamp('matched_at'),
+    matchedBy: uuid('matched_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    accountDateIdx: index('bank_statement_lines_account_date_idx').on(t.bankAccountId, t.date),
+    // Un pago no se concilia con dos líneas (H-92).
+    paymentUnq: uniqueIndex('bank_statement_lines_payment_unq')
+      .on(t.matchedPaymentId)
+      .where(sql`${t.matchedPaymentId} is not null`),
+  })
+);
+
+/** Fondo fijo de caja chica (`T-05-07`). */
+export const pettyCashFunds = pgTable(
+  'petty_cash_funds',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    branchId: uuid('branch_id')
+      .notNull()
+      .references(() => branches.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    currencyId: uuid('currency_id').notNull(),
+    amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+    balance: numeric('balance', { precision: 20, scale: 2 }).default('0').notNull(),
+    responsibleUserId: uuid('responsible_user_id'),
+    status: text('status').default('OPEN').notNull(),
+    closedAt: timestamp('closed_at'),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  t => ({
+    branchIdx: index('petty_cash_funds_branch_idx').on(t.branchId, t.status),
+  })
+);
+
+export const pettyCashMovements = pgTable(
+  'petty_cash_movements',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    fundId: uuid('fund_id')
+      .notNull()
+      .references(() => pettyCashFunds.id, { onDelete: 'cascade' }),
+    date: date('date').notNull(),
+    /** `EXPENSE` gasta del fondo; `REPLENISHMENT` lo repone. */
+    type: text('type').notNull(),
+    amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+    description: text('description'),
+    receiptNumber: text('receipt_number'),
+    userId: uuid('user_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    fundDateIdx: index('petty_cash_movements_fund_date_idx').on(t.fundId, t.date),
+  })
+);
 
 export const payments = pgTable(
   'payments',
@@ -555,6 +703,8 @@ export const payments = pgTable(
     /** Monto en moneda funcional (VES): amount x exchangeRate (M2 de `S-08`). */
     amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
     bankAccountId: uuid('bank_account_id'),
+    /** Línea del extracto con la que se concilió este pago (`T-05-05`). */
+    bankStatementLineId: uuid('bank_statement_line_id'),
     payrollRunId: uuid('payroll_run_id'),
     /** `IN` cobro, `OUT` pago. `type` se mantiene por compatibilidad (T-03-06). */
     direction: text('direction').default('IN').notNull(),

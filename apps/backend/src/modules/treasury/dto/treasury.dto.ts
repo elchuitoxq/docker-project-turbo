@@ -219,6 +219,18 @@ export class PaymentMethodResponseDto {
 
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440002' })
   branchId?: string | null;
+
+  @ApiPropertyOptional({ example: true })
+  isActive?: boolean | null;
+
+  @ApiPropertyOptional({ example: false, description: 'Aplica IGTF (3 %) al cobrar en divisa' })
+  appliesIgtf?: boolean;
+
+  @ApiPropertyOptional({ example: true, description: 'Exige referencia bancaria' })
+  requiresReference?: boolean;
+
+  @ApiPropertyOptional({ example: true, description: 'Es efectivo' })
+  isCash?: boolean;
 }
 
 export class BankAccountResponseDto {
@@ -242,6 +254,15 @@ export class BankAccountResponseDto {
 
   @ApiProperty({ example: 5000.0 })
   currentBalance: number;
+
+  @ApiPropertyOptional({ example: 1000.0, description: 'Saldo con el que se abrió la cuenta' })
+  initialBalance?: number;
+
+  @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440003' })
+  bankId?: string | null;
+
+  @ApiPropertyOptional({ example: 'Cuenta operativa' })
+  notes?: string | null;
 
   @ApiPropertyOptional({ example: true })
   isActive?: boolean | null;
@@ -269,6 +290,18 @@ export class CreatePaymentMethodDto {
   @IsOptional()
   @IsUUID()
   branchId?: string;
+
+  @ApiPropertyOptional({ description: 'Cobra IGTF (3 %) al pagarse en divisa' })
+  @IsOptional()
+  appliesIgtf?: boolean;
+
+  @ApiPropertyOptional({ description: 'Exige número de referencia' })
+  @IsOptional()
+  requiresReference?: boolean;
+
+  @ApiPropertyOptional({ description: 'Es efectivo' })
+  @IsOptional()
+  isCash?: boolean;
 }
 
 export class CreateBankAccountDto {
@@ -298,6 +331,22 @@ export class CreateBankAccountDto {
   @IsNumber()
   @Min(0)
   currentBalance?: number;
+
+  @ApiPropertyOptional({ description: 'Saldo de apertura (alias de currentBalance)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  initialBalance?: number;
+
+  @ApiPropertyOptional({ description: 'Banco del catálogo' })
+  @IsOptional()
+  @IsUUID()
+  bankId?: string;
+
+  @ApiPropertyOptional({ example: 'Cuenta operativa' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }
 
 export class PartnerStatementDto {
@@ -318,6 +367,29 @@ export class PartnerStatementDto {
 
   @ApiProperty({ example: 1500.0 })
   creditBalance: number;
+
+  @ApiPropertyOptional({ example: '2026-10-01', description: 'Inicio del rango consultado' })
+  from?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-10-31', description: 'Fin del rango consultado' })
+  to?: string | null;
+
+  @ApiPropertyOptional({ example: 0, description: 'Saldo del partner antes del rango' })
+  openingBalance?: number;
+
+  @ApiPropertyOptional({ example: 1200, description: 'Saldo del partner al cierre del rango' })
+  closingBalance?: number;
+
+  @ApiPropertyOptional({ type: [Object], description: 'Movimientos del rango, en orden' })
+  movements?: {
+    date: string;
+    type: 'INVOICE' | 'PAYMENT' | 'CREDIT_NOTE';
+    documentCode: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+  }[];
 
   @ApiProperty({ type: [PaymentResponseDto] })
   recentPayments: PaymentResponseDto[];

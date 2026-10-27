@@ -69,6 +69,7 @@ vi.mock('../../schema', () => ({
   partners: {},
   creditNoteItems: {},
   currencies: {},
+  dailyCloses: {},
 }));
 
 describe('TreasuryService', () => {
@@ -133,7 +134,7 @@ describe('TreasuryService', () => {
   };
 
   beforeEach(() => {
-    service = new TreasuryService();
+    service = new TreasuryService(undefined as never);
     mocks.mockSelect.mockClear();
     mocks.mockInsert.mockClear();
     mocks.mockUpdate.mockClear();
@@ -197,6 +198,17 @@ describe('TreasuryService', () => {
 
       await expect(service.create(createPaymentDto, 'user-1')).rejects.toThrow(
         'Payment method with ID method-1 not found'
+      );
+    });
+
+    it('rechaza el pago si el día está cerrado (T-05-03)', async () => {
+      const closedDay = {
+        assertOpen: vi.fn().mockRejectedValue(new Error('El cierre del 2026-06-01 está cerrado')),
+      };
+      const serviceWithClose = new TreasuryService(undefined as never, closedDay as never);
+
+      await expect(serviceWithClose.create(createPaymentDto, 'user-1')).rejects.toThrow(
+        /está cerrado/
       );
     });
   });
@@ -319,24 +331,6 @@ describe('TreasuryService', () => {
       await expect(service.getPartnerStatement('nonexistent')).rejects.toThrow(
         'Partner with ID nonexistent not found'
       );
-    });
-  });
-
-  describe('getDailyClose', () => {
-    it('should calculate daily close with income and expense', async () => {
-      const mockPayments = [
-        { ...mockPayment, type: 'INCOME', amount: '500.00' },
-        { ...mockPayment, id: 'payment-2', type: 'EXPENSE', amount: '200.00' },
-      ];
-
-      mocks.setupChain(mockPayments);
-
-      const result = await service.getDailyClose('2026-06-01');
-
-      expect(result.date).toBe('2026-06-01');
-      expect(result.totalIncome).toBe(500);
-      expect(result.totalExpense).toBe(200);
-      expect(result.netBalance).toBe(300);
     });
   });
 });

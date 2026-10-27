@@ -222,15 +222,15 @@ asientos; E2E de cierre.
 
 | ID      | Tarea                                                                                    | Artefactos                                                  | Depende           | Verificación                              | Talla | Estado |
 | ------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------- | ----------------------------------------- | ----- | ------ |
-| T-05-01 | `payment_methods`: `appliesIgtf`, `requiresReference`, `isCash` + PATCH/desactivar       | migración + `modules/settings/*`                            | —                 | método desactivado no aparece en el cobro | S     | ⬜     |
-| T-05-02 | `bank_accounts` con `branchId` obligatorio, saldo inicial y PATCH                        | migración + `modules/treasury/*`                            | E0                | cuenta creada por sucursal                | M     | ⬜     |
-| T-05-03 | `daily_closes` + `GET/POST /treasury/daily-close/:date` y `:date/close` / `:date/reopen` | tabla nueva + `modules/treasury/*`                          | T-05-02           | pago en fecha cerrada → `409`             | L     | ⬜     |
-| T-05-04 | `bank_statement_lines` + `POST /treasury/reconciliation/import` (CSV)                    | tabla nueva                                                 | T-05-02           | import idempotente por hash de archivo    | L     | ⬜     |
-| T-05-05 | `POST /treasury/reconciliation/:lineId/match`                                            | ídem                                                        | T-05-04           | un pago no se concilia dos veces          | M     | ⬜     |
-| T-05-06 | `GET /treasury/statements/:partnerId?from&to` con saldos                                 | `modules/treasury/*`                                        | —                 | saldo inicial + movimientos = final       | M     | ⬜     |
-| T-05-07 | Caja chica (`petty_cash_funds`, `petty_cash_movements`)                                  | tablas nuevas                                               | T-05-03           | rendición cierra el fondo                 | L     | ⬜     |
-| T-05-08 | UI `settings/methods`, `treasury/accounts`, `treasury/reconciliation`                    | `app/(dashboard)/...`                                       | T-05-01 … T-05-05 | CRUD y conciliación operables             | L     | ⬜     |
-| T-05-09 | UI cierre diario extendido y estado de cuenta con rango                                  | `finance/daily-close`, `operations/partners/[id]/statement` | T-05-03, T-05-06  | diferencia esperado vs contado            | M     | ⬜     |
+| T-05-01 | `payment_methods`: `appliesIgtf`, `requiresReference`, `isCash` + PATCH/desactivar       | migración + `modules/settings/*`                            | —                 | método desactivado no aparece en el cobro | S     | ✅     |
+| T-05-02 | `bank_accounts` con `branchId` obligatorio, saldo inicial y PATCH                        | migración + `modules/treasury/*`                            | E0                | cuenta creada por sucursal                | M     | ✅     |
+| T-05-03 | `daily_closes` + `GET/POST /treasury/daily-close/:date` y `:date/close` / `:date/reopen` | tabla nueva + `modules/treasury/*`                          | T-05-02           | pago en fecha cerrada → `409`             | L     | ✅     |
+| T-05-04 | `bank_statement_lines` + `POST /treasury/reconciliation/import` (CSV)                    | tabla nueva                                                 | T-05-02           | import idempotente por hash de archivo    | L     | ✅     |
+| T-05-05 | `POST /treasury/reconciliation/:lineId/match`                                            | ídem                                                        | T-05-04           | un pago no se concilia dos veces          | M     | ✅     |
+| T-05-06 | `GET /treasury/statements/:partnerId?from&to` con saldos                                 | `modules/treasury/*`                                        | —                 | saldo inicial + movimientos = final       | M     | ✅     |
+| T-05-07 | Caja chica (`petty_cash_funds`, `petty_cash_movements`)                                  | tablas nuevas                                               | T-05-03           | rendición cierra el fondo                 | L     | ✅     |
+| T-05-08 | UI `settings/methods`, `treasury/accounts`, `treasury/reconciliation`                    | `app/(dashboard)/...`                                       | T-05-01 … T-05-05 | CRUD y conciliación operables             | L     | ✅     |
+| T-05-09 | UI cierre diario extendido y estado de cuenta con rango                                  | `finance/daily-close`, `operations/partners/[id]/statement` | T-05-03, T-05-06  | diferencia esperado vs contado            | M     | ✅     |
 
 **Gate de salida E5:** cierre diario bloquea pagos y el estado de cuenta cuadra con los pagos.
 
@@ -294,10 +294,10 @@ trazada.
 | 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
-| 8   | 14-15   | E5 tesorería                           | 9       | 0      |
+| 8   | 14-15   | E5 tesorería                           | 9       | 9      |
 | 9   | 16      | E7 frontend restante                   | 7       | 0      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **76** |
+| —   | —       | **Total**                              | **100** | **85** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

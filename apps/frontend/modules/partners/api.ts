@@ -29,5 +29,11 @@ export const partnersApi = {
   create: (data: Partial<Partner>) => apiClient.post<Partner>('/partners', data),
   update: (id: string, data: Partial<Partner>) => apiClient.patch<Partner>(`/partners/${id}`, data),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/partners/${id}`),
-  statement: (id: string) => apiClient.get<PartnerStatement>(`/treasury/statements/${id}`),
+  statement: (id: string, range: { from?: string; to?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (range.from) params.set('from', range.from);
+    if (range.to) params.set('to', range.to);
+    const qs = params.toString();
+    return apiClient.get<PartnerStatement>(`/treasury/statements/${id}${qs ? `?${qs}` : ''}`);
+  },
 };

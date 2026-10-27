@@ -2,7 +2,7 @@
 
 | Campo          | Valor                                                                     |
 | -------------- | ------------------------------------------------------------------------- |
-| **Estado**     | ⬜ Especificada                                                           |
+| **Estado**     | ✅ Implementada (T-05-01 … T-05-09)                                       |
 | **Prioridad**  | 🟡 P2                                                                     |
 | **Depende de** | S-00, S-01 (C)                                                            |
 | **Épica**      | E5 · **Fuente:** `audit-report/07-TESORERIA-BILLING-LOGIC.md`, `06-BANKS` |

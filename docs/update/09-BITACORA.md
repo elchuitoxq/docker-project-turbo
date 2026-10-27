@@ -1653,3 +1653,66 @@ saldo de la factura (540)`.
 - database **39/39** · turbo `lint typecheck build test:coverage` **16/16** · `format:check` verde ·
   `pnpm audit --prod` sin vulnerabilidades.
 - Plan: **76 de 100 tareas**; **E3 cerrada, 9 de 9**.
+
+---
+
+### BT-049 · 2026-10-27 · E5: tesorería operable (T-05-01 … T-05-09)
+
+**Lo que había**
+
+Pagos, cuentas y anulación existían, pero la operación diaria no: no se podía administrar un método
+de pago ni una cuenta bancaria, no había cierre por fecha, ni conciliación, ni caja chica. La pantalla
+de **cierre diario llamaba a `GET /treasury/daily-close` sin fecha** (endpoint que exige `date`) y a
+`/daily-close/:date/close` y `/reopen`, **rutas que no existían**: la pantalla estaba muerta.
+
+**Qué se entregó, en orden**
+
+| Tarea   | Contenido                                                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| T-05-01 | `payment_methods`: `applies_igtf`, `requires_reference`, `is_cash`, `is_active` + `PATCH /treasury/methods/:id`         |
+| T-05-02 | `bank_accounts`: `bank_id`, `initial_balance`, `notes` + `PATCH /treasury/bank-accounts/:id` por sucursal               |
+| T-05-03 | `daily_closes` con snapshot en `totals`; `GET /daily-close/:date`, `POST …/close`, `POST …/reopen` (motivo auditado)    |
+| T-05-04 | `bank_statement_imports` + `bank_statement_lines`; `POST /reconciliation/import` idempotente por hash SHA-256           |
+| T-05-05 | `POST /reconciliation/:lineId/match` y `/unmatch`, con índice único parcial que impide conciliar un pago dos veces      |
+| T-05-06 | `GET /treasury/statements/:partnerId?from&to` con saldo inicial, movimientos con saldo corrido y saldo final            |
+| T-05-07 | `petty_cash_funds` + `petty_cash_movements`: gasto, reposición y cierre con devolución del saldo                        |
+| T-05-08 | UI `settings/methods`, `finance/treasury/accounts`, `finance/treasury/reconciliation`, `finance/treasury/petty-cash`    |
+| T-05-09 | UI de cierre con fecha, cuadre de caja y reapertura; estado de cuenta con rango en `operations/partners/[id]/statement` |
+
+**Decisiones**
+
+- **Un día sin fila está abierto.** No hay que "abrir" la caja para operar: sólo el cierre escribe en
+  `daily_closes`. Así el bloqueo es explícito y no depende de un paso previo que se olvida.
+- **El snapshot del cierre no se recalcula al leer** (regla 2 de `S-05`). Un pago insertado después
+  del cierre no cambia lo cerrado: si hay que corregir, se reabre con motivo y queda auditado.
+- **Diferencia de caja contra el efectivo esperado, no contra el neto del día**: el cierre acepta
+  `openingCash` y calcula `expectedCash = apertura + neto de efectivo`; `difference = contado − esperado`.
+  Sin apertura declarada, la diferencia de un día con sólo egresos era un número sin sentido.
+- **Los agregados del cierre van en moneda funcional** (H-94): sumar un egreso en dólares con uno en
+  bolívares daba "USD 346.885,00". El desglose por moneda conserva el importe original.
+- **Importar dos veces el mismo extracto no duplica**: el hash del archivo es la clave. Un CSV con una
+  fila inválida **no importa nada** (se valida antes de la transacción).
+- **`500.00` es quinientos y `1.234,56` es mil doscientos treinta y cuatro** (H-93): el parser acepta
+  ambos formatos en lugar de borrar todos los puntos.
+- **La conciliación respeta el cierre**: no se concilia ni se desconoce en un día cerrado.
+
+**Verificación en vivo (Docker + navegador)**
+
+- Cierre del 27/10: `CLOSED`, snapshot con ingresos/egresos por método y moneda; pago con esa fecha →
+  `409 El cierre del 2026-10-27 está cerrado`; reapertura con motivo → `OPEN` y el pago vuelve a entrar;
+  reapertura sin motivo → `400`.
+- Cierre del 26/10 con apertura 1.000 y conteo 1.000 → `expectedCash 1.000`, `difference 0`.
+- Conciliación: import de 2 líneas (`500.00` y `-120.50`), reimport → `duplicated: true`; sugerencia por
+  monto y fecha; conciliar desde la UI; segundo intento sobre el mismo pago → `409`.
+- Caja chica: fondo 200, gasto 35 → saldo 165; gasto de 500 → `400 El fondo no puede quedar negativo`;
+  reposición 35 → saldo 200 y `spentSinceReplenishment` en 0.
+- Estado de cuenta del proveedor con rango: saldo inicial 0, cuatro movimientos y saldo final −700.
+
+**Pruebas**
+
+- Backend **925/925** (13 nuevas: banderas de métodos, cuentas, cierre/bloqueo/reapertura/snapshot,
+  CSV idempotente, CSV inválido sin líneas a medias, formatos de importe, match/unmatch, caja chica y
+  estado de cuenta con rango).
+- Frontend **108/108** · database **39/39** · turbo `lint typecheck build test:coverage` **16/16** ·
+  `format:check` verde · `pnpm audit --prod` sin vulnerabilidades.
+- Plan: **85 de 100 tareas**; **E5 cerrada, 9 de 9**.

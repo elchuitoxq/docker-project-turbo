@@ -32,6 +32,20 @@ export type PartnerStatement = {
   totalPaid: number;
   totalOutstanding: number;
   creditBalance: number;
+  /** Rango consultado y saldos del período (`T-05-06`). */
+  from?: string | null;
+  to?: string | null;
+  openingBalance?: number;
+  closingBalance?: number;
+  movements?: Array<{
+    date: string;
+    type: 'INVOICE' | 'PAYMENT' | 'CREDIT_NOTE';
+    documentCode: string;
+    description: string;
+    debit: number;
+    credit: number;
+    balance: number;
+  }>;
   recentPayments: Array<{
     id: string;
     code: string;

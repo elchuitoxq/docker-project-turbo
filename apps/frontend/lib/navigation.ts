@@ -103,6 +103,24 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'Landmark',
       },
       {
+        title: 'Cuentas bancarias',
+        url: '/dashboard/finance/treasury/accounts',
+        permission: PERMISSIONS.FINANCE.TREASURY.VIEW,
+        icon: 'Landmark',
+      },
+      {
+        title: 'Conciliación',
+        url: '/dashboard/finance/treasury/reconciliation',
+        permission: PERMISSIONS.FINANCE.TREASURY.VIEW,
+        icon: 'GitCompare',
+      },
+      {
+        title: 'Caja chica',
+        url: '/dashboard/finance/treasury/petty-cash',
+        permission: PERMISSIONS.FINANCE.TREASURY.VIEW,
+        icon: 'PiggyBank',
+      },
+      {
         title: 'Cierre diario',
         url: '/dashboard/finance/daily-close',
         permission: PERMISSIONS.FINANCE.VIEW,
@@ -210,6 +228,12 @@ export const NAV_ITEMS: NavGroup[] = [
         url: '/dashboard/settings/banks',
         permission: PERMISSIONS.SETTINGS.BANKS.VIEW,
         icon: 'PiggyBank',
+      },
+      {
+        title: 'Métodos de pago',
+        url: '/dashboard/settings/methods',
+        permission: PERMISSIONS.FINANCE.TREASURY.VIEW,
+        icon: 'CreditCard',
       },
       {
         title: 'Monedas',
