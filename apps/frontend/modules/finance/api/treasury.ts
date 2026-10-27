@@ -30,8 +30,18 @@ export type Payment = {
   status: 'PENDING' | 'CONFIRMED' | 'VOID';
 };
 
+export type PaymentMethod = {
+  id: string;
+  name: string;
+  code: string;
+  isDigital?: boolean | null;
+  currencyId?: string | null;
+  branchId?: string | null;
+};
+
 export const treasuryApi = {
   listAccounts: () => apiClient.get<BankAccount[]>('/treasury/bank-accounts'),
+  listMethods: () => apiClient.get<PaymentMethod[]>('/treasury/methods'),
   listPayments: (
     filters: { type?: 'INBOUND' | 'OUTBOUND'; status?: string; page?: number; limit?: number } = {}
   ) => {

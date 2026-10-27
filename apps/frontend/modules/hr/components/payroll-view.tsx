@@ -1,12 +1,30 @@
 'use client';
 
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Coins, Check, X, MoreHorizontal, FileText, Calendar } from 'lucide-react';
+import Link from 'next/link';
+import { Coins, CalendarDays, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -16,86 +34,72 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { usePayrolls, useApprovePayroll, usePayPayroll } from '../hooks';
+import { useGeneratePayroll, usePayrolls } from '../hooks';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import type { PayrollRun } from '../api';
+import type { PayrollRun, PayrollRunStatus } from '../api';
+import { PERMISSIONS } from '@/lib/permissions';
+import { useAuthStore } from '@/stores/use-auth-store';
 
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<PayrollRunStatus, string> = {
   DRAFT: 'Borrador',
-  CALCULATED: 'Calculada',
-  APPROVED: 'Aprobada',
+  PROCESSED: 'Procesada',
   PAID: 'Pagada',
-  VOID: 'Anulada',
-} as const;
+};
 
-const STATUS_VARIANT = {
+const STATUS_VARIANT: Record<PayrollRunStatus, 'secondary' | 'outline' | 'default'> = {
   DRAFT: 'secondary',
-  CALCULATED: 'outline',
-  APPROVED: 'default',
+  PROCESSED: 'outline',
   PAID: 'default',
-  VOID: 'destructive',
-} as const;
+};
 
 export function PayrollView() {
   const [status, setStatus] = React.useState<string>('ALL');
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+
+  const permissions = useAuthStore(state => state.user?.permissions ?? []);
+  const branchId = useAuthStore(state => state.user?.defaultBranchId ?? '');
+  const canProcess = permissions.includes(PERMISSIONS.HR.PAYROLL.PROCESS);
+
   const { data, isLoading } = usePayrolls({ ...(status !== 'ALL' && { status }) });
-  const approve = useApprovePayroll();
-  const pay = usePayPayroll();
+  const generate = useGeneratePayroll();
 
   const runs: PayrollRun[] = data ?? [];
+  const totalNet = runs.reduce((total, run) => total + Number(run.totalAmount ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Nómina</h1>
-        <p className="text-sm text-muted-foreground">
-          Procesamiento de nómina, IVSS, FAOV, prestaciones
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Nómina</h1>
+          <p className="text-muted-foreground text-sm">
+            Cálculo por concepto, pago contra tesorería y recibos con desglose
+          </p>
+        </div>
+        {canProcess ? (
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus data-icon="inline-start" />
+            Generar nómina
+          </Button>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-4">
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Períodos</p>
+              <p className="text-muted-foreground text-xs">Períodos</p>
               <p className="text-2xl font-bold tabular-nums">{runs.length}</p>
             </div>
-            <Calendar className="size-5 text-muted-foreground" />
+            <CalendarDays className="text-muted-foreground size-5" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Total bruto</p>
-              <p className="text-2xl font-bold tabular-nums">
-                {formatCurrency(runs.reduce((a, r) => a + Number(r.totalGross), 0))}
-              </p>
+              <p className="text-muted-foreground text-xs">Neto acumulado</p>
+              <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalNet)}</p>
             </div>
-            <Coins className="size-5 text-emerald-600" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Total neto</p>
-              <p className="text-2xl font-bold tabular-nums">
-                {formatCurrency(runs.reduce((a, r) => a + Number(r.totalNet), 0))}
-              </p>
-            </div>
-            <Coins className="size-5 text-primary" />
+            <Coins className="text-primary size-5" />
           </CardContent>
         </Card>
       </div>
@@ -107,17 +111,19 @@ export function PayrollView() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">Todos los estados</SelectItem>
-              {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectItem value="ALL">Todos los estados</SelectItem>
+                {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
-          <Button>
-            <FileText /> Nuevo período
-          </Button>
+          <p className="text-muted-foreground text-xs">
+            El pago se registra desde el detalle del período
+          </p>
         </CardContent>
       </Card>
 
@@ -130,14 +136,14 @@ export function PayrollView() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-2 p-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
+            <div className="flex flex-col gap-2 p-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-12" />
               ))}
             </div>
           ) : runs.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              No hay nóminas procesadas
+            <div className="text-muted-foreground p-8 text-center text-sm">
+              No hay nóminas generadas
             </div>
           ) : (
             <Table>
@@ -145,66 +151,30 @@ export function PayrollView() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Período</TableHead>
-                  <TableHead>Empleados</TableHead>
-                  <TableHead className="text-right">Bruto</TableHead>
-                  <TableHead className="text-right">Deducciones</TableHead>
-                  <TableHead className="text-right">Neto</TableHead>
+                  <TableHead>Frecuencia</TableHead>
+                  <TableHead className="text-right">Neto a pagar</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="w-12" />
+                  <TableHead className="w-24" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {runs.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono text-xs">{r.code}</TableCell>
+                {runs.map(run => (
+                  <TableRow key={run.id}>
+                    <TableCell className="font-mono text-xs">{run.code}</TableCell>
                     <TableCell className="text-xs">
-                      {formatDate(r.periodFrom)} – {formatDate(r.periodTo)}
+                      {formatDate(run.startDate)} – {formatDate(run.endDate)}
                     </TableCell>
-                    <TableCell className="tabular-nums">{r.employeesCount}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Number(r.totalGross))}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {formatCurrency(Number(r.totalDeductions))}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">{run.frequency}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(r.totalNet))}
+                      {formatCurrency(Number(run.totalAmount ?? 0))}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                      <Badge variant={STATUS_VARIANT[run.status]}>{STATUS_LABEL[run.status]}</Badge>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {r.status === 'CALCULATED' && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                approve.mutate(r.id, {
-                                  onSuccess: () => toast.success('Nómina aprobada'),
-                                })
-                              }
-                            >
-                              <Check /> Aprobar
-                            </DropdownMenuItem>
-                          )}
-                          {r.status === 'APPROVED' && (
-                            <DropdownMenuItem
-                              onClick={() =>
-                                pay.mutate(r.id, {
-                                  onSuccess: () => toast.success('Pago registrado'),
-                                })
-                              }
-                            >
-                              <Coins /> Registrar pago
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/dashboard/hr/payroll/${run.id}`}>Ver detalle</Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -213,6 +183,87 @@ export function PayrollView() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generar nómina</DialogTitle>
+            <DialogDescription>
+              Se calcula con el catálogo de conceptos de la empresa y los parámetros vigentes al
+              cierre del período. Esos parámetros quedan congelados en el período.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={event => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              generate.mutate(
+                {
+                  branchId,
+                  frequency: String(form.get('frequency') ?? 'MONTHLY'),
+                  currencyId: String(form.get('currencyId') ?? '').trim(),
+                  startDate: String(form.get('startDate') ?? ''),
+                  endDate: String(form.get('endDate') ?? ''),
+                },
+                {
+                  onSuccess: () => {
+                    toast.success('Nómina generada');
+                    setDialogOpen(false);
+                  },
+                  onError: error =>
+                    toast.error(
+                      error instanceof Error ? error.message : 'No se pudo generar la nómina'
+                    ),
+                }
+              );
+            }}
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="startDate">Desde</FieldLabel>
+                <Input id="startDate" name="startDate" type="date" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="endDate">Hasta</FieldLabel>
+                <Input id="endDate" name="endDate" type="date" required />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="frequency">Frecuencia</FieldLabel>
+                <Select name="frequency" defaultValue="MONTHLY">
+                  <SelectTrigger id="frequency">
+                    <SelectValue placeholder="Frecuencia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="MONTHLY">Mensual</SelectItem>
+                      <SelectItem value="BIWEEKLY">Quincenal</SelectItem>
+                      <SelectItem value="WEEKLY">Semanal</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="currencyId">Moneda (ID)</FieldLabel>
+                <Input
+                  id="currencyId"
+                  name="currencyId"
+                  className="font-mono"
+                  placeholder="00000000-0000-4000-8000-000000000021"
+                  required
+                />
+              </Field>
+            </FieldGroup>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={generate.isPending}>
+                {generate.isPending ? 'Generando…' : 'Generar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

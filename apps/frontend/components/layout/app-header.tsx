@@ -49,6 +49,8 @@ const LABELS: Record<string, string> = {
   banks: 'Bancos',
   currencies: 'Monedas',
   'tax-concepts': 'Impuestos',
+  'payroll-settings': 'Parámetros de nómina',
+  'payroll-concepts': 'Conceptos de nómina',
 };
 
 export function AppHeader() {

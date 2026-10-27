@@ -438,6 +438,11 @@ export class HrService {
   ): Promise<EmployeeResponseDto[]> {
     const result: EmployeeResponseDto[] = [];
 
+    const currencyRows = await db
+      .select({ id: currencies.id, code: currencies.code })
+      .from(currencies);
+    const currencyCodeById = new Map(currencyRows.map(row => [row.id, row.code]));
+
     for (const emp of emps) {
       let positionName: string | undefined;
       let departmentName: string | undefined;
@@ -489,6 +494,10 @@ export class HrService {
         terminationDate: emp.terminationDate || undefined,
         terminationReason: emp.terminationReason || undefined,
         baseSalary: parseFloat(String(emp.baseSalary)),
+        salaryCurrencyId: emp.salaryCurrencyId ?? undefined,
+        salaryCurrencyCode: emp.salaryCurrencyId
+          ? currencyCodeById.get(emp.salaryCurrencyId)
+          : undefined,
         payFrequency: emp.payFrequency as any,
         paymentMethod: emp.paymentMethod || undefined,
         status: emp.status as any,
@@ -1983,10 +1992,12 @@ export class HrService {
 
     const usedSettings = this.settingsUsedByConcepts(frozenSettings, concepts);
 
+    // El conversor espera **IDs** de moneda (igual que el cálculo de nómina); pasarle el código
+    // dejaba la divisa del sueldo sin tasa pre-resuelta y hacía fallar prestaciones y vacaciones.
     const converter = await this.buildCurrencyConverter(
       currenciesById,
       functional,
-      employeeCurrency ? [employeeCurrency] : [],
+      employee.salaryCurrencyId ? [employee.salaryCurrencyId] : [],
       usedSettings,
       asOf
     );

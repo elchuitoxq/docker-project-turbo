@@ -891,33 +891,305 @@ export const handlers = [
   }),
 
   http.get(`${API}/hr/payroll`, () => {
+    return HttpResponse.json([
+      {
+        id: 'pr-1',
+        code: 'NOM-000001',
+        branchId: 'b-1',
+        frequency: 'MONTHLY',
+        currencyId: 'ves',
+        startDate: '2026-09-01T00:00:00.000Z',
+        endDate: '2026-09-30T00:00:00.000Z',
+        totalAmount: 6420.5,
+        status: 'PAID',
+      },
+      {
+        id: 'pr-2',
+        code: 'NOM-000002',
+        branchId: 'b-1',
+        frequency: 'MONTHLY',
+        currencyId: 'ves',
+        startDate: '2026-10-01T00:00:00.000Z',
+        endDate: '2026-10-31T00:00:00.000Z',
+        totalAmount: 10910,
+        status: 'DRAFT',
+      },
+    ]);
+  }),
+
+  http.get(`${API}/hr/payroll/:id/parameters`, () => {
+    return HttpResponse.json([
+      {
+        id: 'ps-1',
+        companyId: 'c-1',
+        key: 'SSO_EMP',
+        label: 'Seguro social trabajador (%)',
+        value: 4,
+        type: 'PERCENT',
+        branchId: null,
+        effectiveFrom: '2020-01-01T00:00:00.000Z',
+        isActive: true,
+      },
+      {
+        id: 'ps-2',
+        companyId: 'c-1',
+        key: 'CESTATICKET_USD',
+        label: 'Cestaticket mensual (USD)',
+        value: 40,
+        type: 'MONEY_USD',
+        branchId: null,
+        effectiveFrom: '2020-01-01T00:00:00.000Z',
+        isActive: true,
+      },
+    ]);
+  }),
+
+  http.post(`${API}/hr/payroll/:id/pay`, () => {
     return HttpResponse.json({
-      data: [
+      payrollRunId: 'pr-2',
+      runCode: 'NOM-000002',
+      runStatus: 'PAID',
+      alreadyPaid: false,
+      paymentId: 'pay-1',
+      paymentCode: 'PAY-00001',
+      amount: 10910,
+      amountBase: 10910,
+      currencyId: 'ves',
+      exchangeRate: 1,
+      date: '2026-10-27T00:00:00.000Z',
+    });
+  }),
+
+  http.get(`${API}/hr/payroll/:id`, ({ params }) => {
+    const id = String(params.id);
+    return HttpResponse.json({
+      id,
+      code: 'NOM-000002',
+      branchId: 'b-1',
+      frequency: 'MONTHLY',
+      currencyId: 'ves',
+      startDate: '2026-10-01T00:00:00.000Z',
+      endDate: '2026-10-31T00:00:00.000Z',
+      totalAmount: 10910,
+      status: 'DRAFT',
+      items: [
         {
-          id: 'pr-1',
-          code: 'NOM-2026-05',
-          periodFrom: '2026-05-01',
-          periodTo: '2026-05-31',
-          status: 'PAID',
-          totalGross: '7850.00',
-          totalNet: '6420.50',
-          totalDeductions: '1429.50',
-          employeesCount: 3,
-          paidAt: '2026-05-31T18:00:00.000Z',
-        },
-        {
-          id: 'pr-2',
-          code: 'NOM-2026-06',
-          periodFrom: '2026-06-01',
-          periodTo: '2026-06-30',
-          status: 'CALCULATED',
-          totalGross: '7850.00',
-          totalNet: '6420.50',
-          totalDeductions: '1429.50',
-          employeesCount: 3,
+          id: 'pi-1',
+          employeeId: 'e-1',
+          employeeName: 'Juan Pérez',
+          baseAmount: 10000,
+          bonuses: 1460,
+          deductions: 550,
+          netTotal: 10910,
+          lines: [
+            {
+              conceptCode: 'SALARY',
+              conceptName: 'Sueldo del período',
+              category: 'ASSIGNMENT',
+              base: 10000,
+              rate: 1,
+              amount: 10000,
+            },
+            {
+              conceptCode: 'CESTATICKET',
+              conceptName: 'Cestaticket',
+              category: 'ASSIGNMENT',
+              base: 1460,
+              rate: 1,
+              amount: 1460,
+            },
+            {
+              conceptCode: 'SSO_EMP',
+              conceptName: 'Seguro social trabajador',
+              category: 'DEDUCTION',
+              base: 10000,
+              rate: 0.04,
+              amount: 400,
+            },
+            {
+              conceptCode: 'SSO_PAT',
+              conceptName: 'Seguro social patronal',
+              category: 'EMPLOYER_CONTRIBUTION',
+              base: 10000,
+              rate: 0.1,
+              amount: 1000,
+            },
+          ],
         },
       ],
-      total: 2,
+    });
+  }),
+
+  http.get(`${API}/hr/settings`, () => {
+    return HttpResponse.json([
+      {
+        id: 'ps-1',
+        companyId: 'c-1',
+        key: 'SSO_EMP',
+        label: 'Seguro social trabajador (%)',
+        value: 4,
+        type: 'PERCENT',
+        branchId: null,
+        effectiveFrom: '2020-01-01T00:00:00.000Z',
+        isActive: true,
+      },
+      {
+        id: 'ps-2',
+        companyId: 'c-1',
+        key: 'DIAS_UTILIDADES',
+        label: 'Días mínimos de utilidades',
+        value: 30,
+        type: 'NUMBER',
+        branchId: null,
+        effectiveFrom: '2020-01-01T00:00:00.000Z',
+        isActive: true,
+      },
+    ]);
+  }),
+
+  http.patch(`${API}/hr/settings`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: 'ps-1',
+      companyId: 'c-1',
+      key: String(body.key),
+      label: String(body.label ?? body.key),
+      value: Number(body.value),
+      type: String(body.type ?? 'NUMBER'),
+      branchId: null,
+      effectiveFrom: '2026-10-27T00:00:00.000Z',
+      isActive: true,
+    });
+  }),
+
+  http.get(`${API}/hr/concept-types`, () => {
+    return HttpResponse.json([
+      {
+        id: 'pc-1',
+        code: 'SALARY',
+        name: 'Sueldo del período',
+        category: 'ASSIGNMENT',
+        kind: 'FORMULA',
+        expression: 'SALARY_BASE * (PERIOD_DAYS / MONTH_DAYS)',
+        affectsIntegralSalary: true,
+        isSalarial: true,
+        isSystem: true,
+        branchId: null,
+      },
+      {
+        id: 'pc-2',
+        code: 'CESTATICKET',
+        name: 'Cestaticket',
+        category: 'ASSIGNMENT',
+        kind: 'FORMULA',
+        expression: 'CESTATICKET_USD * (PERIOD_DAYS / MONTH_DAYS)',
+        affectsIntegralSalary: false,
+        isSalarial: false,
+        isSystem: true,
+        branchId: null,
+      },
+      {
+        id: 'pc-3',
+        code: 'SSO_PAT',
+        name: 'Seguro social patronal',
+        category: 'EMPLOYER_CONTRIBUTION',
+        kind: 'FORMULA',
+        expression: 'BASE_IVSS * SSO_PAT / 100',
+        affectsIntegralSalary: false,
+        isSalarial: true,
+        isSystem: true,
+        branchId: null,
+      },
+    ]);
+  }),
+
+  http.post(`${API}/hr/concept-types`, async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      {
+        id: 'pc-new',
+        code: String(body.code),
+        name: String(body.name),
+        category: String(body.category),
+        kind: String(body.kind ?? 'FIXED'),
+        expression: (body.expression as string | null) ?? null,
+        affectsIntegralSalary: Boolean(body.affectsIntegralSalary),
+        isSalarial: body.isSalarial !== false,
+        isSystem: false,
+        branchId: null,
+      },
+      { status: 201 }
+    );
+  }),
+
+  http.patch(`${API}/hr/concept-types/:id`, async ({ request, params }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: String(params.id),
+      code: 'PRIMA',
+      name: String(body.name ?? 'Prima'),
+      category: String(body.category ?? 'ASSIGNMENT'),
+      kind: String(body.kind ?? 'FIXED'),
+      expression: (body.expression as string | null) ?? null,
+      affectsIntegralSalary: Boolean(body.affectsIntegralSalary),
+      isSalarial: body.isSalarial !== false,
+      isSystem: false,
+      branchId: null,
+    });
+  }),
+
+  http.delete(`${API}/hr/concept-types/:id`, () => {
+    return HttpResponse.json({ deleted: true });
+  }),
+
+  http.get(`${API}/hr/employees/:id/vacations`, ({ params }) => {
+    return HttpResponse.json({
+      employeeId: String(params.id),
+      years: 3,
+      vacationDays: 17,
+      bonusDays: 9,
+      daysTaken: 0,
+      daysPending: 17,
+      normalDaily: 333.333333,
+    });
+  }),
+
+  http.get(`${API}/hr/employees/:id/benefits`, ({ params }) => {
+    return HttpResponse.json({
+      employeeId: String(params.id),
+      years: 3,
+      integralDaily: 367.592592,
+      quartersDeposited: 1,
+      guaranteeAccumulated: 5513.89,
+      retroactive: 33083.33,
+      payable: 33083.33,
+      modality: 'RETROACTIVE',
+    });
+  }),
+
+  http.get(`${API}/hr/employees/:id/settlement`, ({ params }) => {
+    return HttpResponse.json({
+      id: 'st-1',
+      employeeId: String(params.id),
+      terminationDate: '2026-10-31T00:00:00.000Z',
+      cause: 'RENUNCIA',
+      years: 3,
+      integralSalary: 367.59,
+      normalSalary: 333.33,
+      guaranteeAccumulated: 5513.89,
+      retroactive: 33083.33,
+      benefitsAmount: 33083.33,
+      benefitsModality: 'RETROACTIVE',
+      vacationDays: 17,
+      vacationAmount: 5666.67,
+      bonusDays: 9,
+      bonusAmount: 3000,
+      profitDays: 25,
+      profitAmount: 8333.33,
+      indemnificationDays: 0,
+      indemnificationAmount: 0,
+      totalAmount: 50083.33,
+      status: 'CALCULATED',
     });
   }),
 

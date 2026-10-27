@@ -2,13 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { faker } from '@faker-js/faker';
 import { testDb } from './database';
-import { createTestBranch, ensureTestBaseCurrency } from './factories';
+import { createTestBranch, createTestCurrency, ensureTestBaseCurrency } from './factories';
 import {
-  currencies,
   employeeBenefits,
   employeeProfitSharing,
   employeeVacations,
   employees,
+  exchangeRates,
   payrollConceptTypes,
   payrollSettings,
 } from '../schema';
@@ -332,5 +332,49 @@ describe('Aislamiento de la configuración (T-02-04)', () => {
     );
 
     expect(result.days).toBe(20);
+  });
+});
+
+/**
+ * H-70: el conversor de prestaciones recibía el **código** de la moneda del sueldo donde espera el
+ * **ID**, así que la divisa nunca quedaba pre-resuelta y el cálculo fallaba con "No hay tasa de
+ * cambio para USD" aunque la tasa existiera.
+ */
+describe('Sueldo en divisa (H-70)', () => {
+  async function foreignSalaryScenario() {
+    const branch = await createTestBranch();
+    await setupCompany(branch.id, branch.companyId);
+
+    const base = await baseCurrency();
+    const usd = await createTestCurrency({ name: 'Divisa de prueba H-70' });
+    await testDb.insert(exchangeRates).values({
+      currencyId: usd.id,
+      rate: '36.5000000000',
+      date: new Date('2026-01-02T00:00:00.000Z'),
+      source: 'MANUAL',
+      reason: 'Tasa de prueba H-70',
+    });
+
+    // El sueldo está pactado en divisa y se paga en la moneda funcional.
+    const employee = await createEmployee(branch.id, 10_000, usd.id);
+
+    return { branch, employee, base };
+  }
+
+  it('resuelve la tasa de la divisa del sueldo al calcular vacaciones', async () => {
+    const { branch, employee } = await foreignSalaryScenario();
+
+    const summary = await hr.getVacationSummary(employee.id, branch.id, AS_OF);
+
+    expect(summary.vacationDays).toBe(17);
+    expect(summary.normalDaily).toBeCloseTo(12_166.666667, 4);
+  });
+
+  it('resuelve la tasa de la divisa del sueldo al calcular prestaciones', async () => {
+    const { branch, employee } = await foreignSalaryScenario();
+
+    const summary = await hr.getBenefitsSummary(employee.id, branch.id, AS_OF);
+
+    expect(summary.integralDaily).toBeCloseTo(367.592592 * 36.5, 4);
   });
 });

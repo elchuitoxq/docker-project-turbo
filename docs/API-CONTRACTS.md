@@ -342,6 +342,32 @@ Cuerpo: `{ methodId, bankAccountId?, exchangeRate?, date?, reference? }`.
 - `400` si el run no tiene monto (`totalAmount` 0). `409` si el run figura `PAID` pero no tiene pago
   registrado (inconsistencia que hay que revisar, no tapar).
 
+## Nómina: contratos que consume la UI (desde 2026-10-27)
+
+`T-02-07 … T-02-10`. Son endpoints ya existentes; esta sección fija el contrato que la UI espera para
+que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` hasta T-02-09).
+
+| Método   | Ruta                            | Permiso              |
+| -------- | ------------------------------- | -------------------- |
+| `GET`    | `/v1/hr/settings?asOf=`         | `hr:settings:view`   |
+| `PATCH`  | `/v1/hr/settings`               | `hr:settings:manage` |
+| `GET`    | `/v1/hr/concept-types`          | `hr:concepts:view`   |
+| `POST`   | `/v1/hr/concept-types`          | `hr:concepts:manage` |
+| `PATCH`  | `/v1/hr/concept-types/:id`      | `hr:concepts:manage` |
+| `DELETE` | `/v1/hr/concept-types/:id`      | `hr:concepts:manage` |
+| `GET`    | `/v1/hr/payroll/:id/parameters` | `hr:payroll:view`    |
+
+- `PATCH /hr/settings` **no edita el histórico**: guarda una fila nueva con su `effectiveFrom`. La UI
+  lo presenta como "nueva vigencia", no como "editar".
+- `DELETE /hr/concept-types/:id` responde `409` si el concepto es `isSystem` o si ya se usó en alguna
+  nómina: el catálogo es histórico, no se borra lo que ya pagó.
+- `GET /hr/payroll/:id/parameters` devuelve la **copia congelada** del período (IDs distintos a los
+  parámetros vivos). Es lo que el recibo muestra como evidencia.
+- `EmployeeResponseDto` incorpora `salaryCurrencyId` y `salaryCurrencyCode` (H-71): sin ellos la UI no
+  puede decir si un sueldo de `10.000` es USD o VES. Los importes diarios de vacaciones y prestaciones
+  (`normalDaily`, `integralDaily`) vienen en **moneda funcional**; el sueldo del contrato viene en la
+  moneda del empleado.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
@@ -353,3 +379,7 @@ Cuerpo: `{ methodId, bankAccountId?, exchangeRate?, date?, reference? }`.
    necesita la vista, o simplificar la vista al resumen implementado.
 5. Pendiente de la ola 1 (`S-00`): E2E de aislamiento entre sucursales contra el
    build de producción (T-00-12) y escritura de catálogo bajo `core:catalog:manage`.
+6. Nómina: falta el contrato de ISLR (RN-09, bloqueado por la tabla progresiva de `P-28`), la
+   reversión de un run pagado (RN-21, `VOID`) y el mapeo contable por concepto (RN-25, depende de
+   `accounting_maps` de `S-04`). También queda validar que el `methodId` del pago pertenezca a la
+   sucursal del run.

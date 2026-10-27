@@ -1323,3 +1323,112 @@ concurrentes leían el mismo máximo. Se corrigió con el mismo patrón que fact
 - 8 pruebas de integración en `payroll-payment.test.ts`: pago único, idempotencia, descuento de saldo,
   run vacío (400), run inexistente (404), aislamiento por sucursal, tasa manual y tasa faltante.
 - Tres corridas consecutivas de la suite completa en verde después del arreglo de numeración.
+
+---
+
+### BT-045 · 2026-10-27 · E2: la nómina se opera desde la UI y se cierra la épica (T-02-07…T-02-10)
+
+**Punto de partida**
+
+La épica tenía todo el backend hecho (BT-040…BT-044) y **cero** pantallas. Al revisar el frontend
+apareció algo peor que la falta de pantallas: `modules/hr/api.ts` describía un backend que no existe.
+El contrato del frontend hablaba de `nationalId`, `salary`, `code` y estados `CALCULATED`/`APPROVED`/
+`VOID`; la API devuelve `identityCard`, `baseSalary`, `startDate`/`endDate`/`totalAmount` y estados
+`DRAFT`/`PROCESSED`/`PAID`. Es decir, las vistas existentes consumían campos que nunca llegaban.
+
+**Qué se hizo, en orden**
+
+| Tarea   | Pantalla                               | Qué resuelve                                                                                                                                                                              |
+| ------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-02-07 | `/dashboard/settings/payroll-settings` | Parámetros con vigencia: filtro `asOf`, alta de nueva vigencia (no se edita el histórico, se agrega), gating `hr:settings:view/manage`                                                    |
+| T-02-08 | `/dashboard/settings/payroll-concepts` | Catálogo declarativo: código, naturaleza, tipo y expresión; los conceptos `isSystem` no se borran                                                                                         |
+| T-02-09 | `/dashboard/hr/employees/[id]`         | Ficha con sueldo, normal diario e integral diario; tarjetas de vacaciones, prestaciones y liquidación; diálogos de registrar vacaciones, depositar garantía, utilidades y liquidar egreso |
+| T-02-09 | `/dashboard/hr/payroll/[id]`           | Recibo: totales, nómina por empleado, desglose por concepto con base y tasa, parámetros congelados del período y pago contra tesorería                                                    |
+| T-02-10 | —                                      | Casos legales cubiertos y cierre de la épica                                                                                                                                              |
+
+Antes de las pantallas se **reescribieron los contratos** (`modules/hr/api.ts`, `hooks.ts`) para que
+reflejen la respuesta real, y se corrigieron los dos consumidores que ya existían
+(`payroll-view.tsx` reescrito, `employees-view.tsx` con `identityCard`/`baseSalary`).
+
+**Hallazgo corregido (H-70) — lo destapó la prueba en vivo, otra vez**
+
+Al validar `GET /hr/employees/:id/vacations` contra el stack real: `400 No hay tasa de cambio para USD
+en la fecha del período`. La tasa **sí existía**. La causa: `buildBenefitsSetup` llamaba a
+`buildCurrencyConverter(…, employeeCurrency ? [employeeCurrency] : [], …)` pasando el **código**
+(`'USD'`), pero el conversor espera **IDs** — así lo hace el cálculo de nómina, que le pasa
+`salaryCurrencyId`. `currenciesById.get('USD')` devolvía `undefined`, la divisa nunca entraba en el
+mapa de tasas pre-resueltas y el `convert` final reventaba.
+
+Consecuencia real: **ningún empleado con sueldo en dólares podía ver sus vacaciones, sus prestaciones
+ni liquidarse**. En un ERP cuyo caso normal es el sueldo en divisa, eso es la épica entera inservible.
+Los unitarios no lo vieron porque el escenario de prueba creaba al empleado con la moneda base, donde
+`convert` devuelve el monto sin tocar el mapa.
+
+Se corrigió pasando `employee.salaryCurrencyId`, y se añadió regresión con sueldo en divisa
+(`hr-benefits.test.ts` → "Sueldo en divisa (H-70)"): 2 pruebas que fallan sin el arreglo.
+
+**Hallazgo corregido (H-71)**
+
+`EmployeeResponseDto` no exponía la moneda del sueldo, así que la UI no podía decir si los `10.000`
+del contrato son USD o VES. Se agregó `salaryCurrencyId` y `salaryCurrencyCode` (una sola consulta de
+monedas por lote, no una por empleado).
+
+**Verificación en vivo (stack real, no mocks)**
+
+Empleado creado por API con sueldo **10.000 USD**, tasa **36,5**, período mensual 10/2026:
+
+| Prueba                             | Resultado                                                                    |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `GET /hr/settings`                 | **16** parámetros vigentes                                                   |
+| `GET /hr/concept-types`            | **18** conceptos                                                             |
+| `GET /hr/employees/:id/vacations`  | 15 días, bono 7, normal diario **12.166,67** (= 10.000 × 36,5 / 30)          |
+| `GET /hr/employees/:id/benefits`   | integral diario **13.417,13**, modalidad `GUARANTEE`                         |
+| `GET /hr/employees/:id/settlement` | `404` con mensaje claro (no hay liquidación) y la UI lo muestra como estado  |
+| `POST /hr/payroll/generate`        | `NOM-000001`, total **346.385**, 18 líneas de concepto, estado `DRAFT`       |
+| `GET /hr/payroll/:id/parameters`   | **16** parámetros **congelados** (IDs distintos a los vivos: es el snapshot) |
+| `GET /treasury/methods`            | 10 métodos de pago                                                           |
+| `POST /hr/payroll/:id/pay`         | `PAY-00004`, run `PAID`                                                      |
+| Segunda llamada idéntica           | mismo `paymentId`, `alreadyPaid: true`                                       |
+
+Y en el navegador, con sesión real: las cuatro pantallas renderizan datos reales (16 claves, 18
+conceptos, `NOM-000001 · PAID · 346.385,00`, recibo de Ana Rodríguez con base/tasa/monto, parámetros
+congelados del período).
+
+> **Nota de infraestructura:** `next dev` dentro del contenedor **no** detecta páginas nuevas creadas
+> desde Windows. Las dos rutas de configuración daban `404` con el servidor levantado 18 h y pasaron a
+> `200` tras `docker compose restart frontend`. Mismo comportamiento que el `--watch` de Nest: los bind
+> mounts de Windows no entregan eventos. Queda anotado porque va a volver a pasar.
+
+**Pulido encontrado mirando la pantalla**
+
+Tres detalles que sólo se ven con datos reales: la miga de pan mostraba `payroll-settings` crudo, el
+encabezado decía `MONTHLY · 1 empleados` y la columna de tasa imprimía `100.0000 %` para conceptos que
+no tienen tasa (factor 1). Corregidos con etiquetas en español, plural y `—` cuando la tasa es 1.
+
+**Hueco de negocio encontrado al liquidar desde la UI (H-72, no corregido a propósito)**
+
+Para probar la pantalla más delicada se liquidó el empleado de prueba (ingresó y egresó el mismo día).
+La liquidación salió en **121.666,67**: `0,00` de prestaciones, `0` días de vacaciones —porque ya los
+había tomado—, pero **7 días de bono vacacional = 85.166,67** y 3 días de utilidades.
+
+`vacationEntitlement(0)` devuelve 15 días de vacaciones y 7 de bono: los mínimos legales, sin mirar la
+antigüedad. La LOTTT causa el período vacacional al cumplir el año (Art. 190) y, si la relación termina
+antes, paga **vacaciones fraccionadas** (Art. 196). El motor no lo hace, así que **toda liquidación de
+un empleado con menos de un año sobrepaga**.
+
+No se tocó la fórmula: el criterio proporcional (¿1,25 días por mes completo?, ¿0,58 de bono?, ¿el bono
+sólo acompaña a vacaciones causadas?) es una decisión legal, no técnica. Queda como punto 7 de §15 y
+como H-72, con la evidencia numérica de este caso en vivo para que el contador laboral decida sobre un
+ejemplo concreto en lugar de sobre una abstracción.
+
+**Estado**
+
+- Backend **852/852** · frontend **81/81** (18 archivos, 6 pruebas nuevas de hooks) · `typecheck`,
+  `lint` y `build` en verde en las dos apps.
+- Plan: **52 de 100 tareas**; **E2 cerrada, 11 de 11**.
+- Datos de prueba: se dejaron el empleado, el run, el pago y la liquidación como evidencia de la
+  validación.
+- Cobertura del frontend: al crecer `modules/hr/api.ts` y `hooks.ts` la cobertura global cayó a
+  45,73 % líneas y rompió el umbral de 50 %. Se resolvió **con pruebas, no bajando el umbral**:
+  `modules/hr/api.test.ts` fija ruta y cuerpo de los 30 métodos del cliente de nómina (21 pruebas en
+  el módulo). Queda en 49,22 / 51,45 / 47,65 / 50,66.

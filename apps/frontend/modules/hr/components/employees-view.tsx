@@ -69,8 +69,7 @@ export function EmployeesView() {
     return (
       e.firstName.toLowerCase().includes(q) ||
       e.lastName.toLowerCase().includes(q) ||
-      e.code.toLowerCase().includes(q) ||
-      e.nationalId.toLowerCase().includes(q)
+      e.identityCard.toLowerCase().includes(q)
     );
   });
 
@@ -159,20 +158,19 @@ export function EmployeesView() {
                   <TableHead className="hidden lg:table-cell">Cargo</TableHead>
                   <TableHead className="hidden md:table-cell">Ingreso</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="hidden lg:table-cell text-right">Salario</TableHead>
+                  <TableHead className="hidden lg:table-cell text-right">Sueldo mensual</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((e: Employee) => (
                   <TableRow key={e.id}>
-                    <TableCell className="font-mono text-xs">{e.code}</TableCell>
                     <TableCell className="font-medium">
                       <Link href={`/dashboard/hr/employees/${e.id}`} className="hover:underline">
                         {e.firstName} {e.lastName}
                       </Link>
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{e.nationalId}</TableCell>
+                    <TableCell className="font-mono text-xs">{e.identityCard}</TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {e.departmentName ?? '—'}
                     </TableCell>
@@ -180,16 +178,15 @@ export function EmployeesView() {
                       {e.positionName ?? '—'}
                     </TableCell>
                     <TableCell className="hidden md:table-cell text-xs">
-                      {formatDate(e.hireDate)}
+                      {formatDate(e.hireDate ?? '—')}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={STATUS_VARIANT[e.status]}>{STATUS_LABEL[e.status]}</Badge>
+                      <Badge variant={STATUS_VARIANT[e.status ?? 'ACTIVE']}>
+                        {STATUS_LABEL[e.status ?? 'ACTIVE']}
+                      </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-right tabular-nums">
-                      {formatCurrency(
-                        Number(e.salary),
-                        e.salaryCurrencyCode === 'VES' ? 'VES' : 'USD'
-                      )}
+                      {formatCurrency(Number(e.baseSalary), 'VES')}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

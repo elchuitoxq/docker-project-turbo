@@ -146,6 +146,18 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'Coins',
       },
       {
+        title: 'Parámetros de nómina',
+        url: '/dashboard/settings/payroll-settings',
+        permission: PERMISSIONS.HR.SETTINGS.VIEW,
+        icon: 'SlidersHorizontal',
+      },
+      {
+        title: 'Conceptos de nómina',
+        url: '/dashboard/settings/payroll-concepts',
+        permission: PERMISSIONS.HR.CONCEPTS.VIEW,
+        icon: 'ListTree',
+      },
+      {
         title: 'Novedades',
         url: '/dashboard/hr/incidents',
         permission: PERMISSIONS.HR.INCIDENTS.VIEW,

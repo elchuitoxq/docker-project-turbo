@@ -1,8 +1,9 @@
 # 09 — Nómina Venezuela (LOTTT) — reglas del ERP
 
-> **Estado:** reglas redactadas, **pendiente de revisión** por contador laboral / abogado laboral
-> antes de implementar el motor (T-02-03). Los valores marcados con ⚠️ dependen de decretos y
-> **deben validarse su vigencia** en la fecha de entrada en producción.
+> **Estado:** motor, prestaciones, liquidación, pago y UI **implementados** (T-02-01 … T-02-10);
+> las 25 reglas tienen criterio de aceptación y §14.1 dice qué prueba sostiene cada una. Sigue
+> **pendiente la revisión** por contador laboral / abogado laboral de los valores marcados con ⚠️,
+> que dependen de decretos y **deben validarse su vigencia** en la fecha de entrada en producción.
 > **Fecha:** 2026-10-27 · **Tarea:** T-02-00 · **Spec:** [`S-02`](./sdd/specs/S-02-nomina-ve.md)
 >
 > **Fuentes:** [`audit-report/09-HR-NOMINA-VENEZUELA.md`](../audit-report/09-HR-NOMINA-VENEZUELA.md)
@@ -374,18 +375,62 @@ a un libro descuadrado.
 
 ## 14. Trazabilidad a la implementación
 
-| Regla / pieza                        | Dónde se implementa                                                                                           | Tarea            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------- |
-| Parámetros con vigencia              | `payroll_settings` (`effectiveFrom`, `companyId`) + `payroll_period_settings`                                 | ✅ T-02-01       |
-| Catálogo de conceptos                | `payroll_concept_types` (`code`, `kind`, `expression`) + CRUD `/hr/concept-types`                             | ✅ T-02-02       |
-| Resolución de vigencia y validación  | `modules/hr/payroll/settings-resolver.ts`, `concept-expression.ts`                                            | ✅ T-02-01/02    |
-| Pipeline de cálculo por concepto     | `modules/hr/payroll/payroll.calculator.ts` + `expression-evaluator.ts`                                        | ✅ T-02-03       |
-| Prestaciones, utilidades, vacaciones | `modules/hr/payroll/labor-benefits.ts` + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | ✅ T-02-04       |
-| Liquidación                          | `employee_settlements` + `POST /hr/employees/:id/settle`                                                      | ✅ T-02-05       |
-| Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments.payrollRunId` (RN-24)                                                  | ✅ T-02-06       |
-| UI parámetros y conceptos            | `settings/payroll-settings`, `settings/payroll-concepts`                                                      | T-02-07, T-02-08 |
-| UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                                                        | T-02-09          |
-| Casos dorados y pruebas              | Este documento §9                                                                                             | T-02-10          |
+| Regla / pieza                        | Dónde se implementa                                                                                           | Tarea         |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ------------- |
+| Parámetros con vigencia              | `payroll_settings` (`effectiveFrom`, `companyId`) + `payroll_period_settings`                                 | ✅ T-02-01    |
+| Catálogo de conceptos                | `payroll_concept_types` (`code`, `kind`, `expression`) + CRUD `/hr/concept-types`                             | ✅ T-02-02    |
+| Resolución de vigencia y validación  | `modules/hr/payroll/settings-resolver.ts`, `concept-expression.ts`                                            | ✅ T-02-01/02 |
+| Pipeline de cálculo por concepto     | `modules/hr/payroll/payroll.calculator.ts` + `expression-evaluator.ts`                                        | ✅ T-02-03    |
+| Prestaciones, utilidades, vacaciones | `modules/hr/payroll/labor-benefits.ts` + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | ✅ T-02-04    |
+| Liquidación                          | `employee_settlements` + `POST /hr/employees/:id/settle`                                                      | ✅ T-02-05    |
+| Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments.payrollRunId` (RN-24)                                                  | ✅ T-02-06    |
+| UI parámetros y conceptos            | `settings/payroll-settings`, `settings/payroll-concepts`                                                      | ✅ T-02-07/08 |
+| UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                                                        | ✅ T-02-09    |
+| Casos dorados y pruebas              | Este documento §9 y §14.1                                                                                     | ✅ T-02-10    |
+
+### 14.1 Cobertura de reglas (T-02-10)
+
+Verificado contra la suite real (`852` pruebas de backend al cierre de la épica). Cada regla apunta a
+la prueba que la sostiene, no a la intención de implementarla.
+
+| Regla | Criterio verificado                                                        | Prueba                                                                          |
+| ----- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| RN-01 | Prórrateo por días del período                                             | `payroll.calculator.test.ts` · "prorratea por días del período"                 |
+| RN-02 | El cestaticket no altera `SALARIO_NORMAL`                                  | `payroll.calculator.test.ts` · "el cestaticket no entra en el salario normal"   |
+| RN-03 | Alícuota diaria de utilidades                                              | `payroll.calculator.test.ts` · "calcula las alícuotas diarias"                  |
+| RN-04 | Alícuota diaria de bono vacacional                                         | `payroll.calculator.test.ts` · "calcula las alícuotas diarias"                  |
+| RN-05 | `SALARY_INTEGRAL` = normal + alícuotas = 367,59                            | `payroll.calculator.test.ts` · "calcula el salario integral diario"             |
+| RN-06 | El tope se aplica antes de la alícuota                                     | `payroll.calculator.test.ts` · "aplica el tope de la base antes de la alícuota" |
+| RN-07 | Alícuotas parametrizadas por base                                          | `payroll.calculator.test.ts` · "aplica las deducciones legales"                 |
+| RN-08 | El costo patronal no reduce el neto                                        | `payroll.calculator.test.ts` · "registra el costo patronal sin restarlo"        |
+| RN-10 | Neto negativo falla y no se persiste                                       | `payroll.calculator.test.ts` · "falla si el neto resulta negativo"              |
+| RN-11 | Se paga la modalidad mayor (garantía vs retroactivo)                       | `hr-benefits.test.ts` · "toma el salario integral del motor de nómina"          |
+| RN-12 | Días adicionales con tope                                                  | `labor-benefits.test.ts` · prestaciones (RN-11, RN-12, RN-13)                   |
+| RN-13 | El trimestre no se deposita dos veces                                      | `hr-benefits.test.ts` · "no deja depositar dos veces el mismo trimestre"        |
+| RN-14 | 3 años y tope 15 → 17 días                                                 | `hr-benefits.test.ts` · "calcula los días por antigüedad"                       |
+| RN-15 | 3 años y tope 21 → 9 días de bono                                          | `hr-benefits.test.ts` · "calcula los días por antigüedad"                       |
+| RN-16 | Utilidades mínimo 30 días con prorrateo por meses                          | `hr-benefits.test.ts` · bloque "Utilidades"                                     |
+| RN-17 | El cestaticket no es salario                                               | `payroll.calculator.test.ts` · "el cestaticket no entra en el salario normal"   |
+| RN-18 | La renuncia no indemniza; el despido injustificado sí                      | `hr-settlement.test.ts` · dos pruebas del bloque "Liquidación de egreso"        |
+| RN-19 | La liquidación es un documento propio                                      | `hr-settlement.test.ts` · "marca al empleado como egresado con la causa"        |
+| RN-20 | Segundo intento de liquidar devuelve conflicto                             | `hr-settlement.test.ts` · "no liquida dos veces al mismo empleado"              |
+| RN-22 | El run congela sus parámetros                                              | `payroll-engine.test.ts` · "congela los parámetros del run"                     |
+| RN-23 | Precedencia sucursal > empresa y aislamiento entre sucursales              | `payroll-rules.test.ts` · "da precedencia al valor de la sucursal"              |
+| RN-24 | Dos llamadas al pago dejan un único movimiento                             | `payroll-payment.test.ts` · "dos llamadas producen un solo movimiento"          |
+| H-70  | Sueldo en divisa: vacaciones y prestaciones resuelven la tasa del contrato | `hr-benefits.test.ts` · bloque "Sueldo en divisa (H-70)"                        |
+
+**Reglas sin cobertura todavía**
+
+| Regla | Por qué                                                                                                       |
+| ----- | ------------------------------------------------------------------------------------------------------------- |
+| RN-09 | ISLR: falta la tabla progresiva y la definición de desgravámenes (decisión P-28). El concepto existe y paga 0 |
+| RN-21 | `VOID` de un run pagado: el estado está previsto en el enum pero la reversión no se implementó                |
+| RN-25 | Mapeo contable por concepto: depende de `accounting_maps` (S-04)                                              |
+
+> **Hueco detectado al validar la UI (H-72):** RN-14 y RN-15 se cumplen para antigüedad ≥ 1 año, pero
+> con `years = 0` acreditan 15 + 7 días completos. La liquidación en vivo de un empleado con un día de
+> servicio pagó **121.666,67**, casi todo bono vacacional. No se cambió la fórmula porque el criterio
+> proporcional (Art. 196) es una decisión legal pendiente (§15, punto 7).
 
 **Lo que ya está construido (T-02-01 … T-02-04):** los parámetros tienen vigencia, empresa y
 sucursal, y el run guarda su copia congelada (`GET /hr/payroll/:id/parameters`); los conceptos
@@ -396,8 +441,9 @@ patronal aparte y falla con un mensaje claro si el neto queda negativo; y las pr
 vacaciones, bono vacacional y utilidades se calculan con sus topes y se registran con idempotencia
 por trimestre y por ejercicio.
 
-**Lo que falta:** la UI de parámetros, conceptos, ficha y recibo (T-02-07/08/09), los casos legales
-de cierre (T-02-10) y la retención de ISLR (requiere la tabla progresiva, decisión P-28).
+**Lo que falta:** la retención de ISLR (requiere la tabla progresiva, decisión P-28), la reversión
+(`VOID`) de un run pagado (RN-21) y el mapeo contable por concepto (RN-25, depende de `accounting_maps`
+de `S-04`). La épica de nómina (`E2`) queda cerrada en lo funcional: backend, UI y casos legales.
 
 ## 15. Decisiones abiertas (requieren validación profesional)
 
@@ -413,6 +459,11 @@ de cierre (T-02-10) y la retención de ISLR (requiere la tabla progresiva, decis
    aplicables (HCM, aportes, etc.).
 6. **Redondeo**: se adopta `HALF_UP` a 2 decimales en moneda funcional (regla M7 de `S-08`);
    confirmar si la práctica de la empresa redondea por concepto o sobre el neto.
+7. **Vacaciones y bono con menos de un año de servicio (H-72)**: `vacationEntitlement(0)` acredita
+   15 días de vacaciones y 7 de bono, pero la LOTTT causa el período al cumplir el año (Art. 190) y
+   al terminar antes paga **fraccionadas** (Art. 196). Falta definir la fórmula proporcional (¿días
+   por mes completo: 1,25 y 0,58?) y si el bono se paga sólo con la vacaciones causadas. Mientras no
+   se valide, una liquidación de un empleado con menos de un año sobrepaga. ⚠️
 
 > Ninguna de estas decisiones bloquea el diseño: todas son parámetros o tablas. Pero **sí** deben
 > resolverse antes de conectar la UI de cálculo (T-02-03 en adelante).

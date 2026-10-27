@@ -253,6 +253,12 @@ export class EmployeeResponseDto {
   @ApiProperty({ example: 1500.0 })
   baseSalary: number;
 
+  @ApiPropertyOptional({ description: 'Moneda en la que está pactado el sueldo' })
+  salaryCurrencyId?: string;
+
+  @ApiPropertyOptional({ example: 'USD', description: 'Código de la moneda del sueldo' })
+  salaryCurrencyCode?: string;
+
   @ApiPropertyOptional({ example: 'BIWEEKLY' })
   payFrequency?: string;
 
