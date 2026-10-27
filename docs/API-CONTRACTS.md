@@ -207,6 +207,51 @@ asignada. No confundir `mydb` con `testdb_database`, que usa el puerto 5433.
   el flujo actual de desarrollo, no todas las combinaciones de permisos ni
   sustituye pruebas de autorización backend.
 
+## Nómina: parámetros y conceptos (desde 2026-10-27)
+
+`T-02-01` y `T-02-02`. Las reglas de cálculo están en
+[`09-HR-NOMINA-VENEZUELA.md`](./09-HR-NOMINA-VENEZUELA.md).
+
+### Parámetros con vigencia
+
+| Método  | Ruta              | Permiso              | Notas                                                                  |
+| ------- | ----------------- | -------------------- | ---------------------------------------------------------------------- |
+| `GET`   | `/v1/hr/settings` | `hr:settings:view`   | Devuelve **un valor por clave**, el vigente. Acepta `?asOf=YYYY-MM-DD` |
+| `PATCH` | `/v1/hr/settings` | `hr:settings:manage` | Crea o actualiza la vigencia de la fecha indicada                      |
+
+- Cuerpo del `PATCH`: `{ key, value, type?, label?, effectiveFrom? }`. Sin `effectiveFrom` se usa la
+  fecha actual, normalizada al día: **dos altas del mismo día son la misma vigencia**.
+- `type` `PERCENT`/`PERCENTAGE` se expresa como **porcentaje entero** (`4` = 4 %). Un valor fuera de
+  `(0, 100]` responde `400`.
+- Precedencia: valor de la sucursal sobre valor de empresa. Un valor cargado con `x-branch-id` no se
+  filtra a otra sucursal.
+- `GET` sin `asOf` devuelve lo vigente hoy; con `asOf` devuelve lo vigente en esa fecha (es lo que
+  permite reproducir un período cerrado).
+
+### Parámetros congelados de un run
+
+`GET /v1/hr/payroll/:id/parameters` (`hr:payroll:view`) devuelve la copia de los parámetros tomada
+al crear el run. Cambiar `payroll_settings` después **no** altera esa copia: responde `404` si el run
+no existe.
+
+### Conceptos de nómina
+
+| Método   | Ruta                       | Permiso              |
+| -------- | -------------------------- | -------------------- |
+| `GET`    | `/v1/hr/concept-types`     | `hr:concepts:view`   |
+| `POST`   | `/v1/hr/concept-types`     | `hr:concepts:manage` |
+| `PATCH`  | `/v1/hr/concept-types/:id` | `hr:concepts:manage` |
+| `DELETE` | `/v1/hr/concept-types/:id` | `hr:concepts:manage` |
+
+- `category`: `ASSIGNMENT` \| `DEDUCTION` \| `EMPLOYER_CONTRIBUTION` \| `INFORMATIVE`.
+- `kind`: `FIXED` \| `PERCENT` \| `FORMULA` \| `BASE`. Con `FORMULA` la `expression` es obligatoria.
+- La `expression` se valida contra una gramática mínima: números, bases de cálculo
+  (`SALARY_BASE`, `SALARY_NORMAL`, `SALARY_INTEGRAL`, `PERIOD_DAYS`, `MONTH_DAYS`, `HOURS`,
+  `HOUR_RATE`, `UNITS`, `BASE_AMOUNT`), claves de parámetro de la empresa, `+ - * /` y paréntesis.
+  Cualquier otro identificador o carácter responde `400`.
+- `DELETE` responde `409` si el concepto es `isSystem` o si ya se usó en una nómina o en una
+  incidencia. En ese caso se desactiva o se crea otro concepto.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

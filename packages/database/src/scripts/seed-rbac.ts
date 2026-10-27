@@ -67,6 +67,8 @@ export const ALL_PERMISSIONS = [
   'hr:positions:manage',
   'hr:settings:view',
   'hr:settings:manage',
+  'hr:concepts:view',
+  'hr:concepts:manage',
 
   'settings:view',
   'settings:users:view',

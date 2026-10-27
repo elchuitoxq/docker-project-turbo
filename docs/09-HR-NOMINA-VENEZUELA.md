@@ -123,18 +123,18 @@ Auditado en [`hr.service.ts`](../apps/backend/src/modules/hr/services/hr.service
 cálculo. Se deja constancia antes de tocar nada, porque cada punto es una decisión que hay que tomar
 conscientemente al escribir el motor (T-02-03).
 
-| #   | Defecto actual                                                                               | Por qué importa                                                                                                                                                                                                          |
-| --- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | Las alícuotas son **constantes en el código** (`SSO_EMP_RATE = 0.04`, …)                     | `payroll_settings` **ya tiene** esos valores sembrados (`SSO_EMP = 4`, `FAOV_PAT = 2`…), pero el cálculo **no lee la tabla**. Editar el parámetro en la UI no cambia nada: el usuario cree que configuró y no configuró. |
-| D2  | `payroll_settings.key` es **único global** y el seed usa `onConflictDoUpdate`                | No se puede tener un valor por empresa ni por sucursal, ni guardar historia (falta `effectiveFrom`)                                                                                                                      |
-| D3  | Los porcentajes se guardan como `4` con `type = 'PERCENTAGE'`, mientras el código usa `0.04` | Ambigüedad de escala: ¿`4` es 4 % o 400 %? Un motor nuevo debe fijar la convención (se propone **porcentaje entero**, `4 = 4 %`) y validarla                                                                             |
-| D4  | `CESTATICKET_USD = 40.0` se **suma** al neto de un salario que puede estar en **VES**        | Mezcla de monedas: viola la regla M4 (`MoneyService`). Con tasa distinta de 1 el resultado es inválido                                                                                                                   |
-| D5  | `bonuses = CESTATICKET_USD`                                                                  | El cestaticket queda clasificado como bonificación salarial, justo lo que la Ley de Alimentación prohíbe (RN-02)                                                                                                         |
-| D6  | `const integralSalary = baseSalary * 1.17` **no se usa**                                     | Factor mágico muerto: sugiere que el integral se calculó “a ojo” alguna vez. Debe salir de las alícuotas (RN-03…RN-05)                                                                                                   |
-| D7  | `SSO_PAT_RATE`, `FAOV_PAT_RATE`, `PIE_PAT_RATE` están declaradas pero **nunca se aplican**   | El costo patronal no se registra: no hay aporte patronal en el asiento ni en el recibo                                                                                                                                   |
-| D8  | `baseAmount = emp.baseSalary` sin prorrateo por días del período                             | Un ingreso o egreso a mitad de mes paga el mes completo (RN-01)                                                                                                                                                          |
-| D9  | No hay ISLR, ni utilidades, ni prestaciones, ni vacaciones en el cálculo                     | Se resuelve en T-02-04                                                                                                                                                                                                   |
-| D10 | `category` de las líneas es `INCOME` / `DEDUCTION`                                           | No distingue aporte patronal (`EMPLOYER_CONTRIBUTION`) ni informativo; el recibo no puede separar costo del trabajador de costo del empleador                                                                            |
+| #   | Defecto actual                                                                               | Por qué importa                                                                                                                                                                                                                                                                                                                      |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Las alícuotas son **constantes en el código** (`SSO_EMP_RATE = 0.04`, …)                     | `payroll_settings` **ya tiene** esos valores sembrados (`SSO_EMP = 4`, `FAOV_PAT = 2`…), pero el cálculo **no lee la tabla**. Editar el parámetro en la UI no cambia nada: el usuario cree que configuró y no configuró. Desde T-02-01 el parámetro tiene vigencia y el run lo congela; **falta que el motor lo consuma** (T-02-03). |
+| D2  | `payroll_settings.key` es **único global** y el seed usa `onConflictDoUpdate`                | **Resuelto en T-02-01**: la clave ahora es única por empresa, sucursal y vigencia (`effectiveFrom`)                                                                                                                                                                                                                                  |
+| D3  | Los porcentajes se guardan como `4` con `type = 'PERCENTAGE'`, mientras el código usa `0.04` | **Resuelto en T-02-01**: se fija la convención (**porcentaje entero**, `4 = 4 %`) y se valida al guardar (`0 < value <= 100`)                                                                                                                                                                                                        |
+| D4  | `CESTATICKET_USD = 40.0` se **suma** al neto de un salario que puede estar en **VES**        | Mezcla de monedas: viola la regla M4 (`MoneyService`). Con tasa distinta de 1 el resultado es inválido                                                                                                                                                                                                                               |
+| D5  | `bonuses = CESTATICKET_USD`                                                                  | El cestaticket queda clasificado como bonificación salarial, justo lo que la Ley de Alimentación prohíbe (RN-02)                                                                                                                                                                                                                     |
+| D6  | `const integralSalary = baseSalary * 1.17` **no se usa**                                     | Factor mágico muerto: sugiere que el integral se calculó “a ojo” alguna vez. Debe salir de las alícuotas (RN-03…RN-05)                                                                                                                                                                                                               |
+| D7  | `SSO_PAT_RATE`, `FAOV_PAT_RATE`, `PIE_PAT_RATE` están declaradas pero **nunca se aplican**   | El costo patronal no se registra: no hay aporte patronal en el asiento ni en el recibo                                                                                                                                                                                                                                               |
+| D8  | `baseAmount = emp.baseSalary` sin prorrateo por días del período                             | Un ingreso o egreso a mitad de mes paga el mes completo (RN-01)                                                                                                                                                                                                                                                                      |
+| D9  | No hay ISLR, ni utilidades, ni prestaciones, ni vacaciones en el cálculo                     | Se resuelve en T-02-04                                                                                                                                                                                                                                                                                                               |
+| D10 | `category` de las líneas es `INCOME` / `DEDUCTION`                                           | No distingue aporte patronal (`EMPLOYER_CONTRIBUTION`) ni informativo; el recibo no puede separar costo del trabajador de costo del empleador                                                                                                                                                                                        |
 
 > **Consecuencia para el plan:** T-02-03 no es “extender” `calculatePayrollItem`, es **sustituirlo**
 > por el pipeline de §6. El código actual se conserva sólo como referencia de los códigos de concepto
@@ -309,9 +309,10 @@ Las claves legales nuevas se agregan con el mismo formato.
 > **Inmutabilidad:** al iniciar un run, todos los valores vigentes se copian a
 > `payroll_period_settings`. Cambiar el parámetro mañana **no** reescribe la nómina de ayer.
 
-> **Deuda a corregir en T-02-01:** hoy `key` es único global y el seed resuelve con
-> `onConflictDoUpdate({ target: key })`, así que **no hay valores por sucursal ni historia**. Es
-> exactamente lo que hay que cambiar antes de que el motor lea la tabla (H-55).
+> **Deuda cerrada en T-02-01 (2026-10-27):** `key` ya no es único global; la unicidad es
+> `(companyId, key, effectiveFrom)` para los valores de empresa y `(companyId, branchId, key,
+effectiveFrom)` para los de sucursal (índices parciales). El seed resuelve la existencia por
+> vigencia en lugar de `onConflictDoUpdate` sobre la clave.
 
 ## 11. Retroactividad y recálculo
 
@@ -354,9 +355,10 @@ a un libro descuadrado.
 
 | Regla / pieza                        | Dónde se implementa                                                                | Tarea            |
 | ------------------------------------ | ---------------------------------------------------------------------------------- | ---------------- |
-| Parámetros con vigencia              | `payroll_settings` (`effectiveFrom`, `companyId`)                                  | T-02-01          |
-| Catálogo de conceptos                | `payroll_concept_types` (`code`, `kind`, `expression`)                             | T-02-02          |
-| Pipeline de 13 etapas                | `modules/hr/payroll.calculator.ts`                                                 | T-02-03          |
+| Parámetros con vigencia              | `payroll_settings` (`effectiveFrom`, `companyId`) + `payroll_period_settings`      | ✅ T-02-01       |
+| Catálogo de conceptos                | `payroll_concept_types` (`code`, `kind`, `expression`) + CRUD `/hr/concept-types`  | ✅ T-02-02       |
+| Resolución de vigencia y validación  | `modules/hr/payroll/settings-resolver.ts`, `concept-expression.ts`                 | ✅ T-02-01/02    |
+| Pipeline de 13 etapas                | `modules/hr/payroll/payroll.calculator.ts` (pendiente)                             | T-02-03          |
 | Prestaciones, utilidades, vacaciones | Mismo motor + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | T-02-04          |
 | Liquidación                          | `employee_settlements`                                                             | T-02-05          |
 | Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments` (RN-24)                                    | T-02-06          |
@@ -364,12 +366,18 @@ a un libro descuadrado.
 | UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                             | T-02-09          |
 | Casos dorados y pruebas              | Este documento §9                                                                  | T-02-10          |
 
-**El motor actual se sustituye, no se extiende.** `calculatePayrollItem` en
-[`hr.service.ts`](../apps/backend/src/modules/hr/services/hr.service.ts) queda reemplazado por el
-pipeline de §6; los defectos D1–D10 de §5.2 son el criterio de aceptación de T-02-03. En particular
-D1 (parámetros que existen pero no se leen) y D4 (moneda mezclada) son los dos que no admiten
-prórroga: el primero hace que la configuración sea decorativa y el segundo produce montos inválidos
-en cuanto la tasa no sea 1.
+**Lo que ya está construido (T-02-01 / T-02-02):** los parámetros tienen vigencia, empresa y
+sucursal, y el run guarda su copia congelada (`GET /hr/payroll/:id/parameters`); los conceptos
+declaran `kind`, `expression` y `affectsIntegralSalary`, y la fórmula se valida al guardar contra una
+gramática mínima. Es decir, **la configuración ya es honesta**: lo que se edita tiene efecto sobre lo
+que el motor leerá.
+
+**Lo que falta (T-02-03):** que el motor **lea** esos valores en lugar de las constantes del código y
+ejecute el pipeline de §6. `calculatePayrollItem` en
+[`hr.service.ts`](../apps/backend/src/modules/hr/services/hr.service.ts) queda reemplazado; los
+defectos D1–D10 de §5.2 son su criterio de aceptación. D1 (parámetros que existen pero no se leen) y
+D4 (moneda mezclada) son los dos que no admiten prórroga: el primero hace que la configuración sea
+decorativa y el segundo produce montos inválidos en cuanto la tasa no sea 1.
 
 ## 15. Decisiones abiertas (requieren validación profesional)
 

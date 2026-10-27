@@ -948,3 +948,90 @@ deben cerrarse antes de conectar la UI de cálculo.
   tareas ya se habían cerrado) y añadidos H-55…H-64.
 - Enlaces relativos de los cinco documentos tocados validados con un chequeo de rutas (0 roto) ·
   `pnpm format:check` verde.
+
+### BT-040 · 2026-10-27 · E2: parámetros con vigencia y conceptos declarativos (T-02-01 / T-02-02)
+
+**Qué se hizo**
+
+Las dos primeras piezas del motor de nómina. Sin ellas, cualquier cálculo que se escriba después
+nacería leyendo constantes del código.
+
+| Tarea   | Entrega                                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| T-02-01 | `payroll_settings` con `companyId` y `effectiveFrom`; unicidad por empresa/sucursal/vigencia; snapshot congelado por run |
+| T-02-02 | `payroll_concept_types` con `kind`, `expression`, `affectsIntegralSalary`, `isSalarial` + CRUD y validador de fórmulas   |
+
+**Migración 0010** (generada y luego editada a mano para el backfill)
+
+- `payroll_settings`: `company_id` (FK a `companies`), `effective_from`; se elimina el `unique` de
+  `key` y se crean **dos índices parciales** porque en Postgres los `NULL` no colisionan entre sí:
+  uno para el valor de empresa (`branch_id is null`) y otro para el de sucursal.
+- Tabla nueva `payroll_period_settings` (snapshot por run, `ON DELETE CASCADE`, único por
+  `(run_id, key)`).
+- `payroll_concept_types`: `company_id`, `kind`, `expression`, `affects_integral_salary`,
+  `is_salarial`; unicidad por `(company_id, code)`.
+- **Backfill**: la empresa se deduce de la sucursal de cada fila y, si no había sucursal, se toma la
+  primera empresa. Filas que quedan sin empresa posible se eliminan **antes** del `SET NOT NULL`:
+  sin ese orden la migración revienta en una base con datos.
+- `payroll_item_lines.category`: `INCOME` → `ASSIGNMENT` (compatibilidad con runs históricos).
+
+**Decisiones que vale la pena registrar**
+
+1. **La vigencia se normaliza al día.** Dos `PATCH` el mismo día son la misma vigencia. Si no, cada
+   guardado creaba una fila nueva con milisegundos distintos y la tabla se volvía ilegible.
+2. **El motor no lee “la última fila”, resuelve la vigente a la fecha del período**
+   (`resolvePayrollSettings`). Es lo que permite reproducir un mes cerrado; precedencia sucursal >
+   empresa y desempate determinista por `id`.
+3. **El snapshot se toma al crear el run con la fecha de _cierre del período_, no la de hoy.** Un
+   aumento de sueldo con vigencia futura no contamina el período en curso.
+4. **Un concepto `FORMULA` no se guarda si la expresión no valida.** El validador es un parser
+   recursivo sobre una gramática mínima (números, bases de cálculo, claves de parámetro de la
+   empresa, `+ - * /`, paréntesis). No evalúa nada: una fórmula cargada por un usuario no puede
+   ejecutar código.
+5. **El seed no pisa fórmulas.** `onConflictDoUpdate` sincroniza nombre, categoría y banderas, pero
+   **no** `expression`: si la empresa ajustó una fórmula, el seed no la revierte.
+6. **No se siembran salario mínimo ni unidad tributaria.** Son valores de decreto; inventarlos sería
+   peor que no tenerlos. Quedan como pendiente de validación (P-28).
+
+**Hallazgo colateral corregido (H-65)**
+
+`generatePayroll` numeraba con el **último run de la sucursal** mientras `payroll_runs.code` es
+**único global**: dos sucursales generaban `NOM-000001` y la segunda fallaba con violación de
+unicidad. Se corrigió con el mismo patrón que facturación: `pg_advisory_xact_lock` + máximo sobre
+todos los códigos `NOM-%`, dentro de la transacción que crea el run.
+
+**Verificación en vivo (stack real, puerto 4000)**
+
+| Prueba                                                   | Resultado                                       |
+| -------------------------------------------------------- | ----------------------------------------------- |
+| `GET /v1/hr/settings`                                    | 16 parámetros con `companyId` y `effectiveFrom` |
+| `GET /v1/hr/settings?asOf=2019-06-01`                    | `0` (antes de la vigencia)                      |
+| `PATCH` `SSO_EMP` `PERCENT 400`                          | **400**                                         |
+| `PATCH` `SSO_EMP = 5` con `effectiveFrom` 2026-11-01     | devuelve la vigencia nueva                      |
+| `GET /settings` hoy vs `?asOf=2026-12-01`                | `4` hoy, `5` en diciembre                       |
+| `GET /v1/hr/concept-types`                               | 18 conceptos del sistema                        |
+| `POST` con expresión `SALARY_NORMAL * NO_EXISTE`         | **400**                                         |
+| `POST` `FORMULA` sin expresión                           | **400**                                         |
+| `DELETE` de `SALARY` (sistema)                           | **409**                                         |
+| `POST /payroll/generate` + `GET /payroll/:id/parameters` | 16 parámetros congelados, `SSO_EMP = 4`         |
+
+El último punto es el que importa: la vigencia de noviembre **no** entró en el snapshot de octubre.
+
+> ⚠️ **Nota operativa:** en este entorno el `--watch` de Nest no recibe los eventos del bind mount de
+> Windows, así que un cambio de código no se refleja hasta `docker compose restart backend`. El
+> reinicio es además lo que recompila `packages/database` (su `dist` no está montado).
+
+**Estado**
+
+- Backend **770/770** tests (+32: 17 unitarios del validador/resolutor, 15 de integración).
+- `turbo lint typecheck build` **12/12** · `test:coverage` **4/4** · `format:check` verde ·
+  0 vulnerabilidades.
+- Plan: **44 de 100 tareas**; E2 con 3 de 11.
+- Datos de prueba de la verificación eliminados (concepto y vigencia de prueba, run generado).
+
+**Verificación**
+
+- `pnpm --filter database test:db:prepare` (migración aplicada a `testdb_backend`/`testdb_database`)
+  y `db:migrate` sobre la base de desarrollo; backfill comprobado con consultas directas.
+- `pnpm --filter backend openapi:export` para mantener `apps/backend/docs/openapi.json` en sincronía.
+- Suite completa del backend, cobertura y auditoría de dependencias.

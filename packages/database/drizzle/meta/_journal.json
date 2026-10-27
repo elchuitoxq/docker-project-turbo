@@ -71,6 +71,13 @@
       "when": 1793072262132,
       "tag": "0009_lonely_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793074498818,
+      "tag": "0010_payroll_period_settings",
+      "breakpoints": true
     }
   ]
 }

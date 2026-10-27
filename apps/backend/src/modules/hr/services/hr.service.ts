@@ -13,6 +13,7 @@ import {
   payrollItems,
   payrollItemLines,
   payrollSettings,
+  payrollPeriodSettings,
   payrollConceptTypes,
   payrollIncidents,
   employeeContracts,
@@ -22,10 +23,14 @@ import {
   employeeSalaryHistory,
   employeeBankAccounts,
   banks,
+  branches,
+  companies,
   currencies,
 } from '../../../schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { validateConceptExpression } from '../payroll/concept-expression';
+import { resolvePayrollSettings, validateSettingValue } from '../payroll/settings-resolver';
 import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -39,6 +44,12 @@ import {
   PayrollRunStatus,
   EmployeeStatus,
   EmployeeBankAccountDto,
+  UpdatePayrollSettingDto,
+  PayrollSettingResponseDto,
+  CreatePayrollConceptDto,
+  UpdatePayrollConceptDto,
+  PayrollConceptResponseDto,
+  PayrollConceptKind,
 } from '../dto/hr.dto';
 
 const SSO_EMP_RATE = 0.04;
@@ -180,48 +191,218 @@ export class HrService {
 
   /** ParÃ¡metros de nÃ³mina vigentes (T-01-07). */
   async findPayrollSettings(
-    branchId?: string
-  ): Promise<Array<typeof payrollSettings.$inferSelect>> {
-    const rows = await db.select().from(payrollSettings).where(eq(payrollSettings.isActive, true));
+    branchId?: string,
+    asOf?: string
+  ): Promise<PayrollSettingResponseDto[]> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const rows = await db
+      .select()
+      .from(payrollSettings)
+      .where(eq(payrollSettings.companyId, companyId));
 
-    return rows.filter(row => !row.branchId || !branchId || row.branchId === branchId);
+    // T-02-01: se devuelve un valor por clave, el vigente a la fecha consultada, resolviendo
+    // precedencia sucursal > empresa. Antes se devolvían todas las filas activas.
+    const resolved = resolvePayrollSettings(rows, {
+      asOf: asOf ? new Date(asOf) : new Date(),
+      branchId,
+    });
+
+    return resolved.map(row => this.toSettingResponse(row));
   }
 
   /** Alta o actualizaciÃ³n de un parÃ¡metro de nÃ³mina (T-01-07). */
   async upsertPayrollSetting(
-    dto: { key: string; value: number },
+    dto: UpdatePayrollSettingDto,
     branchId?: string
-  ): Promise<typeof payrollSettings.$inferSelect> {
+  ): Promise<PayrollSettingResponseDto> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const effectiveFrom = this.normalizeEffectiveDate(dto.effectiveFrom);
+    const type = dto.type ?? (await this.findSettingType(companyId, dto.key));
+
+    const valueError = validateSettingValue(type, dto.value);
+    if (valueError) throw new BadRequestException(valueError);
+
+    // Se busca la vigencia exacta (empresa + clave + fecha + sucursal): reprogramar el mismo día
+    // actualiza el valor en lugar de acumular filas duplicadas para la misma fecha.
     const [existing] = await db
       .select()
       .from(payrollSettings)
-      .where(eq(payrollSettings.key, dto.key))
+      .where(
+        and(
+          eq(payrollSettings.companyId, companyId),
+          eq(payrollSettings.key, dto.key),
+          eq(payrollSettings.effectiveFrom, effectiveFrom),
+          branchId ? eq(payrollSettings.branchId, branchId) : isNull(payrollSettings.branchId)
+        )
+      )
       .limit(1);
 
     if (existing) {
       const [updated] = await db
         .update(payrollSettings)
-        .set({ value: String(dto.value), updatedAt: new Date() })
+        .set({
+          value: String(dto.value),
+          label: dto.label ?? existing.label,
+          type,
+          updatedAt: new Date(),
+        })
         .where(eq(payrollSettings.id, existing.id))
         .returning();
 
-      return updated;
+      return this.toSettingResponse(updated);
     }
 
     const [created] = await db
       .insert(payrollSettings)
       .values({
         id: uuidv4(),
+        companyId,
         key: dto.key,
-        label: dto.key,
+        label: dto.label ?? dto.key,
         value: String(dto.value),
-        type: 'NUMBER',
+        type,
         branchId: branchId ?? null,
+        effectiveFrom,
         isActive: true,
       })
       .returning();
 
-    return created;
+    return this.toSettingResponse(created);
+  }
+
+  /** Parámetros congelados del run: es la prueba de que un período cerrado no cambia (RN-22). */
+  async getPayrollRunParameters(runId: string): Promise<PayrollSettingResponseDto[]> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
+    if (!run) throw new NotFoundException(`Payroll run ${runId} not found`);
+
+    const companyId = await this.resolveCompanyId(run.branchId);
+    const rows = await db
+      .select()
+      .from(payrollPeriodSettings)
+      .where(eq(payrollPeriodSettings.runId, runId));
+
+    return rows
+      .map(row => ({
+        id: row.id,
+        companyId,
+        key: row.key,
+        label: row.label,
+        value: Number(row.value),
+        type: row.type,
+        branchId: row.branchId,
+        effectiveFrom: row.effectiveFrom.toISOString(),
+        isActive: true,
+      }))
+      .sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  /**
+   * Congela los parámetros vigentes al cierre del período dentro del run (`T-02-01`).
+   * Si no hay parámetros cargados el run se crea igual: la validación de parámetros obligatorios
+   * pertenece al motor de cálculo (T-02-03), no a la creación del run.
+   */
+  private async snapshotPayrollSettings(
+    runId: string,
+    companyId: string,
+    branchId: string,
+    asOf: Date,
+    executor: Pick<typeof db, 'select' | 'insert'> = db
+  ): Promise<void> {
+    const rows = await executor
+      .select()
+      .from(payrollSettings)
+      .where(eq(payrollSettings.companyId, companyId));
+
+    const resolved = resolvePayrollSettings(rows, { asOf, branchId });
+    if (resolved.length === 0) return;
+
+    await executor.insert(payrollPeriodSettings).values(
+      resolved.map(row => ({
+        id: uuidv4(),
+        runId,
+        key: row.key,
+        label: row.label,
+        value: row.value,
+        type: row.type,
+        branchId: row.branchId,
+        effectiveFrom: row.effectiveFrom,
+      }))
+    );
+  }
+
+  /** Siguiente código de nómina. Global, porque `payroll_runs.code` es único a nivel de tabla. */
+  private async getNextPayrollRunCode(executor: Pick<typeof db, 'select'> = db): Promise<string> {
+    const existing = await executor
+      .select({ code: payrollRuns.code })
+      .from(payrollRuns)
+      .where(like(payrollRuns.code, 'NOM-%'));
+
+    let nextNumber = 1;
+    for (const row of existing) {
+      const match = row.code.match(/^NOM-(\d+)$/);
+      if (match) {
+        nextNumber = Math.max(nextNumber, parseInt(match[1], 10) + 1);
+      }
+    }
+
+    return `NOM-${String(nextNumber).padStart(6, '0')}`;
+  }
+
+  private async resolveCompanyId(branchId?: string): Promise<string> {
+    if (branchId) {
+      const [branch] = await db
+        .select({ companyId: branches.companyId })
+        .from(branches)
+        .where(eq(branches.id, branchId))
+        .limit(1);
+
+      if (!branch) throw new NotFoundException(`Branch ${branchId} not found`);
+      return branch.companyId;
+    }
+
+    const [company] = await db
+      .select({ id: companies.id })
+      .from(companies)
+      .orderBy(companies.createdAt)
+      .limit(1);
+
+    if (!company) throw new NotFoundException('No company configured');
+    return company.id;
+  }
+
+  private async findSettingType(companyId: string, key: string): Promise<string> {
+    const [row] = await db
+      .select({ type: payrollSettings.type })
+      .from(payrollSettings)
+      .where(and(eq(payrollSettings.companyId, companyId), eq(payrollSettings.key, key)))
+      .orderBy(desc(payrollSettings.effectiveFrom))
+      .limit(1);
+
+    return row?.type ?? 'NUMBER';
+  }
+
+  /** Normaliza la vigencia al día: dos altas del mismo día son la misma vigencia. */
+  private normalizeEffectiveDate(value?: string): Date {
+    const raw = value ? new Date(value) : new Date();
+    if (Number.isNaN(raw.getTime())) {
+      throw new BadRequestException('Fecha de vigencia inválida');
+    }
+
+    return new Date(Date.UTC(raw.getUTCFullYear(), raw.getUTCMonth(), raw.getUTCDate()));
+  }
+
+  private toSettingResponse(row: typeof payrollSettings.$inferSelect): PayrollSettingResponseDto {
+    return {
+      id: row.id,
+      companyId: row.companyId,
+      key: row.key,
+      label: row.label,
+      value: Number(row.value),
+      type: row.type,
+      branchId: row.branchId,
+      effectiveFrom: row.effectiveFrom.toISOString(),
+      isActive: row.isActive ?? true,
+    };
   }
   private async mapEmployeesWithRelations(
     emps: (typeof employees.$inferSelect)[]
@@ -459,36 +640,39 @@ export class HrService {
         )
       );
 
-    const lastRun = await db
-      .select({ code: payrollRuns.code })
-      .from(payrollRuns)
-      .where(eq(payrollRuns.branchId, createPayrollRunDto.branchId))
-      .orderBy(desc(payrollRuns.createdAt))
-      .limit(1);
+    const periodEnd = new Date(createPayrollRunDto.endDate);
+    const companyId = await this.resolveCompanyId(createPayrollRunDto.branchId);
 
-    let nextNumber = 1;
-    if (lastRun.length > 0) {
-      const lastCode = lastRun[0].code;
-      const match = lastCode.match(/NOM-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-    const code = `NOM-${String(nextNumber).padStart(6, '0')}`;
+    // El código se asigna dentro de una transacción con advisory lock: `payroll_runs.code` es único
+    // global, así que dos sucursales generando a la vez no pueden leer el mismo máximo.
+    const newRun = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(42003)`);
+      const code = await this.getNextPayrollRunCode(tx);
 
-    const [newRun] = await db
-      .insert(payrollRuns)
-      .values({
-        id: uuidv4(),
-        code,
-        branchId: createPayrollRunDto.branchId,
-        frequency: createPayrollRunDto.frequency,
-        currencyId: createPayrollRunDto.currencyId,
-        startDate: new Date(createPayrollRunDto.startDate),
-        endDate: new Date(createPayrollRunDto.endDate),
-        status: PayrollRunStatus.DRAFT,
-      })
-      .returning();
+      const [created] = await tx
+        .insert(payrollRuns)
+        .values({
+          id: uuidv4(),
+          code,
+          branchId: createPayrollRunDto.branchId,
+          frequency: createPayrollRunDto.frequency,
+          currencyId: createPayrollRunDto.currencyId,
+          startDate: new Date(createPayrollRunDto.startDate),
+          endDate: periodEnd,
+          status: PayrollRunStatus.DRAFT,
+        })
+        .returning();
+
+      await this.snapshotPayrollSettings(
+        created.id,
+        companyId,
+        createPayrollRunDto.branchId,
+        periodEnd,
+        tx
+      );
+
+      return created;
+    });
 
     let totalAmount = 0;
 
@@ -763,7 +947,177 @@ export class HrService {
     return newIncident;
   }
 
-  async getPayrollConceptTypes(): Promise<any[]> {
-    return await db.select().from(payrollConceptTypes);
+  async getPayrollConceptTypes(branchId?: string): Promise<PayrollConceptResponseDto[]> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const rows = await db
+      .select()
+      .from(payrollConceptTypes)
+      .where(eq(payrollConceptTypes.companyId, companyId))
+      .orderBy(payrollConceptTypes.code);
+
+    return rows.map(row => this.toConceptResponse(row));
+  }
+
+  async createPayrollConcept(
+    dto: CreatePayrollConceptDto,
+    branchId?: string
+  ): Promise<PayrollConceptResponseDto> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const kind = dto.kind ?? PayrollConceptKind.FIXED;
+    const expression = dto.expression?.trim() || null;
+
+    await this.assertValidConceptExpression(kind, expression, companyId);
+
+    const [existing] = await db
+      .select({ id: payrollConceptTypes.id })
+      .from(payrollConceptTypes)
+      .where(
+        and(eq(payrollConceptTypes.companyId, companyId), eq(payrollConceptTypes.code, dto.code))
+      )
+      .limit(1);
+
+    if (existing) {
+      throw new ConflictException(`El concepto ${dto.code} ya existe`);
+    }
+
+    const [created] = await db
+      .insert(payrollConceptTypes)
+      .values({
+        id: uuidv4(),
+        companyId,
+        code: dto.code,
+        name: dto.name,
+        category: dto.category,
+        kind,
+        expression,
+        affectsIntegralSalary: dto.affectsIntegralSalary ?? false,
+        isSalarial: dto.isSalarial ?? true,
+        isSystem: false,
+        branchId: branchId ?? null,
+      })
+      .returning();
+
+    return this.toConceptResponse(created);
+  }
+
+  async updatePayrollConcept(
+    id: string,
+    dto: UpdatePayrollConceptDto,
+    branchId?: string
+  ): Promise<PayrollConceptResponseDto> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const [concept] = await db
+      .select()
+      .from(payrollConceptTypes)
+      .where(and(eq(payrollConceptTypes.id, id), eq(payrollConceptTypes.companyId, companyId)))
+      .limit(1);
+
+    if (!concept) throw new NotFoundException(`Payroll concept ${id} not found`);
+
+    const kind = dto.kind ?? (concept.kind as PayrollConceptKind);
+    const expression =
+      dto.expression === undefined ? concept.expression : dto.expression.trim() || null;
+
+    await this.assertValidConceptExpression(kind, expression, companyId);
+
+    const [updated] = await db
+      .update(payrollConceptTypes)
+      .set({
+        name: dto.name ?? concept.name,
+        category: dto.category ?? concept.category,
+        kind,
+        expression,
+        affectsIntegralSalary: dto.affectsIntegralSalary ?? concept.affectsIntegralSalary,
+        isSalarial: dto.isSalarial ?? concept.isSalarial,
+      })
+      .where(eq(payrollConceptTypes.id, concept.id))
+      .returning();
+
+    return this.toConceptResponse(updated);
+  }
+
+  async deletePayrollConcept(id: string, branchId?: string): Promise<{ deleted: true }> {
+    const companyId = await this.resolveCompanyId(branchId);
+    const [concept] = await db
+      .select()
+      .from(payrollConceptTypes)
+      .where(and(eq(payrollConceptTypes.id, id), eq(payrollConceptTypes.companyId, companyId)))
+      .limit(1);
+
+    if (!concept) throw new NotFoundException(`Payroll concept ${id} not found`);
+    if (concept.isSystem) {
+      throw new ConflictException(`El concepto ${concept.code} es del sistema y no se elimina`);
+    }
+
+    const [usedLine] = await db
+      .select({ id: payrollItemLines.id })
+      .from(payrollItemLines)
+      .where(eq(payrollItemLines.conceptCode, concept.code))
+      .limit(1);
+
+    if (usedLine) {
+      throw new ConflictException(
+        `El concepto ${concept.code} ya se usó en una nómina: desactívelo en lugar de eliminarlo`
+      );
+    }
+
+    const [usedIncident] = await db
+      .select({ id: payrollIncidents.id })
+      .from(payrollIncidents)
+      .where(eq(payrollIncidents.conceptId, concept.id))
+      .limit(1);
+
+    if (usedIncident) {
+      throw new ConflictException(
+        `El concepto ${concept.code} tiene incidencias asociadas: no se puede eliminar`
+      );
+    }
+
+    await db.delete(payrollConceptTypes).where(eq(payrollConceptTypes.id, concept.id));
+    return { deleted: true };
+  }
+
+  /**
+   * Una fórmula sólo es válida si usa las bases de cálculo o las claves de parámetro de la empresa.
+   * Se valida en el alta para que un error de tipeo no aparezca recién al correr la nómina.
+   */
+  private async assertValidConceptExpression(
+    kind: PayrollConceptKind,
+    expression: string | null,
+    companyId: string
+  ): Promise<void> {
+    if (kind === PayrollConceptKind.FORMULA && !expression) {
+      throw new BadRequestException('Un concepto de tipo FORMULA requiere una expresión');
+    }
+
+    if (expression) {
+      const settingKeys = await db
+        .select({ key: payrollSettings.key })
+        .from(payrollSettings)
+        .where(eq(payrollSettings.companyId, companyId));
+
+      const error = validateConceptExpression(
+        expression,
+        settingKeys.map(row => row.key)
+      );
+      if (error) throw new BadRequestException(error);
+    }
+  }
+
+  private toConceptResponse(
+    row: typeof payrollConceptTypes.$inferSelect
+  ): PayrollConceptResponseDto {
+    return {
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      category: row.category,
+      kind: row.kind,
+      expression: row.expression,
+      affectsIntegralSalary: row.affectsIntegralSalary,
+      isSalarial: row.isSalarial,
+      isSystem: row.isSystem ?? false,
+      branchId: row.branchId,
+    };
   }
 }

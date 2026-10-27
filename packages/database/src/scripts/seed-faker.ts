@@ -226,22 +226,33 @@ export async function seedFaker(options: SeedOptions = {}) {
       .insert(payrollSettings)
       .values({
         id: uuidv7(),
+        companyId: branch.companyId,
         key: setting.key,
         label: setting.label,
         value: setting.value,
         type: setting.type,
         branchId: branch.id,
+        effectiveFrom: new Date('2020-01-01T00:00:00.000Z'),
         isActive: true,
       })
-      .onConflictDoUpdate({ target: payrollSettings.key, set: { value: setting.value } });
+      .onConflictDoUpdate({
+        target: [
+          payrollSettings.companyId,
+          payrollSettings.branchId,
+          payrollSettings.key,
+          payrollSettings.effectiveFrom,
+        ],
+        targetWhere: sql`"payroll_settings"."branch_id" is not null`,
+        set: { value: setting.value },
+      });
   }
   console.log('Created payroll settings');
 
   const conceptTypes = [
-    { code: 'EXTRA_HOUR', name: 'Horas Extra', category: 'INCOME' },
+    { code: 'EXTRA_HOUR', name: 'Horas Extra', category: 'ASSIGNMENT' },
     { code: 'LATE', name: 'Llegadas Tardes', category: 'DEDUCTION' },
     { code: 'ABSENCE', name: 'Ausencias', category: 'DEDUCTION' },
-    { code: 'BONUS', name: 'Bono', category: 'INCOME' },
+    { code: 'BONUS', name: 'Bono', category: 'ASSIGNMENT' },
   ];
 
   for (const ct of conceptTypes) {
@@ -249,13 +260,18 @@ export async function seedFaker(options: SeedOptions = {}) {
       .insert(payrollConceptTypes)
       .values({
         id: uuidv7(),
+        companyId: branch.companyId,
         code: ct.code,
         name: ct.name,
         category: ct.category,
+        kind: 'FIXED',
         isSystem: false,
         branchId: branch.id,
       })
-      .onConflictDoUpdate({ target: payrollConceptTypes.code, set: { name: ct.name } });
+      .onConflictDoUpdate({
+        target: [payrollConceptTypes.companyId, payrollConceptTypes.code],
+        set: { name: ct.name },
+      });
   }
   console.log('Created payroll concept types');
 

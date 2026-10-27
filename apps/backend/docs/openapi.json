@@ -1,11 +1,28 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Servicio y base de datos disponibles"
+          },
+          "503": {
+            "description": "Dependencia no disponible"
+          }
+        },
+        "summary": "Health check (usado por Docker/CI)",
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/v1/auth/login": {
       "post": {
+        "description": "Authenticates a user, devuelve el JWT y además lo deja en una cookie httpOnly.",
         "operationId": "AuthController_login",
-        "summary": "User login",
-        "description": "Authenticates a user and returns a JWT access token",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -32,6 +49,52 @@
             "description": "Invalid credentials"
           }
         },
+        "summary": "User login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthUserResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado"
+          }
+        },
+        "security": [
+          {
+            "cookie-auth": []
+          }
+        ],
+        "summary": "Perfil del usuario autenticado",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Sesión cerrada"
+          }
+        },
+        "summary": "Cierra la sesión (borra la cookie)",
         "tags": [
           "auth"
         ]
@@ -39,9 +102,8 @@
     },
     "/v1/auth/forgot-password": {
       "post": {
-        "operationId": "AuthController_forgotPassword",
-        "summary": "Request password reset",
         "description": "Sends a password reset email to the user. MOCK: In development, returns a mock URL with the reset token.",
+        "operationId": "AuthController_forgotPassword",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -65,6 +127,7 @@
             }
           }
         },
+        "summary": "Request password reset",
         "tags": [
           "auth"
         ]
@@ -72,9 +135,8 @@
     },
     "/v1/auth/reset-password": {
       "post": {
-        "operationId": "AuthController_resetPassword",
-        "summary": "Reset password",
         "description": "Resets the user password using a valid reset token. MOCK: Accepts any mock token in development.",
+        "operationId": "AuthController_resetPassword",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -94,6 +156,7 @@
             "description": "Invalid or expired token"
           }
         },
+        "summary": "Reset password",
         "tags": [
           "auth"
         ]
@@ -101,9 +164,8 @@
     },
     "/v1/users": {
       "get": {
-        "operationId": "UsersController_findAll",
-        "summary": "Get all users",
         "description": "Retrieves a list of all registered users with their roles",
+        "operationId": "UsersController_findAll",
         "parameters": [],
         "responses": {
           "200": {
@@ -120,19 +182,19 @@
             }
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get all users",
+        "tags": [
+          "users"
         ]
       },
       "post": {
-        "operationId": "UsersController_create",
-        "summary": "Create a new user",
         "description": "Creates a user account; role and branch assignments use separate protected endpoints",
+        "operationId": "UsersController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -159,21 +221,21 @@
             "description": "User with this email already exists"
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Create a new user",
+        "tags": [
+          "users"
         ]
       }
     },
     "/v1/users/{id}": {
       "get": {
-        "operationId": "UsersController_findOne",
-        "summary": "Get user by ID",
         "description": "Retrieves a specific user by their ID",
+        "operationId": "UsersController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -199,19 +261,19 @@
             "description": "User not found"
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get user by ID",
+        "tags": [
+          "users"
         ]
       },
       "patch": {
-        "operationId": "UsersController_update",
-        "summary": "Update a user",
         "description": "Updates an existing user's information",
+        "operationId": "UsersController_update",
         "parameters": [
           {
             "name": "id",
@@ -247,19 +309,19 @@
             "description": "User not found"
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Update a user",
+        "tags": [
+          "users"
         ]
       },
       "delete": {
-        "operationId": "UsersController_remove",
-        "summary": "Delete a user",
         "description": "Deletes a user and their role assignments",
+        "operationId": "UsersController_remove",
         "parameters": [
           {
             "name": "id",
@@ -278,21 +340,21 @@
             "description": "User not found"
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Delete a user",
+        "tags": [
+          "users"
         ]
       }
     },
     "/v1/users/{id}/roles": {
       "post": {
-        "operationId": "UsersController_assignRoles",
-        "summary": "Assign roles to a user",
         "description": "Replaces the user's current roles with the specified roles",
+        "operationId": "UsersController_assignRoles",
         "parameters": [
           {
             "name": "id",
@@ -328,13 +390,14 @@
             "description": "User not found"
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Assign roles to a user",
+        "tags": [
+          "users"
         ]
       }
     },
@@ -373,21 +436,20 @@
             }
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "users"
         ]
       }
     },
     "/v1/users/me/profile": {
       "get": {
-        "operationId": "UsersController_getProfile",
-        "summary": "Get current user profile",
         "description": "Retrieves the profile of the currently authenticated user",
+        "operationId": "UsersController_getProfile",
         "parameters": [],
         "responses": {
           "200": {
@@ -401,31 +463,22 @@
             }
           }
         },
-        "tags": [
-          "users"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get current user profile",
+        "tags": [
+          "users"
         ]
       }
     },
     "/v1/billing/invoices": {
       "get": {
-        "operationId": "BillingController_findAll",
-        "summary": "Get all invoices",
         "description": "Retrieves a list of all invoices with optional filtering by branch and status",
+        "operationId": "BillingController_findAll",
         "parameters": [
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
-            "description": "Filter by branch ID",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "status",
             "required": false,
@@ -438,6 +491,42 @@
                 "PAID",
                 "VOID"
               ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "SALE o PURCHASE",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "description": "Con `true` devuelve { data, total, page, limit } (aditivo, no rompe clientes)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
               "type": "string"
             }
           }
@@ -457,14 +546,14 @@
             }
           }
         },
+        "summary": "Get all invoices",
         "tags": [
           "billing"
         ]
       },
       "post": {
-        "operationId": "BillingController_create",
-        "summary": "Create a new invoice",
         "description": "Creates a new invoice in DRAFT status with calculated totals (IVA, IGTF)",
+        "operationId": "BillingController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -491,6 +580,7 @@
             "description": "Invalid input or partner not found"
           }
         },
+        "summary": "Create a new invoice",
         "tags": [
           "billing"
         ]
@@ -498,20 +588,9 @@
     },
     "/v1/billing/invoices/stats": {
       "get": {
-        "operationId": "BillingController_getStats",
-        "summary": "Get invoice statistics",
         "description": "Retrieves aggregated statistics for invoices",
-        "parameters": [
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
-            "description": "Filter by branch ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "BillingController_getStats",
+        "parameters": [],
         "responses": {
           "200": {
             "description": "Invoice statistics",
@@ -524,6 +603,7 @@
             }
           }
         },
+        "summary": "Get invoice statistics",
         "tags": [
           "billing"
         ]
@@ -531,9 +611,8 @@
     },
     "/v1/billing/invoices/{id}": {
       "get": {
-        "operationId": "BillingController_findOne",
-        "summary": "Get invoice by ID",
         "description": "Retrieves a specific invoice with its items",
+        "operationId": "BillingController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -559,14 +638,14 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Get invoice by ID",
         "tags": [
           "billing"
         ]
       },
       "patch": {
-        "operationId": "BillingController_update",
-        "summary": "Update an invoice",
         "description": "Updates an existing DRAFT invoice. Only DRAFT invoices can be updated.",
+        "operationId": "BillingController_update",
         "parameters": [
           {
             "name": "id",
@@ -605,6 +684,7 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Update an invoice",
         "tags": [
           "billing"
         ]
@@ -612,9 +692,8 @@
     },
     "/v1/billing/invoices/{id}/post": {
       "post": {
-        "operationId": "BillingController_post",
-        "summary": "Post an invoice",
         "description": "Changes invoice status from DRAFT to POSTED and fiscal status to SENT",
+        "operationId": "BillingController_post",
         "parameters": [
           {
             "name": "id",
@@ -643,6 +722,7 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Post an invoice",
         "tags": [
           "billing"
         ]
@@ -650,9 +730,8 @@
     },
     "/v1/billing/invoices/{id}/void": {
       "post": {
-        "operationId": "BillingController_void",
-        "summary": "Void an invoice",
         "description": "Changes invoice status to VOID. Already void invoices cannot be voided again.",
+        "operationId": "BillingController_void",
         "parameters": [
           {
             "name": "id",
@@ -681,6 +760,7 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Void an invoice",
         "tags": [
           "billing"
         ]
@@ -688,9 +768,8 @@
     },
     "/v1/billing/invoices/{id}/fiscal-json": {
       "get": {
-        "operationId": "BillingController_getFiscalJson",
-        "summary": "Get fiscal JSON",
         "description": "Generates the fiscal JSON data for SENIAT compliance",
+        "operationId": "BillingController_getFiscalJson",
         "parameters": [
           {
             "name": "id",
@@ -716,6 +795,7 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Get fiscal JSON",
         "tags": [
           "billing"
         ]
@@ -723,18 +803,9 @@
     },
     "/v1/treasury/payments": {
       "get": {
-        "operationId": "TreasuryController_findAllPayments",
-        "summary": "Get all payments",
         "description": "Retrieves a list of all payments with optional filtering",
+        "operationId": "TreasuryController_findAllPayments",
         "parameters": [
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
           {
             "name": "status",
             "required": false,
@@ -763,14 +834,14 @@
             }
           }
         },
+        "summary": "Get all payments",
         "tags": [
           "treasury"
         ]
       },
       "post": {
-        "operationId": "TreasuryController_createPayment",
-        "summary": "Create a new payment",
         "description": "Creates a new payment and updates bank balances",
+        "operationId": "TreasuryController_createPayment",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -794,6 +865,7 @@
             }
           }
         },
+        "summary": "Create a new payment",
         "tags": [
           "treasury"
         ]
@@ -801,9 +873,8 @@
     },
     "/v1/treasury/payments/{id}": {
       "get": {
-        "operationId": "TreasuryController_findOnePayment",
-        "summary": "Get payment by ID",
         "description": "Retrieves a specific payment",
+        "operationId": "TreasuryController_findOnePayment",
         "parameters": [
           {
             "name": "id",
@@ -829,6 +900,7 @@
             "description": "Payment not found"
           }
         },
+        "summary": "Get payment by ID",
         "tags": [
           "treasury"
         ]
@@ -836,9 +908,8 @@
     },
     "/v1/treasury/payments/{id}/void": {
       "post": {
-        "operationId": "TreasuryController_voidPayment",
-        "summary": "Void a payment",
         "description": "Executes the 8-step void process: validates CN, reverses bank, frees usages, deletes NCs, cleans retentions, removes allocations, cleans links, reopens invoices",
+        "operationId": "TreasuryController_voidPayment",
         "parameters": [
           {
             "name": "id",
@@ -867,6 +938,7 @@
             "description": "Payment not found"
           }
         },
+        "summary": "Void a payment",
         "tags": [
           "treasury"
         ]
@@ -874,19 +946,9 @@
     },
     "/v1/treasury/methods": {
       "get": {
-        "operationId": "TreasuryController_getMethods",
-        "summary": "Get payment methods",
         "description": "Retrieves all available payment methods",
-        "parameters": [
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "TreasuryController_getMethods",
+        "parameters": [],
         "responses": {
           "200": {
             "description": "List of payment methods",
@@ -902,14 +964,14 @@
             }
           }
         },
+        "summary": "Get payment methods",
         "tags": [
           "treasury"
         ]
       },
       "post": {
-        "operationId": "TreasuryController_createMethod",
-        "summary": "Create a payment method",
         "description": "Creates a new payment method",
+        "operationId": "TreasuryController_createMethod",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -933,6 +995,7 @@
             }
           }
         },
+        "summary": "Create a payment method",
         "tags": [
           "treasury"
         ]
@@ -940,19 +1003,9 @@
     },
     "/v1/treasury/bank-accounts": {
       "get": {
-        "operationId": "TreasuryController_getBankAccounts",
-        "summary": "Get bank accounts",
         "description": "Retrieves all bank accounts with balances",
-        "parameters": [
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "operationId": "TreasuryController_getBankAccounts",
+        "parameters": [],
         "responses": {
           "200": {
             "description": "List of bank accounts",
@@ -968,14 +1021,14 @@
             }
           }
         },
+        "summary": "Get bank accounts",
         "tags": [
           "treasury"
         ]
       },
       "post": {
-        "operationId": "TreasuryController_createBankAccount",
-        "summary": "Create a bank account",
         "description": "Creates a new bank account",
+        "operationId": "TreasuryController_createBankAccount",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -999,6 +1052,7 @@
             }
           }
         },
+        "summary": "Create a bank account",
         "tags": [
           "treasury"
         ]
@@ -1006,9 +1060,8 @@
     },
     "/v1/treasury/statements/{partnerId}": {
       "get": {
-        "operationId": "TreasuryController_getPartnerStatement",
-        "summary": "Get partner statement",
         "description": "Retrieves payment history and outstanding invoices for a partner",
+        "operationId": "TreasuryController_getPartnerStatement",
         "parameters": [
           {
             "name": "partnerId",
@@ -1034,6 +1087,7 @@
             "description": "Partner not found"
           }
         },
+        "summary": "Get partner statement",
         "tags": [
           "treasury"
         ]
@@ -1041,23 +1095,14 @@
     },
     "/v1/treasury/daily-close": {
       "get": {
-        "operationId": "TreasuryController_getDailyClose",
-        "summary": "Get daily close",
         "description": "Retrieves daily payment summary grouped by method and currency",
+        "operationId": "TreasuryController_getDailyClose",
         "parameters": [
           {
             "name": "date",
             "required": true,
             "in": "query",
             "description": "Date in YYYY-MM-DD format",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "branchId",
-            "required": false,
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -1075,6 +1120,7 @@
             }
           }
         },
+        "summary": "Get daily close",
         "tags": [
           "treasury"
         ]
@@ -1082,9 +1128,8 @@
     },
     "/v1/treasury/available-credit-notes": {
       "get": {
-        "operationId": "TreasuryController_getAvailableCreditNotes",
-        "summary": "Get available credit notes",
         "description": "Retrieves credit notes with unused balance for a partner",
+        "operationId": "TreasuryController_getAvailableCreditNotes",
         "parameters": [
           {
             "name": "partnerId",
@@ -1100,6 +1145,7 @@
             "description": "List of available credit notes"
           }
         },
+        "summary": "Get available credit notes",
         "tags": [
           "treasury"
         ]
@@ -1108,15 +1154,12 @@
     "/v1/hr/employees": {
       "get": {
         "operationId": "HrController_findAllEmployees",
-        "summary": "Get all employees",
         "parameters": [
           {
             "name": "branchId",
             "required": false,
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
+            "schema": {}
           }
         ],
         "responses": {
@@ -1134,13 +1177,13 @@
             }
           }
         },
+        "summary": "Get all employees",
         "tags": [
           "hr"
         ]
       },
       "post": {
         "operationId": "HrController_createEmployee",
-        "summary": "Create a new employee",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1164,6 +1207,7 @@
             }
           }
         },
+        "summary": "Create a new employee",
         "tags": [
           "hr"
         ]
@@ -1172,7 +1216,6 @@
     "/v1/hr/employees/{id}": {
       "get": {
         "operationId": "HrController_findOneEmployee",
-        "summary": "Get employee by ID",
         "parameters": [
           {
             "name": "id",
@@ -1198,13 +1241,13 @@
             "description": "Employee not found"
           }
         },
+        "summary": "Get employee by ID",
         "tags": [
           "hr"
         ]
       },
       "patch": {
         "operationId": "HrController_updateEmployee",
-        "summary": "Update an employee",
         "parameters": [
           {
             "name": "id",
@@ -1240,6 +1283,48 @@
             "description": "Employee not found"
           }
         },
+        "summary": "Update an employee",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/employees/{id}/terminate": {
+      "post": {
+        "description": "Sets status TERMINATED and the termination date",
+        "operationId": "HrController_terminateEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminateEmployeeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Employee terminated"
+          },
+          "404": {
+            "description": "Employee not found"
+          },
+          "409": {
+            "description": "Employee already terminated"
+          }
+        },
+        "summary": "Terminate an employee",
         "tags": [
           "hr"
         ]
@@ -1248,15 +1333,12 @@
     "/v1/hr/departments": {
       "get": {
         "operationId": "HrController_findAllDepartments",
-        "summary": "Get all departments",
         "parameters": [
           {
             "name": "branchId",
             "required": false,
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
+            "schema": {}
           }
         ],
         "responses": {
@@ -1264,13 +1346,13 @@
             "description": "List of departments"
           }
         },
+        "summary": "Get all departments",
         "tags": [
           "hr"
         ]
       },
       "post": {
         "operationId": "HrController_createDepartment",
-        "summary": "Create a department",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1287,6 +1369,41 @@
             "description": "Department created"
           }
         },
+        "summary": "Create a department",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/departments/{id}": {
+      "patch": {
+        "operationId": "HrController_updateDepartment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDepartmentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Department updated"
+          }
+        },
+        "summary": "Update a department",
         "tags": [
           "hr"
         ]
@@ -1295,20 +1412,19 @@
     "/v1/hr/positions": {
       "get": {
         "operationId": "HrController_findAllPositions",
-        "summary": "Get all job positions",
         "parameters": [],
         "responses": {
           "200": {
             "description": "List of positions"
           }
         },
+        "summary": "Get all job positions",
         "tags": [
           "hr"
         ]
       },
       "post": {
         "operationId": "HrController_createPosition",
-        "summary": "Create a job position",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1325,6 +1441,41 @@
             "description": "Position created"
           }
         },
+        "summary": "Create a job position",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/positions/{id}": {
+      "patch": {
+        "operationId": "HrController_updatePosition",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePositionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Position updated"
+          }
+        },
+        "summary": "Update a position",
         "tags": [
           "hr"
         ]
@@ -1333,15 +1484,12 @@
     "/v1/hr/payroll": {
       "get": {
         "operationId": "HrController_findAllPayrollRuns",
-        "summary": "Get all payroll runs",
         "parameters": [
           {
             "name": "branchId",
             "required": false,
             "in": "query",
-            "schema": {
-              "type": "string"
-            }
+            "schema": {}
           }
         ],
         "responses": {
@@ -1359,6 +1507,7 @@
             }
           }
         },
+        "summary": "Get all payroll runs",
         "tags": [
           "hr"
         ]
@@ -1367,7 +1516,6 @@
     "/v1/hr/payroll/{id}": {
       "get": {
         "operationId": "HrController_findOnePayrollRun",
-        "summary": "Get payroll run by ID",
         "parameters": [
           {
             "name": "id",
@@ -1393,6 +1541,44 @@
             "description": "Payroll run not found"
           }
         },
+        "summary": "Get payroll run by ID",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/payroll/{id}/parameters": {
+      "get": {
+        "operationId": "HrController_getPayrollRunParameters",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Parameters snapshot taken when the run was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollSettingResponseDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Payroll run not found"
+          }
+        },
+        "summary": "Get frozen payroll parameters of a run",
         "tags": [
           "hr"
         ]
@@ -1400,9 +1586,8 @@
     },
     "/v1/hr/payroll/generate": {
       "post": {
-        "operationId": "HrController_generatePayroll",
-        "summary": "Generate payroll",
         "description": "Creates a new payroll run with calculated deductions (SSO, FAOV, PIE) per Venezuela LOTTT",
+        "operationId": "HrController_generatePayroll",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1426,6 +1611,7 @@
             }
           }
         },
+        "summary": "Generate payroll",
         "tags": [
           "hr"
         ]
@@ -1434,7 +1620,6 @@
     "/v1/hr/payroll/{id}/process": {
       "post": {
         "operationId": "HrController_processPayrollRun",
-        "summary": "Process payroll run",
         "parameters": [
           {
             "name": "id",
@@ -1460,6 +1645,7 @@
             "description": "Already processed"
           }
         },
+        "summary": "Process payroll run",
         "tags": [
           "hr"
         ]
@@ -1468,7 +1654,6 @@
     "/v1/hr/payroll/{runId}/payslip/{itemId}": {
       "get": {
         "operationId": "HrController_getPayslip",
-        "summary": "Get payslip for employee",
         "parameters": [
           {
             "name": "runId",
@@ -1499,6 +1684,7 @@
             }
           }
         },
+        "summary": "Get payslip for employee",
         "tags": [
           "hr"
         ]
@@ -1507,7 +1693,6 @@
     "/v1/hr/incidents": {
       "get": {
         "operationId": "HrController_findAllIncidents",
-        "summary": "Get payroll incidents",
         "parameters": [
           {
             "name": "employeeId",
@@ -1523,13 +1708,13 @@
             "description": "List of incidents"
           }
         },
+        "summary": "Get payroll incidents",
         "tags": [
           "hr"
         ]
       },
       "post": {
         "operationId": "HrController_createIncident",
-        "summary": "Create a payroll incident",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1546,6 +1731,121 @@
             "description": "Incident created"
           }
         },
+        "summary": "Create a payroll incident",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/incidents/{id}/approve": {
+      "post": {
+        "operationId": "HrController_approveIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incident approved"
+          },
+          "409": {
+            "description": "Incident is not pending"
+          }
+        },
+        "summary": "Approve a pending incident",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/incidents/{id}/reject": {
+      "post": {
+        "operationId": "HrController_rejectIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Incident rejected"
+          },
+          "409": {
+            "description": "Incident is not pending"
+          }
+        },
+        "summary": "Reject a pending incident",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/settings": {
+      "get": {
+        "operationId": "HrController_findPayrollSettings",
+        "parameters": [
+          {
+            "name": "asOf",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payroll settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollSettingResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "List payroll settings",
+        "tags": [
+          "hr"
+        ]
+      },
+      "patch": {
+        "operationId": "HrController_updatePayrollSetting",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePayrollSettingDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payroll setting stored"
+          },
+          "400": {
+            "description": "Invalid value for the parameter type"
+          }
+        },
+        "summary": "Create or update a payroll setting",
         "tags": [
           "hr"
         ]
@@ -1554,13 +1854,134 @@
     "/v1/hr/concept-types": {
       "get": {
         "operationId": "HrController_getPayrollConceptTypes",
-        "summary": "Get payroll concept types",
         "parameters": [],
         "responses": {
           "200": {
-            "description": "List of concept types"
+            "description": "List of concept types",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PayrollConceptResponseDto"
+                  }
+                }
+              }
+            }
           }
         },
+        "summary": "Get payroll concept types",
+        "tags": [
+          "hr"
+        ]
+      },
+      "post": {
+        "operationId": "HrController_createPayrollConcept",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePayrollConceptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Concept created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollConceptResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid expression"
+          },
+          "409": {
+            "description": "Concept code already exists"
+          }
+        },
+        "summary": "Create a payroll concept type",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/concept-types/{id}": {
+      "patch": {
+        "operationId": "HrController_updatePayrollConcept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePayrollConceptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Concept updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollConceptResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid expression"
+          },
+          "404": {
+            "description": "Concept not found"
+          }
+        },
+        "summary": "Update a payroll concept type",
+        "tags": [
+          "hr"
+        ]
+      },
+      "delete": {
+        "operationId": "HrController_deletePayrollConcept",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Concept deleted"
+          },
+          "404": {
+            "description": "Concept not found"
+          },
+          "409": {
+            "description": "System concept or already used in a payroll"
+          }
+        },
+        "summary": "Delete a payroll concept type",
         "tags": [
           "hr"
         ]
@@ -1568,9 +1989,8 @@
     },
     "/v1/partners": {
       "get": {
-        "operationId": "PartnersController_findAll",
-        "summary": "Get all partners",
         "description": "Retrieves a list of all partners with optional search filter",
+        "operationId": "PartnersController_findAll",
         "parameters": [
           {
             "name": "search",
@@ -1579,6 +1999,33 @@
             "description": "Search by name, email, or tax ID",
             "schema": {
               "example": "acme",
+              "type": "string"
+            }
+          },
+          {
+            "name": "paginated",
+            "required": false,
+            "in": "query",
+            "description": "Con `true` devuelve { data, total, page, limit }",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 1,
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 20,
               "type": "string"
             }
           }
@@ -1598,14 +2045,14 @@
             }
           }
         },
+        "summary": "Get all partners",
         "tags": [
           "partners"
         ]
       },
       "post": {
-        "operationId": "PartnersController_create",
-        "summary": "Create a new partner",
         "description": "Creates a new partner with the provided data",
+        "operationId": "PartnersController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1632,6 +2079,7 @@
             "description": "Partner with this tax ID already exists"
           }
         },
+        "summary": "Create a new partner",
         "tags": [
           "partners"
         ]
@@ -1639,9 +2087,8 @@
     },
     "/v1/partners/stats": {
       "get": {
-        "operationId": "PartnersController_getStats",
-        "summary": "Get partner statistics",
         "description": "Retrieves partner count grouped by type (customer/vendor)",
+        "operationId": "PartnersController_getStats",
         "parameters": [],
         "responses": {
           "200": {
@@ -1655,6 +2102,7 @@
             }
           }
         },
+        "summary": "Get partner statistics",
         "tags": [
           "partners"
         ]
@@ -1662,9 +2110,8 @@
     },
     "/v1/partners/{id}": {
       "get": {
-        "operationId": "PartnersController_findOne",
-        "summary": "Get partner by ID",
         "description": "Retrieves a specific partner by their ID",
+        "operationId": "PartnersController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -1692,14 +2139,14 @@
             "description": "Partner not found"
           }
         },
+        "summary": "Get partner by ID",
         "tags": [
           "partners"
         ]
       },
       "patch": {
-        "operationId": "PartnersController_update",
-        "summary": "Update a partner",
         "description": "Updates an existing partner's information",
+        "operationId": "PartnersController_update",
         "parameters": [
           {
             "name": "id",
@@ -1740,14 +2187,14 @@
             "description": "Partner with this tax ID already exists"
           }
         },
+        "summary": "Update a partner",
         "tags": [
           "partners"
         ]
       },
       "delete": {
-        "operationId": "PartnersController_remove",
-        "summary": "Soft delete a partner",
         "description": "Deactivates a partner by setting isSpecialTaxpayer to false",
+        "operationId": "PartnersController_remove",
         "parameters": [
           {
             "name": "id",
@@ -1768,6 +2215,7 @@
             "description": "Partner not found"
           }
         },
+        "summary": "Soft delete a partner",
         "tags": [
           "partners"
         ]
@@ -1775,9 +2223,8 @@
     },
     "/v1/products": {
       "get": {
-        "operationId": "ProductsController_findAll",
-        "summary": "Get all products",
         "description": "Retrieves a list of all products with optional search and category filters",
+        "operationId": "ProductsController_findAll",
         "parameters": [
           {
             "name": "search",
@@ -1815,14 +2262,14 @@
             }
           }
         },
+        "summary": "Get all products",
         "tags": [
           "products"
         ]
       },
       "post": {
-        "operationId": "ProductsController_create",
-        "summary": "Create a new product",
         "description": "Creates a new product with the provided data",
+        "operationId": "ProductsController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1849,6 +2296,7 @@
             "description": "Product with this SKU already exists"
           }
         },
+        "summary": "Create a new product",
         "tags": [
           "products"
         ]
@@ -1856,9 +2304,8 @@
     },
     "/v1/products/categories": {
       "get": {
-        "operationId": "ProductsController_findAllCategories",
-        "summary": "Get all product categories",
         "description": "Retrieves a list of all product categories",
+        "operationId": "ProductsController_findAllCategories",
         "parameters": [],
         "responses": {
           "200": {
@@ -1875,14 +2322,14 @@
             }
           }
         },
+        "summary": "Get all product categories",
         "tags": [
           "products"
         ]
       },
       "post": {
-        "operationId": "ProductsController_createCategory",
-        "summary": "Create a new product category",
         "description": "Creates a new product category with the provided data",
+        "operationId": "ProductsController_createCategory",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -1906,6 +2353,7 @@
             }
           }
         },
+        "summary": "Create a new product category",
         "tags": [
           "products"
         ]
@@ -1913,9 +2361,8 @@
     },
     "/v1/products/{id}": {
       "get": {
-        "operationId": "ProductsController_findOne",
-        "summary": "Get product by ID",
         "description": "Retrieves a specific product by its ID with category details",
+        "operationId": "ProductsController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -1943,14 +2390,14 @@
             "description": "Product not found"
           }
         },
+        "summary": "Get product by ID",
         "tags": [
           "products"
         ]
       },
       "patch": {
-        "operationId": "ProductsController_update",
-        "summary": "Update a product",
         "description": "Updates an existing product's information",
+        "operationId": "ProductsController_update",
         "parameters": [
           {
             "name": "id",
@@ -1991,14 +2438,14 @@
             "description": "Product with this SKU already exists"
           }
         },
+        "summary": "Update a product",
         "tags": [
           "products"
         ]
       },
       "delete": {
-        "operationId": "ProductsController_remove",
-        "summary": "Soft delete a product",
         "description": "Marks a product as deleted",
+        "operationId": "ProductsController_remove",
         "parameters": [
           {
             "name": "id",
@@ -2019,6 +2466,7 @@
             "description": "Product not found"
           }
         },
+        "summary": "Soft delete a product",
         "tags": [
           "products"
         ]
@@ -2026,9 +2474,8 @@
     },
     "/v1/products/categories/{id}": {
       "patch": {
-        "operationId": "ProductsController_updateCategory",
-        "summary": "Update a product category",
         "description": "Updates an existing product category's information",
+        "operationId": "ProductsController_updateCategory",
         "parameters": [
           {
             "name": "id",
@@ -2066,6 +2513,7 @@
             "description": "Category not found"
           }
         },
+        "summary": "Update a product category",
         "tags": [
           "products"
         ]
@@ -2073,9 +2521,8 @@
     },
     "/v1/orders": {
       "get": {
-        "operationId": "OrdersController_findAll",
-        "summary": "Get all orders",
         "description": "Retrieves a list of all orders with optional filters",
+        "operationId": "OrdersController_findAll",
         "parameters": [
           {
             "name": "status",
@@ -2090,7 +2537,8 @@
                 "COMPLETED",
                 "CANCELLED"
               ],
-              "type": "string"
+              "type": "string",
+              "example": "DRAFT"
             }
           },
           {
@@ -2119,14 +2567,14 @@
             }
           }
         },
+        "summary": "Get all orders",
         "tags": [
           "orders"
         ]
       },
       "post": {
-        "operationId": "OrdersController_create",
-        "summary": "Create a new order",
         "description": "Creates a new order in DRAFT status",
+        "operationId": "OrdersController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2153,6 +2601,7 @@
             "description": "Invalid request data or order code already exists"
           }
         },
+        "summary": "Create a new order",
         "tags": [
           "orders"
         ]
@@ -2160,9 +2609,8 @@
     },
     "/v1/orders/stats": {
       "get": {
-        "operationId": "OrdersController_getStats",
-        "summary": "Get order statistics",
         "description": "Retrieves order count and revenue grouped by status",
+        "operationId": "OrdersController_getStats",
         "parameters": [],
         "responses": {
           "200": {
@@ -2176,6 +2624,7 @@
             }
           }
         },
+        "summary": "Get order statistics",
         "tags": [
           "orders"
         ]
@@ -2183,9 +2632,8 @@
     },
     "/v1/orders/{id}": {
       "get": {
-        "operationId": "OrdersController_findOne",
-        "summary": "Get order by ID",
         "description": "Retrieves a specific order with its items",
+        "operationId": "OrdersController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -2213,14 +2661,14 @@
             "description": "Order not found"
           }
         },
+        "summary": "Get order by ID",
         "tags": [
           "orders"
         ]
       },
       "patch": {
-        "operationId": "OrdersController_update",
-        "summary": "Update an order",
         "description": "Updates an existing order's information",
+        "operationId": "OrdersController_update",
         "parameters": [
           {
             "name": "id",
@@ -2261,6 +2709,7 @@
             "description": "Order not found"
           }
         },
+        "summary": "Update an order",
         "tags": [
           "orders"
         ]
@@ -2268,9 +2717,8 @@
     },
     "/v1/orders/{id}/confirm": {
       "post": {
-        "operationId": "OrdersController_confirm",
-        "summary": "Confirm an order",
         "description": "Changes order status from DRAFT to CONFIRMED",
+        "operationId": "OrdersController_confirm",
         "parameters": [
           {
             "name": "id",
@@ -2301,6 +2749,7 @@
             "description": "Order not found"
           }
         },
+        "summary": "Confirm an order",
         "tags": [
           "orders"
         ]
@@ -2308,9 +2757,8 @@
     },
     "/v1/orders/{id}/cancel": {
       "post": {
-        "operationId": "OrdersController_cancel",
-        "summary": "Cancel an order",
         "description": "Changes order status to CANCELLED",
+        "operationId": "OrdersController_cancel",
         "parameters": [
           {
             "name": "id",
@@ -2341,6 +2789,7 @@
             "description": "Order not found"
           }
         },
+        "summary": "Cancel an order",
         "tags": [
           "orders"
         ]
@@ -2348,9 +2797,8 @@
     },
     "/v1/orders/{id}/invoice": {
       "post": {
-        "operationId": "OrdersController_invoice",
-        "summary": "Generate invoice for an order",
         "description": "Creates an invoice from a confirmed or processing order",
+        "operationId": "OrdersController_invoice",
         "parameters": [
           {
             "name": "id",
@@ -2374,6 +2822,7 @@
             "description": "Order not found"
           }
         },
+        "summary": "Generate invoice for an order",
         "tags": [
           "orders"
         ]
@@ -2381,9 +2830,8 @@
     },
     "/v1/inventory/warehouses": {
       "get": {
-        "operationId": "InventoryController_findAllWarehouses",
-        "summary": "List all warehouses",
         "description": "Retrieves a list of all warehouses",
+        "operationId": "InventoryController_findAllWarehouses",
         "parameters": [],
         "responses": {
           "200": {
@@ -2400,14 +2848,14 @@
             }
           }
         },
+        "summary": "List all warehouses",
         "tags": [
           "inventory"
         ]
       },
       "post": {
-        "operationId": "InventoryController_createWarehouse",
-        "summary": "Create a new warehouse",
         "description": "Creates a new warehouse with the provided data",
+        "operationId": "InventoryController_createWarehouse",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2431,16 +2879,67 @@
             }
           }
         },
+        "summary": "Create a new warehouse",
         "tags": [
           "inventory"
         ]
       }
     },
     "/v1/inventory/warehouses/{id}": {
+      "get": {
+        "operationId": "InventoryController_findOneWarehouse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Warehouse detail"
+          },
+          "404": {
+            "description": "Warehouse not found"
+          }
+        },
+        "summary": "Get a warehouse by id",
+        "tags": [
+          "inventory"
+        ]
+      },
+      "delete": {
+        "description": "Logical delete: rejects with 409 when the warehouse still has stock or movements",
+        "operationId": "InventoryController_deactivateWarehouse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Warehouse deactivated"
+          },
+          "409": {
+            "description": "Warehouse has stock or movements"
+          }
+        },
+        "summary": "Deactivate a warehouse",
+        "tags": [
+          "inventory"
+        ]
+      },
       "patch": {
-        "operationId": "InventoryController_updateWarehouse",
-        "summary": "Update a warehouse",
         "description": "Updates an existing warehouse information",
+        "operationId": "InventoryController_updateWarehouse",
         "parameters": [
           {
             "name": "id",
@@ -2478,6 +2977,7 @@
             "description": "Warehouse not found"
           }
         },
+        "summary": "Update a warehouse",
         "tags": [
           "inventory"
         ]
@@ -2485,9 +2985,8 @@
     },
     "/v1/inventory/stock/{warehouseId}": {
       "get": {
-        "operationId": "InventoryController_findStockByWarehouse",
-        "summary": "Get stock by warehouse",
         "description": "Retrieves all stock items for a specific warehouse",
+        "operationId": "InventoryController_findStockByWarehouse",
         "parameters": [
           {
             "name": "warehouseId",
@@ -2518,6 +3017,7 @@
             "description": "Warehouse not found"
           }
         },
+        "summary": "Get stock by warehouse",
         "tags": [
           "inventory"
         ]
@@ -2525,9 +3025,8 @@
     },
     "/v1/inventory/moves": {
       "get": {
-        "operationId": "InventoryController_findAllMoves",
-        "summary": "List all inventory moves",
         "description": "Retrieves a list of all inventory moves with optional filters",
+        "operationId": "InventoryController_findAllMoves",
         "parameters": [
           {
             "name": "status",
@@ -2541,7 +3040,8 @@
                 "REJECTED",
                 "CANCELLED"
               ],
-              "type": "string"
+              "type": "string",
+              "example": "EN_TRAMITE"
             }
           },
           {
@@ -2570,14 +3070,14 @@
             }
           }
         },
+        "summary": "List all inventory moves",
         "tags": [
           "inventory"
         ]
       },
       "post": {
-        "operationId": "InventoryController_createMove",
-        "summary": "Create a new inventory move",
         "description": "Creates a new inventory move with EN_TRAMITE status",
+        "operationId": "InventoryController_createMove",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2604,6 +3104,7 @@
             "description": "Invalid request data"
           }
         },
+        "summary": "Create a new inventory move",
         "tags": [
           "inventory"
         ]
@@ -2611,9 +3112,8 @@
     },
     "/v1/inventory/moves/{id}": {
       "get": {
-        "operationId": "InventoryController_findOneMove",
-        "summary": "Get inventory move by ID",
         "description": "Retrieves a specific inventory move with its lines",
+        "operationId": "InventoryController_findOneMove",
         "parameters": [
           {
             "name": "id",
@@ -2641,6 +3141,7 @@
             "description": "Inventory move not found"
           }
         },
+        "summary": "Get inventory move by ID",
         "tags": [
           "inventory"
         ]
@@ -2648,9 +3149,8 @@
     },
     "/v1/inventory/moves/{id}/approve": {
       "post": {
-        "operationId": "InventoryController_approveMove",
-        "summary": "Approve an inventory move",
         "description": "Approves an inventory move with EN_TRAMITE status and updates stock accordingly",
+        "operationId": "InventoryController_approveMove",
         "parameters": [
           {
             "name": "id",
@@ -2681,6 +3181,7 @@
             "description": "Move not found"
           }
         },
+        "summary": "Approve an inventory move",
         "tags": [
           "inventory"
         ]
@@ -2688,9 +3189,8 @@
     },
     "/v1/inventory/moves/{id}/reject": {
       "post": {
-        "operationId": "InventoryController_rejectMove",
-        "summary": "Reject an inventory move",
         "description": "Rejects an inventory move with EN_TRAMITE status",
+        "operationId": "InventoryController_rejectMove",
         "parameters": [
           {
             "name": "id",
@@ -2731,6 +3231,7 @@
             "description": "Move not found"
           }
         },
+        "summary": "Reject an inventory move",
         "tags": [
           "inventory"
         ]
@@ -2738,9 +3239,8 @@
     },
     "/v1/credit-notes": {
       "get": {
-        "operationId": "CreditNotesController_findAll",
-        "summary": "Get all credit notes",
         "description": "Retrieves a list of all credit notes with optional filters",
+        "operationId": "CreditNotesController_findAll",
         "parameters": [
           {
             "name": "partnerId",
@@ -2764,7 +3264,8 @@
                 "VOIDED",
                 "APPLIED"
               ],
-              "type": "string"
+              "type": "string",
+              "example": "DRAFT"
             }
           }
         ],
@@ -2783,14 +3284,14 @@
             }
           }
         },
+        "summary": "Get all credit notes",
         "tags": [
           "credit-notes"
         ]
       },
       "post": {
-        "operationId": "CreditNotesController_create",
-        "summary": "Create a new credit note",
         "description": "Creates a new credit note in DRAFT status",
+        "operationId": "CreditNotesController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -2814,6 +3315,7 @@
             }
           }
         },
+        "summary": "Create a new credit note",
         "tags": [
           "credit-notes"
         ]
@@ -2821,9 +3323,8 @@
     },
     "/v1/credit-notes/{id}": {
       "get": {
-        "operationId": "CreditNotesController_findOne",
-        "summary": "Get credit note by ID",
         "description": "Retrieves a specific credit note with items and usages",
+        "operationId": "CreditNotesController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -2851,14 +3352,14 @@
             "description": "Credit note not found"
           }
         },
+        "summary": "Get credit note by ID",
         "tags": [
           "credit-notes"
         ]
       },
       "patch": {
-        "operationId": "CreditNotesController_update",
-        "summary": "Update a credit note",
         "description": "Updates an existing DRAFT credit note",
+        "operationId": "CreditNotesController_update",
         "parameters": [
           {
             "name": "id",
@@ -2899,6 +3400,7 @@
             "description": "Credit note not found"
           }
         },
+        "summary": "Update a credit note",
         "tags": [
           "credit-notes"
         ]
@@ -2906,9 +3408,8 @@
     },
     "/v1/credit-notes/{id}/post": {
       "post": {
-        "operationId": "CreditNotesController_post",
-        "summary": "Post a credit note",
         "description": "Posts a DRAFT credit note (changes status from DRAFT to POSTED)",
+        "operationId": "CreditNotesController_post",
         "parameters": [
           {
             "name": "id",
@@ -2939,6 +3440,7 @@
             "description": "Credit note not found"
           }
         },
+        "summary": "Post a credit note",
         "tags": [
           "credit-notes"
         ]
@@ -2946,9 +3448,8 @@
     },
     "/v1/credit-notes/{id}/void": {
       "post": {
-        "operationId": "CreditNotesController_void",
-        "summary": "Void a credit note",
         "description": "Voids a POSTED credit note (changes status from POSTED to VOIDED)",
+        "operationId": "CreditNotesController_void",
         "parameters": [
           {
             "name": "id",
@@ -2979,6 +3480,7 @@
             "description": "Credit note not found"
           }
         },
+        "summary": "Void a credit note",
         "tags": [
           "credit-notes"
         ]
@@ -2986,9 +3488,8 @@
     },
     "/v1/credit-notes/{id}/apply/{invoiceId}": {
       "post": {
-        "operationId": "CreditNotesController_apply",
-        "summary": "Apply credit note to invoice",
         "description": "Applies a credit note to an invoice, creating a payment allocation",
+        "operationId": "CreditNotesController_apply",
         "parameters": [
           {
             "name": "id",
@@ -3039,6 +3540,7 @@
             "description": "Credit note or invoice not found"
           }
         },
+        "summary": "Apply credit note to invoice",
         "tags": [
           "credit-notes"
         ]
@@ -3046,9 +3548,8 @@
     },
     "/v1/accounting/accounts": {
       "get": {
-        "operationId": "AccountingController_findAllAccounts",
-        "summary": "Get all accounts",
         "description": "Retrieves all accounts in a tree structure grouped by account type",
+        "operationId": "AccountingController_findAllAccounts",
         "parameters": [],
         "responses": {
           "200": {
@@ -3065,14 +3566,14 @@
             }
           }
         },
+        "summary": "Get all accounts",
         "tags": [
           "accounting"
         ]
       },
       "post": {
-        "operationId": "AccountingController_createAccount",
-        "summary": "Create a new account",
         "description": "Creates a new accounting account",
+        "operationId": "AccountingController_createAccount",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3099,6 +3600,7 @@
             "description": "Invalid request data or account code already exists"
           }
         },
+        "summary": "Create a new account",
         "tags": [
           "accounting"
         ]
@@ -3106,9 +3608,8 @@
     },
     "/v1/accounting/accounts/{id}": {
       "get": {
-        "operationId": "AccountingController_findOneAccount",
-        "summary": "Get account by ID",
         "description": "Retrieves a specific account",
+        "operationId": "AccountingController_findOneAccount",
         "parameters": [
           {
             "name": "id",
@@ -3136,6 +3637,7 @@
             "description": "Account not found"
           }
         },
+        "summary": "Get account by ID",
         "tags": [
           "accounting"
         ]
@@ -3143,9 +3645,8 @@
     },
     "/v1/accounting/entries": {
       "get": {
-        "operationId": "AccountingController_findAllEntries",
-        "summary": "Get all entries",
         "description": "Retrieves all accounting entries with optional filters",
+        "operationId": "AccountingController_findAllEntries",
         "parameters": [
           {
             "name": "dateFrom",
@@ -3193,14 +3694,14 @@
             }
           }
         },
+        "summary": "Get all entries",
         "tags": [
           "accounting"
         ]
       },
       "post": {
-        "operationId": "AccountingController_createEntry",
-        "summary": "Create a new entry",
         "description": "Creates a new accounting entry. Entry lines must sum to zero (debit = credit)",
+        "operationId": "AccountingController_createEntry",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3227,6 +3728,7 @@
             "description": "Invalid request data or entry lines do not sum to zero"
           }
         },
+        "summary": "Create a new entry",
         "tags": [
           "accounting"
         ]
@@ -3234,9 +3736,8 @@
     },
     "/v1/accounting/entries/{id}": {
       "get": {
-        "operationId": "AccountingController_findOneEntry",
-        "summary": "Get entry by ID",
         "description": "Retrieves a specific entry with its lines",
+        "operationId": "AccountingController_findOneEntry",
         "parameters": [
           {
             "name": "id",
@@ -3264,6 +3765,7 @@
             "description": "Entry not found"
           }
         },
+        "summary": "Get entry by ID",
         "tags": [
           "accounting"
         ]
@@ -3271,9 +3773,8 @@
     },
     "/v1/accounting/entries/from-invoice/{invoiceId}": {
       "post": {
-        "operationId": "AccountingController_createEntryFromInvoice",
-        "summary": "Create entry from invoice",
         "description": "Creates an accounting entry automatically from an invoice using accounting maps",
+        "operationId": "AccountingController_createEntryFromInvoice",
         "parameters": [
           {
             "name": "invoiceId",
@@ -3304,6 +3805,7 @@
             "description": "Invoice not found"
           }
         },
+        "summary": "Create entry from invoice",
         "tags": [
           "accounting"
         ]
@@ -3311,9 +3813,8 @@
     },
     "/v1/accounting/entries/from-payment/{paymentId}": {
       "post": {
-        "operationId": "AccountingController_createEntryFromPayment",
-        "summary": "Create entry from payment",
         "description": "Creates an accounting entry automatically from a payment using accounting maps",
+        "operationId": "AccountingController_createEntryFromPayment",
         "parameters": [
           {
             "name": "paymentId",
@@ -3344,6 +3845,7 @@
             "description": "Payment not found"
           }
         },
+        "summary": "Create entry from payment",
         "tags": [
           "accounting"
         ]
@@ -3351,9 +3853,8 @@
     },
     "/v1/accounting/maps": {
       "get": {
-        "operationId": "AccountingController_findAllMaps",
-        "summary": "Get all maps",
         "description": "Retrieves all accounting maps with optional filters",
+        "operationId": "AccountingController_findAllMaps",
         "parameters": [
           {
             "name": "module",
@@ -3371,8 +3872,7 @@
             "in": "query",
             "description": "Filter by branch ID",
             "schema": {
-              "example": "550e8400-e29b-41d4-a716-446655440005",
-              "type": "string"
+              "example": "550e8400-e29b-41d4-a716-446655440005"
             }
           }
         ],
@@ -3391,14 +3891,14 @@
             }
           }
         },
+        "summary": "Get all maps",
         "tags": [
           "accounting"
         ]
       },
       "post": {
-        "operationId": "AccountingController_createMap",
-        "summary": "Create a new map",
         "description": "Creates a new accounting map for automatic entry generation",
+        "operationId": "AccountingController_createMap",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3425,6 +3925,7 @@
             "description": "Invalid request data"
           }
         },
+        "summary": "Create a new map",
         "tags": [
           "accounting"
         ]
@@ -3432,9 +3933,8 @@
     },
     "/v1/accounting/maps/{id}/apply/{transactionId}": {
       "post": {
-        "operationId": "AccountingController_applyMapToTransaction",
-        "summary": "Apply map to transaction",
         "description": "Applies an accounting map to a transaction (invoice or payment) to generate an entry",
+        "operationId": "AccountingController_applyMapToTransaction",
         "parameters": [
           {
             "name": "id",
@@ -3475,6 +3975,7 @@
             "description": "Map or transaction not found"
           }
         },
+        "summary": "Apply map to transaction",
         "tags": [
           "accounting"
         ]
@@ -3482,9 +3983,8 @@
     },
     "/v1/branches/companies": {
       "get": {
-        "operationId": "BranchesController_findCompanies",
-        "summary": "List companies and branches accessible to the current user",
         "description": "Returns explicit company records with their assigned active branches",
+        "operationId": "BranchesController_findCompanies",
         "parameters": [],
         "responses": {
           "200": {
@@ -3501,13 +4001,14 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "List companies and branches accessible to the current user",
+        "tags": [
+          "branches"
         ]
       },
       "post": {
@@ -3535,13 +4036,13 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "branches"
         ]
       }
     },
@@ -3564,13 +4065,13 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "branches"
         ]
       }
     },
@@ -3609,21 +4110,20 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "branches"
         ]
       }
     },
     "/v1/branches": {
       "get": {
-        "operationId": "BranchesController_findAll",
-        "summary": "Get all branches",
         "description": "Retrieves a list of all branches",
+        "operationId": "BranchesController_findAll",
         "parameters": [],
         "responses": {
           "200": {
@@ -3640,19 +4140,19 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get all branches",
+        "tags": [
+          "branches"
         ]
       },
       "post": {
-        "operationId": "BranchesController_create",
-        "summary": "Create a new branch",
         "description": "Creates a new branch with the provided data",
+        "operationId": "BranchesController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -3676,13 +4176,14 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Create a new branch",
+        "tags": [
+          "branches"
         ]
       }
     },
@@ -3705,21 +4206,20 @@
             }
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "branches"
         ]
       }
     },
     "/v1/branches/{id}": {
       "get": {
-        "operationId": "BranchesController_findOne",
-        "summary": "Get branch by ID",
         "description": "Retrieves a specific branch by its ID",
+        "operationId": "BranchesController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -3747,19 +4247,19 @@
             "description": "Branch not found"
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get branch by ID",
+        "tags": [
+          "branches"
         ]
       },
       "patch": {
-        "operationId": "BranchesController_update",
-        "summary": "Update a branch",
         "description": "Updates an existing branch's information",
+        "operationId": "BranchesController_update",
         "parameters": [
           {
             "name": "id",
@@ -3797,19 +4297,19 @@
             "description": "Branch not found"
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Update a branch",
+        "tags": [
+          "branches"
         ]
       },
       "delete": {
-        "operationId": "BranchesController_remove",
-        "summary": "Soft delete a branch",
         "description": "Deactivates a branch by setting isActive to false",
+        "operationId": "BranchesController_remove",
         "parameters": [
           {
             "name": "id",
@@ -3830,21 +4330,21 @@
             "description": "Branch not found"
           }
         },
-        "tags": [
-          "branches"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Soft delete a branch",
+        "tags": [
+          "branches"
         ]
       }
     },
     "/v1/reports/fiscal/retenciones-txt": {
       "get": {
-        "operationId": "ReportsController_getRetencionesIvaTxt",
-        "summary": "Get IVA retentions TXT file",
         "description": "Generates a TXT file with IVA retentions in SENIAT format",
+        "operationId": "ReportsController_getRetencionesIvaTxt",
         "parameters": [
           {
             "name": "dateFrom",
@@ -3878,6 +4378,7 @@
             }
           }
         },
+        "summary": "Get IVA retentions TXT file",
         "tags": [
           "reports"
         ]
@@ -3885,9 +4386,8 @@
     },
     "/v1/reports/fiscal/retenciones-xml": {
       "get": {
-        "operationId": "ReportsController_getRetencionesIslrXml",
-        "summary": "Get ISLR retentions XML file",
         "description": "Generates an XML file with ISLR retentions",
+        "operationId": "ReportsController_getRetencionesIslrXml",
         "parameters": [
           {
             "name": "dateFrom",
@@ -3921,6 +4421,7 @@
             }
           }
         },
+        "summary": "Get ISLR retentions XML file",
         "tags": [
           "reports"
         ]
@@ -3928,9 +4429,8 @@
     },
     "/v1/reports/fiscal/summary": {
       "get": {
-        "operationId": "ReportsController_getFiscalSummary",
-        "summary": "Get fiscal summary",
         "description": "Returns a summary of all fiscal documents within the date range",
+        "operationId": "ReportsController_getFiscalSummary",
         "parameters": [
           {
             "name": "dateFrom",
@@ -3974,6 +4474,7 @@
             }
           }
         },
+        "summary": "Get fiscal summary",
         "tags": [
           "reports"
         ]
@@ -3981,9 +4482,8 @@
     },
     "/v1/reports/fiscal/libro-ventas": {
       "get": {
-        "operationId": "ReportsController_getLibroVentas",
-        "summary": "Get Sales Book (Libro de Ventas) CSV",
         "description": "Generates a CSV file with the Sales Book data",
+        "operationId": "ReportsController_getLibroVentas",
         "parameters": [
           {
             "name": "dateFrom",
@@ -4017,6 +4517,7 @@
             }
           }
         },
+        "summary": "Get Sales Book (Libro de Ventas) CSV",
         "tags": [
           "reports"
         ]
@@ -4024,9 +4525,8 @@
     },
     "/v1/reports/fiscal/libro-compras": {
       "get": {
-        "operationId": "ReportsController_getLibroCompras",
-        "summary": "Get Purchases Book (Libro de Compras) CSV",
         "description": "Generates a CSV file with the Purchases Book data",
+        "operationId": "ReportsController_getLibroCompras",
         "parameters": [
           {
             "name": "dateFrom",
@@ -4060,6 +4560,7 @@
             }
           }
         },
+        "summary": "Get Purchases Book (Libro de Compras) CSV",
         "tags": [
           "reports"
         ]
@@ -4067,15 +4568,15 @@
     },
     "/v1/bi/kpis": {
       "get": {
-        "operationId": "BiController_getKpis",
-        "summary": "Get dashboard KPIs",
         "description": "Retrieves key performance indicators including total invoices, payments, employees, and pending payroll runs",
+        "operationId": "BiController_getKpis",
         "parameters": [],
         "responses": {
           "200": {
             "description": "Dashboard KPIs"
           }
         },
+        "summary": "Get dashboard KPIs",
         "tags": [
           "bi"
         ]
@@ -4083,9 +4584,8 @@
     },
     "/v1/bi/chart": {
       "get": {
-        "operationId": "BiController_getChartData",
-        "summary": "Get chart data",
         "description": "Retrieves monthly sales or payments data for charting purposes",
+        "operationId": "BiController_getChartData",
         "parameters": [
           {
             "name": "type",
@@ -4115,6 +4615,7 @@
             "description": "Monthly chart data"
           }
         },
+        "summary": "Get chart data",
         "tags": [
           "bi"
         ]
@@ -4122,82 +4623,24 @@
     },
     "/v1/bi/activity": {
       "get": {
-        "operationId": "BiController_getActivity",
-        "summary": "Get recent activity",
         "description": "Retrieves the most recent invoices, payments, and orders",
+        "operationId": "BiController_getActivity",
         "parameters": [],
         "responses": {
           "200": {
             "description": "Recent activity data"
           }
         },
+        "summary": "Get recent activity",
         "tags": [
           "bi"
         ]
       }
     },
-    "/cron/trigger-bcv": {
-      "get": {
-        "operationId": "CronController_triggerBcv",
-        "summary": "Trigger BCV rate fetch",
-        "description": "Manually triggers the BCV exchange rate scraping and stores it in the database",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "BCV rate fetch completed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": true
-                    },
-                    "rate": {
-                      "type": "number",
-                      "example": 36.12
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "BCV rate fetched and stored successfully: 36.12"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Failed to fetch BCV rate",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "success": {
-                      "type": "boolean",
-                      "example": false
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Failed to fetch BCV rate: Could not parse USD rate from BCV page"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "tags": [
-          "cron"
-        ]
-      }
-    },
     "/v1/settings/currencies": {
       "get": {
-        "operationId": "CurrenciesController_findAll",
-        "summary": "Get all currencies",
         "description": "Retrieves a list of all currencies",
+        "operationId": "CurrenciesController_findAll",
         "parameters": [],
         "responses": {
           "200": {
@@ -4214,19 +4657,19 @@
             }
           }
         },
-        "tags": [
-          "settings-currencies"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get all currencies",
+        "tags": [
+          "settings-currencies"
         ]
       },
       "post": {
-        "operationId": "CurrenciesController_create",
-        "summary": "Create a new currency",
         "description": "Creates a new currency with the provided data",
+        "operationId": "CurrenciesController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4253,21 +4696,21 @@
             "description": "Currency with this code already exists"
           }
         },
-        "tags": [
-          "settings-currencies"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Create a new currency",
+        "tags": [
+          "settings-currencies"
         ]
       }
     },
     "/v1/settings/currencies/rates/latest": {
       "get": {
-        "operationId": "CurrenciesController_getLatestRates",
-        "summary": "Get latest exchange rates",
         "description": "Retrieves the most recent exchange rate for each currency",
+        "operationId": "CurrenciesController_getLatestRates",
         "parameters": [],
         "responses": {
           "200": {
@@ -4284,21 +4727,136 @@
             }
           }
         },
-        "tags": [
-          "settings-currencies"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get latest exchange rates",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates/{code}": {
+      "get": {
+        "description": "Returns the most recent rate up to the given date (or today) together with its age and staleness flag",
+        "operationId": "CurrenciesController_getRate",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "USD",
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "ISO date to look up",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate with freshness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateWithFreshnessDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Currency or rate not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate of a currency",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates/{code}/history": {
+      "get": {
+        "operationId": "CurrenciesController_getHistory",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "USD",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RateHistoryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate history of a currency",
+        "tags": [
+          "settings-currencies"
         ]
       }
     },
     "/v1/settings/currencies/rates": {
       "post": {
+        "description": "Override of the day rate. Requires a reason and leaves the previous days untouched (M9)",
         "operationId": "CurrenciesController_addRate",
-        "summary": "Add a new exchange rate",
-        "description": "Adds a new exchange rate for a currency",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4312,7 +4870,7 @@
         },
         "responses": {
           "201": {
-            "description": "Exchange rate added successfully",
+            "description": "Rate stored",
             "content": {
               "application/json": {
                 "schema": {
@@ -4321,25 +4879,49 @@
               }
             }
           },
-          "404": {
-            "description": "Currency not found"
+          "400": {
+            "description": "Invalid rate or missing reason"
           }
         },
-        "tags": [
-          "settings-currencies"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Register a manual exchange rate",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/refresh": {
+      "post": {
+        "description": "Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST",
+        "operationId": "CurrenciesController_refresh",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Rate synchronised"
+          },
+          "400": {
+            "description": "BCV unavailable or rate failed the sanity check"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Synchronise the USD rate from BCV",
+        "tags": [
+          "settings-currencies"
         ]
       }
     },
     "/v1/loans": {
       "get": {
-        "operationId": "LoansController_findAll",
-        "summary": "Get all loans",
         "description": "Retrieves a list of all loans with optional filters by employeeId and status",
+        "operationId": "LoansController_findAll",
         "parameters": [
           {
             "name": "employeeId",
@@ -4364,7 +4946,8 @@
                 "PAID",
                 "CANCELLED"
               ],
-              "type": "string"
+              "type": "string",
+              "example": "ACTIVE"
             }
           }
         ],
@@ -4383,14 +4966,14 @@
             }
           }
         },
+        "summary": "Get all loans",
         "tags": [
           "loans"
         ]
       },
       "post": {
-        "operationId": "LoansController_create",
-        "summary": "Create a new loan",
         "description": "Creates a new loan with optional items",
+        "operationId": "LoansController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4417,6 +5000,7 @@
             "description": "Partner not found"
           }
         },
+        "summary": "Create a new loan",
         "tags": [
           "loans"
         ]
@@ -4424,9 +5008,8 @@
     },
     "/v1/loans/{id}": {
       "get": {
-        "operationId": "LoansController_findOne",
-        "summary": "Get loan by ID",
         "description": "Retrieves a specific loan by its ID including its items",
+        "operationId": "LoansController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -4454,14 +5037,14 @@
             "description": "Loan not found"
           }
         },
+        "summary": "Get loan by ID",
         "tags": [
           "loans"
         ]
       },
       "patch": {
-        "operationId": "LoansController_update",
-        "summary": "Update a loan",
         "description": "Updates an existing loan's information",
+        "operationId": "LoansController_update",
         "parameters": [
           {
             "name": "id",
@@ -4499,6 +5082,7 @@
             "description": "Loan not found"
           }
         },
+        "summary": "Update a loan",
         "tags": [
           "loans"
         ]
@@ -4506,9 +5090,8 @@
     },
     "/v1/loans/{id}/approve": {
       "post": {
-        "operationId": "LoansController_approve",
-        "summary": "Approve a loan",
         "description": "Approves a pending loan, changing its status from PENDING to ACTIVE",
+        "operationId": "LoansController_approve",
         "parameters": [
           {
             "name": "id",
@@ -4539,6 +5122,7 @@
             "description": "Loan not found"
           }
         },
+        "summary": "Approve a loan",
         "tags": [
           "loans"
         ]
@@ -4546,9 +5130,8 @@
     },
     "/v1/loans/{id}/reject": {
       "post": {
-        "operationId": "LoansController_reject",
-        "summary": "Reject a loan",
         "description": "Rejects a pending loan, changing its status from PENDING to REJECTED",
+        "operationId": "LoansController_reject",
         "parameters": [
           {
             "name": "id",
@@ -4579,6 +5162,7 @@
             "description": "Loan not found"
           }
         },
+        "summary": "Reject a loan",
         "tags": [
           "loans"
         ]
@@ -4586,9 +5170,8 @@
     },
     "/v1/loans/{id}/pay": {
       "post": {
-        "operationId": "LoansController_pay",
-        "summary": "Record loan payment",
         "description": "Records payment items for an active loan by creating loan_items",
+        "operationId": "LoansController_pay",
         "parameters": [
           {
             "name": "id",
@@ -4629,6 +5212,7 @@
             "description": "Loan not found"
           }
         },
+        "summary": "Record loan payment",
         "tags": [
           "loans"
         ]
@@ -4636,9 +5220,8 @@
     },
     "/v1/audit": {
       "get": {
-        "operationId": "AuditController_findAll",
-        "summary": "Get all audit logs",
         "description": "Retrieves a list of all audit logs with optional filters",
+        "operationId": "AuditController_findAll",
         "parameters": [
           {
             "name": "userId",
@@ -4686,6 +5269,7 @@
             "description": "List of audit logs"
           }
         },
+        "summary": "Get all audit logs",
         "tags": [
           "audit"
         ]
@@ -4693,9 +5277,8 @@
     },
     "/v1/audit/{entityTable}/{entityId}": {
       "get": {
-        "operationId": "AuditController_findByEntity",
-        "summary": "Get audit history for an entity",
         "description": "Retrieves the audit history for a specific entity by table name and ID",
+        "operationId": "AuditController_findByEntity",
         "parameters": [
           {
             "name": "entityTable",
@@ -4723,6 +5306,7 @@
             "description": "Audit history for the entity"
           }
         },
+        "summary": "Get audit history for an entity",
         "tags": [
           "audit"
         ]
@@ -4730,9 +5314,8 @@
     },
     "/v1/settings/banks": {
       "get": {
-        "operationId": "BanksController_findAll",
-        "summary": "Get all banks",
         "description": "Retrieves a list of all banks",
+        "operationId": "BanksController_findAll",
         "parameters": [],
         "responses": {
           "200": {
@@ -4749,19 +5332,19 @@
             }
           }
         },
-        "tags": [
-          "settings-banks"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get all banks",
+        "tags": [
+          "settings-banks"
         ]
       },
       "post": {
-        "operationId": "BanksController_create",
-        "summary": "Create a new bank",
         "description": "Creates a new bank with the provided data",
+        "operationId": "BanksController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4788,21 +5371,21 @@
             "description": "Bank with this code already exists"
           }
         },
-        "tags": [
-          "settings-banks"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Create a new bank",
+        "tags": [
+          "settings-banks"
         ]
       }
     },
     "/v1/settings/banks/{id}": {
       "patch": {
-        "operationId": "BanksController_update",
-        "summary": "Update a bank",
         "description": "Updates an existing bank's information",
+        "operationId": "BanksController_update",
         "parameters": [
           {
             "name": "id",
@@ -4843,21 +5426,21 @@
             "description": "Bank with this code already exists"
           }
         },
-        "tags": [
-          "settings-banks"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Update a bank",
+        "tags": [
+          "settings-banks"
         ]
       }
     },
     "/v1/settings/banks/{id}/toggle": {
       "post": {
-        "operationId": "BanksController_toggle",
-        "summary": "Toggle bank active status",
         "description": "Toggles the isActive status of a bank",
+        "operationId": "BanksController_toggle",
         "parameters": [
           {
             "name": "id",
@@ -4885,21 +5468,21 @@
             "description": "Bank not found"
           }
         },
-        "tags": [
-          "settings-banks"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Toggle bank active status",
+        "tags": [
+          "settings-banks"
         ]
       }
     },
     "/v1/settings/tax-concepts": {
       "get": {
-        "operationId": "TaxConceptsController_findAll",
-        "summary": "Get all tax concepts",
         "description": "Retrieves a list of all tax concepts",
+        "operationId": "TaxConceptsController_findAll",
         "parameters": [],
         "responses": {
           "200": {
@@ -4916,19 +5499,19 @@
             }
           }
         },
-        "tags": [
-          "settings-tax-concepts"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get all tax concepts",
+        "tags": [
+          "settings-tax-concepts"
         ]
       },
       "post": {
-        "operationId": "TaxConceptsController_create",
-        "summary": "Create a new tax concept",
         "description": "Creates a new tax concept with the provided data",
+        "operationId": "TaxConceptsController_create",
         "parameters": [],
         "requestBody": {
           "required": true,
@@ -4955,21 +5538,21 @@
             "description": "Tax concept with this code already exists"
           }
         },
-        "tags": [
-          "settings-tax-concepts"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Create a new tax concept",
+        "tags": [
+          "settings-tax-concepts"
         ]
       }
     },
     "/v1/settings/tax-concepts/{id}": {
       "get": {
-        "operationId": "TaxConceptsController_findOne",
-        "summary": "Get tax concept by ID",
         "description": "Retrieves a specific tax concept by its ID",
+        "operationId": "TaxConceptsController_findOne",
         "parameters": [
           {
             "name": "id",
@@ -4997,19 +5580,19 @@
             "description": "Tax concept not found"
           }
         },
-        "tags": [
-          "settings-tax-concepts"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Get tax concept by ID",
+        "tags": [
+          "settings-tax-concepts"
         ]
       },
       "patch": {
-        "operationId": "TaxConceptsController_update",
-        "summary": "Update a tax concept",
         "description": "Updates an existing tax concept's information",
+        "operationId": "TaxConceptsController_update",
         "parameters": [
           {
             "name": "id",
@@ -5050,19 +5633,19 @@
             "description": "Tax concept with this code already exists"
           }
         },
-        "tags": [
-          "settings-tax-concepts"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Update a tax concept",
+        "tags": [
+          "settings-tax-concepts"
         ]
       },
       "delete": {
-        "operationId": "TaxConceptsController_remove",
-        "summary": "Delete a tax concept",
         "description": "Deletes a tax concept by its ID",
+        "operationId": "TaxConceptsController_remove",
         "parameters": [
           {
             "name": "id",
@@ -5083,13 +5666,14 @@
             "description": "Tax concept not found"
           }
         },
-        "tags": [
-          "settings-tax-concepts"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "summary": "Delete a tax concept",
+        "tags": [
+          "settings-tax-concepts"
         ]
       }
     },
@@ -5112,13 +5696,13 @@
             }
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       },
       "post": {
@@ -5146,13 +5730,13 @@
             }
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       }
     },
@@ -5165,13 +5749,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       }
     },
@@ -5200,13 +5784,13 @@
             }
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       },
       "patch": {
@@ -5243,13 +5827,13 @@
             }
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       },
       "delete": {
@@ -5269,13 +5853,13 @@
             "description": ""
           }
         },
-        "tags": [
-          "roles"
-        ],
         "security": [
           {
             "bearer": []
           }
+        ],
+        "tags": [
+          "roles"
         ]
       }
     }
@@ -5347,6 +5931,11 @@
         "name": "JWT",
         "description": "Enter JWT token",
         "in": "header"
+      },
+      "cookie-auth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "erp_token"
       }
     },
     "schemas": {
@@ -5355,9 +5944,9 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "User email address",
-            "example": "admin@empresa.com",
-            "format": "email"
+            "example": "admin@empresa.com"
           },
           "password": {
             "type": "string",
@@ -5414,6 +6003,11 @@
             "items": {
               "$ref": "#/components/schemas/AuthBranchDto"
             }
+          },
+          "defaultBranchId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Sucursal con la que la UI debe arrancar (predeterminada o la única asignada)"
           }
         },
         "required": [
@@ -5421,7 +6015,8 @@
           "email",
           "name",
           "permissions",
-          "branches"
+          "branches",
+          "defaultBranchId"
         ]
       },
       "AuthResponseDto": {
@@ -5463,9 +6058,9 @@
         "properties": {
           "email": {
             "type": "string",
+            "format": "email",
             "description": "User email address",
-            "example": "admin@empresa.com",
-            "format": "email"
+            "example": "admin@empresa.com"
           }
         },
         "required": [
@@ -5482,8 +6077,8 @@
           },
           "mockUrl": {
             "type": "string",
-            "description": "Mock reset URL for development",
-            "example": "http://localhost:3000/reset-password?token=mock-token-123"
+            "description": "Enlace de recuperación. Solo se incluye fuera de producción (desarrollo local).",
+            "example": "http://localhost:3000/reset-password?token=2f1c..."
           }
         },
         "required": [
@@ -5577,9 +6172,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "User email address",
-            "example": "juan@empresa.com",
-            "format": "email"
+            "example": "juan@empresa.com"
           },
           "password": {
             "type": "string",
@@ -5604,9 +6199,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "User email address",
-            "example": "juan.nuevo@empresa.com",
-            "format": "email"
+            "example": "juan.nuevo@empresa.com"
           },
           "password": {
             "type": "string",
@@ -5626,7 +6221,8 @@
             ],
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },
@@ -5641,11 +6237,13 @@
             "description": "Branch IDs to assign",
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           },
           "defaultBranchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Default branch ID; required when branchIds is non-empty"
           }
         },
@@ -5809,24 +6407,25 @@
         "properties": {
           "productId": {
             "type": "string",
+            "format": "uuid",
             "description": "Product ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "quantity": {
-            "minimum": 1,
             "type": "number",
+            "minimum": 1,
             "description": "Quantity",
             "example": 10
           },
           "price": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Unit price",
             "example": 100
           },
           "taxRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Tax rate (default 16 for IVA)",
             "example": 16
           }
@@ -5842,26 +6441,31 @@
         "properties": {
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner (customer/supplier) ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID (default USD)",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID for inventory",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
           "orderId": {
             "type": "string",
+            "format": "uuid",
             "description": "Order ID (if created from order)",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
@@ -5880,8 +6484,8 @@
             "example": "FAC-12345"
           },
           "exchangeRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Exchange rate (default 1)",
             "example": 50
           },
@@ -5909,6 +6513,7 @@
         "properties": {
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
@@ -5918,8 +6523,8 @@
             "example": "2026-06-30T23:59:59.000Z"
           },
           "exchangeRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Exchange rate",
             "example": 50
           },
@@ -6087,43 +6692,49 @@
         "properties": {
           "invoiceId": {
             "type": "string",
+            "format": "uuid",
             "description": "Invoice ID to link payment",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
           "methodId": {
             "type": "string",
+            "format": "uuid",
             "description": "Payment method ID",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
           "amount": {
-            "minimum": 0.01,
             "type": "number",
+            "minimum": 0.01,
             "description": "Payment amount",
             "example": 1000
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
           "exchangeRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Exchange rate",
             "example": 50
           },
           "bankAccountId": {
             "type": "string",
+            "format": "uuid",
             "description": "Bank account ID",
             "example": "550e8400-e29b-41d4-a716-446655440006"
           },
@@ -6172,7 +6783,7 @@
             "example": "CASH_USD"
           },
           "isDigital": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "example": false
           },
@@ -6205,15 +6816,17 @@
             "example": "CASH_USD"
           },
           "isDigital": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is digital payment method"
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID"
           }
         },
@@ -6256,7 +6869,7 @@
             "example": 5000
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "nullable": true,
             "example": true
           }
@@ -6286,15 +6899,17 @@
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID"
           },
           "currentBalance": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Initial balance"
           }
         },
@@ -6421,11 +7036,11 @@
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "isPrimary": {
-            "type": "object",
+            "type": "boolean",
             "example": true
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "example": true
           }
         },
@@ -6556,23 +7171,27 @@
           },
           "positionId": {
             "type": "string",
+            "format": "uuid",
             "description": "Position ID"
           },
           "departmentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Department ID"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID"
           },
           "baseSalary": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Base salary"
           },
           "salaryCurrencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Salary currency ID"
           },
           "payFrequency": {
@@ -6590,6 +7209,7 @@
           },
           "bankId": {
             "type": "string",
+            "format": "uuid",
             "description": "Bank ID"
           },
           "accountNumber": {
@@ -6623,15 +7243,17 @@
           },
           "positionId": {
             "type": "string",
+            "format": "uuid",
             "description": "Position ID"
           },
           "departmentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Department ID"
           },
           "baseSalary": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Base salary"
           },
           "status": {
@@ -6652,6 +7274,44 @@
           }
         }
       },
+      "TerminateEmployeeDto": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Fecha de egreso (ISO)",
+            "example": "2026-10-31"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Motivo del egreso",
+            "example": "Renuncia voluntaria"
+          },
+          "cause": {
+            "type": "string",
+            "description": "Causa legal del egreso (LOTTT)",
+            "example": "RENUNCIA"
+          }
+        },
+        "required": [
+          "date"
+        ]
+      },
+      "UpdateDepartmentDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "AdministraciÃ³n"
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Departamento padre"
+          }
+        }
+      },
       "CreateDepartmentDto": {
         "type": "object",
         "properties": {
@@ -6661,10 +7321,12 @@
           },
           "parentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Parent department ID"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID"
           }
         },
@@ -6672,6 +7334,26 @@
           "name",
           "branchId"
         ]
+      },
+      "UpdatePositionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Analista de nÃ³mina"
+          },
+          "description": {
+            "type": "string"
+          },
+          "baseSalaryMin": {
+            "type": "number",
+            "example": 250
+          },
+          "baseSalaryMax": {
+            "type": "number",
+            "example": 450
+          }
+        }
       },
       "CreatePositionDto": {
         "type": "object",
@@ -6686,16 +7368,17 @@
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID"
           },
           "baseSalaryMin": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Minimum salary"
           },
           "baseSalaryMax": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Maximum salary"
           }
         },
@@ -6768,11 +7451,61 @@
           "totalAmount"
         ]
       },
+      "PayrollSettingResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "companyId": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "example": "SALARIO_MINIMO"
+          },
+          "label": {
+            "type": "string",
+            "example": "Salario mínimo"
+          },
+          "value": {
+            "type": "number",
+            "example": 130
+          },
+          "type": {
+            "type": "string",
+            "example": "CURRENCY"
+          },
+          "branchId": {
+            "type": "string",
+            "nullable": true
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "example": "2026-10-01T00:00:00.000Z"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "companyId",
+          "key",
+          "label",
+          "value",
+          "type",
+          "branchId",
+          "effectiveFrom",
+          "isActive"
+        ]
+      },
       "CreatePayrollRunDto": {
         "type": "object",
         "properties": {
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID"
           },
           "frequency": {
@@ -6793,6 +7526,7 @@
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID"
           }
         },
@@ -6870,10 +7604,12 @@
         "properties": {
           "employeeId": {
             "type": "string",
+            "format": "uuid",
             "description": "Employee ID"
           },
           "conceptId": {
             "type": "string",
+            "format": "uuid",
             "description": "Concept type ID"
           },
           "date": {
@@ -6881,13 +7617,13 @@
             "description": "Incident date"
           },
           "quantity": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Quantity (for hours, days)"
           },
           "amount": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Amount (for fixed amounts)"
           },
           "notes": {
@@ -6900,6 +7636,196 @@
           "conceptId",
           "date"
         ]
+      },
+      "UpdatePayrollSettingDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "description": "Clave del parámetro",
+            "example": "SALARIO_MINIMO"
+          },
+          "value": {
+            "type": "number",
+            "description": "Valor numérico",
+            "example": 130
+          },
+          "label": {
+            "type": "string",
+            "description": "Etiqueta legible; si se omite se conserva la existente o se usa la clave"
+          },
+          "type": {
+            "type": "string",
+            "description": "Tipo del parámetro. PERCENT/PERCENTAGE se expresan como porcentaje entero",
+            "example": "PERCENT"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "description": "Fecha de vigencia (ISO 8601). Por defecto, la fecha actual",
+            "example": "2026-10-01"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "PayrollConceptResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "example": "PRIMA_ANTIGUEDAD"
+          },
+          "name": {
+            "type": "string",
+            "example": "Prima de antigüedad"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "ASSIGNMENT",
+              "DEDUCTION",
+              "EMPLOYER_CONTRIBUTION",
+              "INFORMATIVE"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FIXED",
+              "PERCENT",
+              "FORMULA",
+              "BASE"
+            ]
+          },
+          "expression": {
+            "type": "string",
+            "nullable": true,
+            "example": "SALARY_NORMAL * 0.05"
+          },
+          "affectsIntegralSalary": {
+            "type": "boolean"
+          },
+          "isSalarial": {
+            "type": "boolean"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "branchId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "category",
+          "kind",
+          "expression",
+          "affectsIntegralSalary",
+          "isSalarial",
+          "isSystem",
+          "branchId"
+        ]
+      },
+      "CreatePayrollConceptDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,29}$",
+            "description": "Código único del concepto",
+            "example": "PRIMA_ANTIGUEDAD"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nombre visible en el recibo",
+            "example": "Prima de antigüedad"
+          },
+          "category": {
+            "enum": [
+              "ASSIGNMENT",
+              "DEDUCTION",
+              "EMPLOYER_CONTRIBUTION",
+              "INFORMATIVE"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "FIXED",
+              "PERCENT",
+              "FORMULA",
+              "BASE"
+            ],
+            "type": "string",
+            "default": "FIXED"
+          },
+          "expression": {
+            "type": "string",
+            "description": "Fórmula declarativa. Obligatoria cuando kind = FORMULA",
+            "example": "SALARY_NORMAL * 0.05"
+          },
+          "affectsIntegralSalary": {
+            "type": "boolean",
+            "description": "Si el concepto entra en el salario integral (LOTTT Art. 105)",
+            "default": false
+          },
+          "isSalarial": {
+            "type": "boolean",
+            "description": "Si el concepto es salarial. El cestaticket no lo es (Ley de Alimentación)",
+            "default": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "category"
+        ]
+      },
+      "UpdatePayrollConceptDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Prima de antigüedad"
+          },
+          "category": {
+            "enum": [
+              "ASSIGNMENT",
+              "DEDUCTION",
+              "EMPLOYER_CONTRIBUTION",
+              "INFORMATIVE"
+            ],
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "FIXED",
+              "PERCENT",
+              "FORMULA",
+              "BASE"
+            ],
+            "type": "string"
+          },
+          "expression": {
+            "type": "string",
+            "example": "SALARY_NORMAL * 0.05"
+          },
+          "affectsIntegralSalary": {
+            "type": "boolean"
+          },
+          "isSalarial": {
+            "type": "boolean"
+          }
+        }
       },
       "PartnerResponseDto": {
         "type": "object",
@@ -6938,22 +7864,22 @@
             "example": "+58-212-555-1234"
           },
           "type": {
-            "type": "string",
-            "description": "Partner type",
             "enum": [
               "CUSTOMER",
               "VENDOR"
             ],
+            "type": "string",
+            "description": "Partner type",
             "example": "CUSTOMER"
           },
           "taxpayerType": {
-            "type": "string",
-            "description": "Taxpayer type",
             "enum": [
               "ORDINARY",
               "SPECIAL",
               "LEGAL"
             ],
+            "type": "string",
+            "description": "Taxpayer type",
             "example": "ORDINARY"
           },
           "retentionRate": {
@@ -6962,7 +7888,7 @@
             "example": 75
           },
           "isSpecialTaxpayer": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is special taxpayer",
             "example": false
           },
@@ -7038,9 +7964,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "Partner email address",
-            "example": "contact@acme.com",
-            "format": "email"
+            "example": "contact@acme.com"
           },
           "taxId": {
             "type": "string",
@@ -7058,44 +7984,45 @@
             "example": "+58-212-555-1234"
           },
           "type": {
-            "type": "string",
-            "description": "Partner type",
             "enum": [
               "CUSTOMER",
               "VENDOR"
             ],
+            "type": "string",
+            "description": "Partner type",
             "example": "CUSTOMER"
           },
           "taxpayerType": {
-            "type": "string",
-            "description": "Taxpayer type",
             "enum": [
               "ORDINARY",
               "SPECIAL",
               "LEGAL"
             ],
+            "type": "string",
+            "description": "Taxpayer type",
             "example": "ORDINARY"
           },
           "retentionRate": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Retention rate percentage (0-100)",
             "example": 75
           },
           "isSpecialTaxpayer": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is special taxpayer",
             "example": false
           },
           "creditLimit": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Credit limit",
             "example": 10000
           },
           "islrConceptId": {
             "type": "string",
+            "format": "uuid",
             "description": "ISLR concept ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           }
@@ -7115,9 +8042,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "Partner email address",
-            "example": "newcontact@acme.com",
-            "format": "email"
+            "example": "newcontact@acme.com"
           },
           "taxId": {
             "type": "string",
@@ -7135,44 +8062,45 @@
             "example": "+58-212-555-5678"
           },
           "type": {
-            "type": "string",
-            "description": "Partner type",
             "enum": [
               "CUSTOMER",
               "VENDOR"
             ],
+            "type": "string",
+            "description": "Partner type",
             "example": "VENDOR"
           },
           "taxpayerType": {
-            "type": "string",
-            "description": "Taxpayer type",
             "enum": [
               "ORDINARY",
               "SPECIAL",
               "LEGAL"
             ],
+            "type": "string",
+            "description": "Taxpayer type",
             "example": "SPECIAL"
           },
           "retentionRate": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Retention rate percentage (0-100)",
             "example": 100
           },
           "isSpecialTaxpayer": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is special taxpayer",
             "example": true
           },
           "creditLimit": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Credit limit",
             "example": 50000
           },
           "islrConceptId": {
             "type": "string",
+            "format": "uuid",
             "description": "ISLR concept ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           }
@@ -7250,7 +8178,7 @@
             "example": 899.99
           },
           "isExempt": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is tax exempt",
             "example": false
           },
@@ -7260,13 +8188,13 @@
             "example": 16
           },
           "type": {
-            "type": "string",
-            "description": "Product type",
             "enum": [
               "PHYSICAL",
               "DIGITAL",
               "SERVICE"
             ],
+            "type": "string",
+            "description": "Product type",
             "example": "PHYSICAL"
           },
           "minStock": {
@@ -7275,7 +8203,7 @@
             "example": 10
           },
           "hasBatches": {
-            "type": "object",
+            "type": "boolean",
             "description": "Has batch tracking",
             "example": true
           },
@@ -7288,6 +8216,7 @@
           "category": {
             "nullable": true,
             "description": "Category",
+            "type": "object",
             "allOf": [
               {
                 "$ref": "#/components/schemas/ProductCategoryResponseDto"
@@ -7342,56 +8271,58 @@
           },
           "categoryId": {
             "type": "string",
+            "format": "uuid",
             "description": "Category ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "cost": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Product cost",
             "example": 500
           },
           "price": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Product price",
             "example": 899.99
           },
           "isExempt": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is tax exempt",
             "example": false
           },
           "taxRate": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Tax rate percentage",
             "example": 16
           },
           "type": {
-            "type": "string",
-            "description": "Product type",
             "enum": [
               "PHYSICAL",
               "DIGITAL",
               "SERVICE"
             ],
+            "type": "string",
+            "description": "Product type",
             "example": "PHYSICAL"
           },
           "minStock": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Minimum stock level",
             "example": 10
           },
           "hasBatches": {
-            "type": "object",
+            "type": "boolean",
             "description": "Has batch tracking",
             "example": true
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           }
@@ -7421,56 +8352,58 @@
           },
           "categoryId": {
             "type": "string",
+            "format": "uuid",
             "description": "Category ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "cost": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Product cost",
             "example": 550
           },
           "price": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Product price",
             "example": 999.99
           },
           "isExempt": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is tax exempt",
             "example": false
           },
           "taxRate": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Tax rate percentage",
             "example": 16
           },
           "type": {
-            "type": "string",
-            "description": "Product type",
             "enum": [
               "PHYSICAL",
               "DIGITAL",
               "SERVICE"
             ],
+            "type": "string",
+            "description": "Product type",
             "example": "PHYSICAL"
           },
           "minStock": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Minimum stock level",
             "example": 5
           },
           "hasBatches": {
-            "type": "object",
+            "type": "boolean",
             "description": "Has batch tracking",
             "example": false
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           }
@@ -7491,6 +8424,7 @@
           },
           "parentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Parent category ID for hierarchical categories",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           }
@@ -7514,6 +8448,7 @@
           },
           "parentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Parent category ID for hierarchical categories",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           }
@@ -7618,8 +8553,8 @@
             "example": 255
           },
           "exchangeRate": {
+            "type": "number",
             "nullable": true,
-            "type": "object",
             "description": "Exchange rate",
             "example": 1
           },
@@ -7728,23 +8663,25 @@
         "properties": {
           "productId": {
             "type": "string",
+            "format": "uuid",
             "description": "Product ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "batchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Batch ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "quantity": {
-            "minimum": 0.0001,
             "type": "number",
+            "minimum": 0.0001,
             "description": "Quantity",
             "example": 10
           },
           "price": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Price per unit",
             "example": 25.5
           }
@@ -7765,16 +8702,19 @@
           },
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
@@ -7789,12 +8729,13 @@
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
           "exchangeRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Exchange rate",
             "example": 1
           },
@@ -7830,6 +8771,7 @@
         "properties": {
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
@@ -7847,12 +8789,13 @@
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
           "exchangeRate": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Exchange rate",
             "example": 1
           },
@@ -7953,7 +8896,7 @@
             "example": "123 Main Street, City"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is active",
             "example": true
           }
@@ -7974,6 +8917,7 @@
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
@@ -7997,6 +8941,7 @@
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
@@ -8228,21 +9173,25 @@
           },
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID (for ENTRADA)",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "fromWarehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "From warehouse ID (for TRANSFERENCIA)",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "toWarehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "To warehouse ID (for TRANSFERENCIA)",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "reasonId": {
             "type": "string",
+            "format": "uuid",
             "description": "Reason ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
@@ -8305,14 +9254,14 @@
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "status": {
-            "type": "string",
-            "description": "Status",
             "enum": [
               "DRAFT",
               "POSTED",
               "VOIDED",
               "APPLIED"
             ],
+            "type": "string",
+            "description": "Status",
             "example": "DRAFT"
           },
           "total": {
@@ -8479,14 +9428,14 @@
             "example": 1
           },
           "status": {
-            "type": "string",
-            "description": "Status",
             "enum": [
               "DRAFT",
               "POSTED",
               "VOIDED",
               "APPLIED"
             ],
+            "type": "string",
+            "description": "Status",
             "example": "DRAFT"
           },
           "totalBase": {
@@ -8579,18 +9528,19 @@
         "properties": {
           "productId": {
             "type": "string",
+            "format": "uuid",
             "description": "Product ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "quantity": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Quantity",
             "example": 5
           },
           "price": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Price per unit",
             "example": 100
           }
@@ -8606,26 +9556,31 @@
         "properties": {
           "invoiceId": {
             "type": "string",
+            "format": "uuid",
             "description": "Invoice ID this credit note is related to",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
           "currencyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Currency ID",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
@@ -8661,6 +9616,7 @@
         "properties": {
           "warehouseId": {
             "type": "string",
+            "format": "uuid",
             "description": "Warehouse ID",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
@@ -8686,14 +9642,14 @@
             "example": "550e8400-e29b-41d4-a716-446655440011"
           },
           "status": {
-            "type": "string",
-            "description": "Status",
             "enum": [
               "DRAFT",
               "POSTED",
               "VOIDED",
               "APPLIED"
             ],
+            "type": "string",
+            "description": "Status",
             "example": "POSTED"
           },
           "message": {
@@ -8717,14 +9673,14 @@
             "example": "550e8400-e29b-41d4-a716-446655440011"
           },
           "status": {
-            "type": "string",
-            "description": "Status",
             "enum": [
               "DRAFT",
               "POSTED",
               "VOIDED",
               "APPLIED"
             ],
+            "type": "string",
+            "description": "Status",
             "example": "VOIDED"
           },
           "message": {
@@ -8743,8 +9699,8 @@
         "type": "object",
         "properties": {
           "amount": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Amount to apply",
             "example": 500
           }
@@ -8835,7 +9791,7 @@
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the account is active",
             "example": true
           },
@@ -8901,7 +9857,7 @@
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the account is active",
             "example": true
           }
@@ -8943,11 +9899,13 @@
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "parentId": {
             "type": "string",
+            "format": "uuid",
             "description": "Parent account ID for hierarchy",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           }
@@ -8961,6 +9919,18 @@
       "EntryLineResponseDto": {
         "type": "object",
         "properties": {
+          "originalAmount": {
+            "type": "number",
+            "nullable": true,
+            "description": "Importe original en la moneda del documento",
+            "example": 100
+          },
+          "originalCurrencyId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Moneda del importe original",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
           "id": {
             "type": "string",
             "description": "Line ID",
@@ -9016,6 +9986,17 @@
       "EntryResponseDto": {
         "type": "object",
         "properties": {
+          "baseCurrencyId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Moneda funcional del libro (VES)",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "exchangeRate": {
+            "type": "number",
+            "description": "Tasa del documento origen congelada al registrar el asiento",
+            "example": 36.5
+          },
           "id": {
             "type": "string",
             "description": "Entry ID",
@@ -9101,18 +10082,30 @@
         "properties": {
           "accountId": {
             "type": "string",
+            "format": "uuid",
             "description": "Account ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
           "debit": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Debit amount",
             "example": 1000.5
           },
-          "credit": {
-            "minimum": 0,
+          "originalAmount": {
             "type": "number",
+            "description": "Importe original en la moneda del documento (si difiere de la funcional)",
+            "example": 100
+          },
+          "originalCurrencyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Moneda del importe original",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "credit": {
+            "type": "number",
+            "minimum": 0,
             "description": "Credit amount",
             "example": 0
           },
@@ -9147,12 +10140,14 @@
           },
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "userId": {
             "type": "string",
             "nullable": true,
+            "format": "uuid",
             "description": "User ID",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
@@ -9264,7 +10259,7 @@
             "example": "Ventas"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the map is active",
             "example": true
           },
@@ -9287,6 +10282,7 @@
         "properties": {
           "branchId": {
             "type": "string",
+            "format": "uuid",
             "description": "Branch ID",
             "example": "550e8400-e29b-41d4-a716-446655440001"
           },
@@ -9302,26 +10298,31 @@
           },
           "categoryId": {
             "type": "string",
+            "format": "uuid",
             "description": "Category ID for filtering",
             "example": "550e8400-e29b-41d4-a716-446655440002"
           },
           "productId": {
             "type": "string",
+            "format": "uuid",
             "description": "Product ID for filtering",
             "example": "550e8400-e29b-41d4-a716-446655440003"
           },
           "paymentMethodId": {
             "type": "string",
+            "format": "uuid",
             "description": "Payment method ID for filtering",
             "example": "550e8400-e29b-41d4-a716-446655440004"
           },
           "debitAccountId": {
             "type": "string",
+            "format": "uuid",
             "description": "Debit account ID",
             "example": "550e8400-e29b-41d4-a716-446655440005"
           },
           "creditAccountId": {
             "type": "string",
+            "format": "uuid",
             "description": "Credit account ID",
             "example": "550e8400-e29b-41d4-a716-446655440006"
           }
@@ -9336,7 +10337,7 @@
         "type": "object",
         "properties": {
           "success": {
-            "type": "object",
+            "type": "boolean",
             "description": "Whether the operation was successful",
             "example": true
           },
@@ -9399,7 +10400,7 @@
             "example": "branch@company.com"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is branch active",
             "example": true
           },
@@ -9452,7 +10453,7 @@
             "example": "info@acme.com"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "example": true
           },
           "branchCount": {
@@ -9497,10 +10498,11 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "example": "info@acme.com"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "example": true
           }
         },
@@ -9529,10 +10531,11 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "example": "info@acme.com"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "example": true
           }
         }
@@ -9542,6 +10545,7 @@
         "properties": {
           "companyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Company UUID"
           },
           "name": {
@@ -9561,9 +10565,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "Email address",
-            "example": "branch@company.com",
-            "format": "email"
+            "example": "branch@company.com"
           }
         },
         "required": [
@@ -9576,6 +10580,7 @@
         "properties": {
           "companyId": {
             "type": "string",
+            "format": "uuid",
             "description": "Company UUID"
           },
           "name": {
@@ -9595,9 +10600,9 @@
           },
           "email": {
             "type": "string",
+            "format": "email",
             "description": "Email address",
-            "example": "newbranch@company.com",
-            "format": "email"
+            "example": "newbranch@company.com"
           }
         }
       },
@@ -9625,7 +10630,7 @@
             "example": "$"
           },
           "isBase": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is base currency",
             "example": false
           }
@@ -9657,7 +10662,7 @@
             "example": "$"
           },
           "isBase": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is this the base currency",
             "example": false
           }
@@ -9725,13 +10730,131 @@
           "currencySymbol"
         ]
       },
+      "RateWithFreshnessDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyCode": {
+            "type": "string",
+            "example": "USD"
+          },
+          "rate": {
+            "type": "number",
+            "example": 36.5
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-26T00:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "example": "BCV"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "example": "BCV no publicó tasa"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "ageHours": {
+            "type": "number",
+            "description": "Horas desde la publicación de la tasa",
+            "example": 2.5
+          },
+          "isStale": {
+            "type": "boolean",
+            "description": "true si supera el umbral de antigüedad",
+            "example": false
+          }
+        },
+        "required": [
+          "id",
+          "currencyCode",
+          "rate",
+          "date",
+          "source",
+          "reason",
+          "createdBy",
+          "ageHours",
+          "isStale"
+        ]
+      },
+      "RateHistoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyCode": {
+            "type": "string",
+            "example": "USD"
+          },
+          "rate": {
+            "type": "number",
+            "example": 36.5
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-26T00:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "example": "BCV"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "example": "BCV no publicó tasa"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        },
+        "required": [
+          "id",
+          "currencyCode",
+          "rate",
+          "date",
+          "source",
+          "reason",
+          "createdBy"
+        ]
+      },
       "CreateExchangeRateDto": {
         "type": "object",
         "properties": {
           "currencyId": {
             "type": "string",
-            "description": "Currency ID",
+            "format": "uuid",
+            "description": "Currency ID (alternativa a currencyCode)",
             "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "currencyCode": {
+            "type": "string",
+            "description": "Currency code (preferido sobre currencyId)",
+            "example": "USD"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Motivo del override manual (obligatorio si source=MANUAL)",
+            "example": "BCV no publicó tasa por feriado bancario"
+          },
+          "date": {
+            "type": "string",
+            "description": "Fecha de vigencia (ISO). Por defecto, hoy",
+            "example": "2026-10-26"
           },
           "rate": {
             "type": "number",
@@ -9745,7 +10868,6 @@
           }
         },
         "required": [
-          "currencyId",
           "rate"
         ]
       },
@@ -9916,12 +11038,13 @@
         "properties": {
           "productId": {
             "type": "string",
+            "format": "uuid",
             "description": "Product ID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "quantity": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Quantity",
             "example": 1
           },
@@ -9951,6 +11074,7 @@
           },
           "partnerId": {
             "type": "string",
+            "format": "uuid",
             "description": "Partner ID (employee)",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
@@ -10052,7 +11176,7 @@
             "example": "0102"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is bank active",
             "example": true
           },
@@ -10085,7 +11209,7 @@
             "example": "0102"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is bank active",
             "example": true
           }
@@ -10109,7 +11233,7 @@
             "example": "0103"
           },
           "isActive": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is bank active",
             "example": true
           }
@@ -10149,7 +11273,7 @@
             "example": 0
           },
           "isEnabled": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is concept enabled",
             "example": true
           }
@@ -10178,15 +11302,15 @@
             "example": "Honorarios Profesionales"
           },
           "retentionPercentage": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Retention percentage (0-100)",
             "example": 75
           },
           "baseMin": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Minimum base amount",
             "example": 0
           },
@@ -10196,7 +11320,7 @@
             "example": 0
           },
           "isEnabled": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is concept enabled",
             "example": true
           }
@@ -10221,15 +11345,15 @@
             "example": "Honorarios Profesionales Actualizado"
           },
           "retentionPercentage": {
+            "type": "number",
             "minimum": 0,
             "maximum": 100,
-            "type": "number",
             "description": "Retention percentage (0-100)",
             "example": 80
           },
           "baseMin": {
-            "minimum": 0,
             "type": "number",
+            "minimum": 0,
             "description": "Minimum base amount",
             "example": 100
           },
@@ -10239,7 +11363,7 @@
             "example": 50
           },
           "isEnabled": {
-            "type": "object",
+            "type": "boolean",
             "description": "Is concept enabled",
             "example": true
           }
@@ -10283,7 +11407,7 @@
             "nullable": true
           },
           "isSystem": {
-            "type": "object"
+            "type": "boolean"
           },
           "permissions": {
             "type": "array",
@@ -10316,7 +11440,8 @@
             "example": [],
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         },
@@ -10340,7 +11465,8 @@
             "example": [],
             "type": "array",
             "items": {
-              "type": "string"
+              "type": "string",
+              "format": "uuid"
             }
           }
         }

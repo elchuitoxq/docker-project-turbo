@@ -1,4 +1,15 @@
-import { IsString, IsNumber, IsOptional, IsUUID, IsEnum, IsDateString, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  IsEnum,
+  IsDateString,
+  IsBoolean,
+  IsISO8601,
+  Matches,
+  Min,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum EmployeeStatus {
@@ -17,6 +28,25 @@ export enum PayFrequency {
   WEEKLY = 'WEEKLY',
   BIWEEKLY = 'BIWEEKLY',
   MONTHLY = 'MONTHLY',
+}
+
+/**
+ * Naturaleza del concepto de nómina (`09-HR-NOMINA-VENEZUELA.md` §5).
+ * `EMPLOYER_CONTRIBUTION` no toca el neto; `INFORMATIVE` sólo expone bases y alícuotas.
+ */
+export enum PayrollConceptCategory {
+  ASSIGNMENT = 'ASSIGNMENT',
+  DEDUCTION = 'DEDUCTION',
+  EMPLOYER_CONTRIBUTION = 'EMPLOYER_CONTRIBUTION',
+  INFORMATIVE = 'INFORMATIVE',
+}
+
+/** Cómo se obtiene el monto del concepto. `FORMULA` exige `expression`. */
+export enum PayrollConceptKind {
+  FIXED = 'FIXED',
+  PERCENT = 'PERCENT',
+  FORMULA = 'FORMULA',
+  BASE = 'BASE',
 }
 
 export class CreateEmployeeDto {
@@ -498,23 +528,52 @@ export class UpdatePositionDto {
 }
 
 export class UpdatePayrollSettingDto {
-  @ApiProperty({ description: 'Clave del parÃ¡metro', example: 'SALARIO_MINIMO' })
+  @ApiProperty({ description: 'Clave del parámetro', example: 'SALARIO_MINIMO' })
   @IsString()
+  @Matches(/^[A-Z][A-Z0-9_]*$/, {
+    message: 'La clave debe ser mayúsculas, números y guion bajo (ej. SALARIO_MINIMO)',
+  })
   key: string;
 
-  @ApiProperty({ description: 'Valor numÃ©rico', example: 130 })
+  @ApiProperty({ description: 'Valor numérico', example: 130 })
   @IsNumber()
   value: number;
+
+  @ApiPropertyOptional({
+    description: 'Etiqueta legible; si se omite se conserva la existente o se usa la clave',
+  })
+  @IsOptional()
+  @IsString()
+  label?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tipo del parámetro. PERCENT/PERCENTAGE se expresan como porcentaje entero',
+    example: 'PERCENT',
+  })
+  @IsOptional()
+  @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de vigencia (ISO 8601). Por defecto, la fecha actual',
+    example: '2026-10-01',
+  })
+  @IsOptional()
+  @IsISO8601()
+  effectiveFrom?: string;
 }
 
 export class PayrollSettingResponseDto {
   @ApiProperty()
   id: string;
 
+  @ApiProperty()
+  companyId: string;
+
   @ApiProperty({ example: 'SALARIO_MINIMO' })
   key: string;
 
-  @ApiProperty({ example: 'Salario mÃ­nimo' })
+  @ApiProperty({ example: 'Salario mínimo' })
   label: string;
 
   @ApiProperty({ example: 130 })
@@ -526,6 +585,119 @@ export class PayrollSettingResponseDto {
   @ApiProperty({ nullable: true })
   branchId: string | null;
 
+  @ApiProperty({ example: '2026-10-01T00:00:00.000Z' })
+  effectiveFrom: string;
+
   @ApiProperty()
   isActive: boolean;
+}
+
+export class CreatePayrollConceptDto {
+  @ApiProperty({ description: 'Código único del concepto', example: 'PRIMA_ANTIGUEDAD' })
+  @IsString()
+  @Matches(/^[A-Z][A-Z0-9_]{1,29}$/, {
+    message: 'El código debe empezar con letra y usar mayúsculas, números y guion bajo',
+  })
+  code: string;
+
+  @ApiProperty({ description: 'Nombre visible en el recibo', example: 'Prima de antigüedad' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ enum: PayrollConceptCategory })
+  @IsEnum(PayrollConceptCategory)
+  category: PayrollConceptCategory;
+
+  @ApiPropertyOptional({ enum: PayrollConceptKind, default: PayrollConceptKind.FIXED })
+  @IsOptional()
+  @IsEnum(PayrollConceptKind)
+  kind?: PayrollConceptKind;
+
+  @ApiPropertyOptional({
+    description: 'Fórmula declarativa. Obligatoria cuando kind = FORMULA',
+    example: 'SALARY_NORMAL * 0.05',
+  })
+  @IsOptional()
+  @IsString()
+  expression?: string;
+
+  @ApiPropertyOptional({
+    description: 'Si el concepto entra en el salario integral (LOTTT Art. 105)',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  affectsIntegralSalary?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Si el concepto es salarial. El cestaticket no lo es (Ley de Alimentación)',
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isSalarial?: boolean;
+}
+
+export class UpdatePayrollConceptDto {
+  @ApiPropertyOptional({ example: 'Prima de antigüedad' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ enum: PayrollConceptCategory })
+  @IsOptional()
+  @IsEnum(PayrollConceptCategory)
+  category?: PayrollConceptCategory;
+
+  @ApiPropertyOptional({ enum: PayrollConceptKind })
+  @IsOptional()
+  @IsEnum(PayrollConceptKind)
+  kind?: PayrollConceptKind;
+
+  @ApiPropertyOptional({ example: 'SALARY_NORMAL * 0.05' })
+  @IsOptional()
+  @IsString()
+  expression?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  affectsIntegralSalary?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isSalarial?: boolean;
+}
+
+export class PayrollConceptResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'PRIMA_ANTIGUEDAD' })
+  code: string;
+
+  @ApiProperty({ example: 'Prima de antigüedad' })
+  name: string;
+
+  @ApiProperty({ enum: PayrollConceptCategory })
+  category: string;
+
+  @ApiProperty({ enum: PayrollConceptKind })
+  kind: string;
+
+  @ApiProperty({ nullable: true, example: 'SALARY_NORMAL * 0.05' })
+  expression: string | null;
+
+  @ApiProperty()
+  affectsIntegralSalary: boolean;
+
+  @ApiProperty()
+  isSalarial: boolean;
+
+  @ApiProperty()
+  isSystem: boolean;
+
+  @ApiProperty({ nullable: true })
+  branchId: string | null;
 }

@@ -792,30 +792,83 @@ export const payrollItemLines = pgTable('payroll_item_lines', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const payrollSettings = pgTable('payroll_settings', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  key: text('key').notNull().unique(),
-  label: text('label').notNull(),
-  value: numeric('value', { precision: 20, scale: 4 }).notNull(),
-  type: text('type').notNull(),
-  branchId: uuid('branch_id'),
-  isActive: boolean('is_active').default(true),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
+export const payrollSettings = pgTable(
+  'payroll_settings',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'restrict' }),
+    branchId: uuid('branch_id'),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    value: numeric('value', { precision: 20, scale: 4 }).notNull(),
+    type: text('type').notNull(),
+    effectiveFrom: timestamp('effective_from').notNull().defaultNow(),
+    isActive: boolean('is_active').default(true),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  t => ({
+    // Vigencia por empresa (sin sucursal) y por sucursal: dos índices parciales porque en Postgres
+    // los NULL no colisionan entre si y un único índice no protegeria ambos casos.
+    companyUnq: uniqueIndex('payroll_settings_company_unq')
+      .on(t.companyId, t.key, t.effectiveFrom)
+      .where(sql`${t.branchId} is null`),
+    branchUnq: uniqueIndex('payroll_settings_branch_unq')
+      .on(t.companyId, t.branchId, t.key, t.effectiveFrom)
+      .where(sql`${t.branchId} is not null`),
+    lookupIdx: index('payroll_settings_lookup_idx').on(t.companyId, t.key, t.effectiveFrom),
+  })
+);
 
-export const payrollConceptTypes = pgTable('payroll_concept_types', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  code: text('code').notNull().unique(),
-  name: text('name').notNull(),
-  category: text('category').notNull(),
-  isSystem: boolean('is_system').default(false),
-  branchId: uuid('branch_id'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const payrollPeriodSettings = pgTable(
+  'payroll_period_settings',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    runId: uuid('run_id')
+      .notNull()
+      .references(() => payrollRuns.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    label: text('label').notNull(),
+    value: numeric('value', { precision: 20, scale: 4 }).notNull(),
+    type: text('type').notNull(),
+    branchId: uuid('branch_id'),
+    effectiveFrom: timestamp('effective_from').notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    runKeyUnq: uniqueIndex('payroll_period_settings_run_key_unq').on(t.runId, t.key),
+  })
+);
+
+export const payrollConceptTypes = pgTable(
+  'payroll_concept_types',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'restrict' }),
+    code: text('code').notNull(),
+    name: text('name').notNull(),
+    category: text('category').notNull(),
+    kind: text('kind').notNull().default('FIXED'),
+    expression: text('expression'),
+    affectsIntegralSalary: boolean('affects_integral_salary').notNull().default(false),
+    isSalarial: boolean('is_salarial').notNull().default(true),
+    isSystem: boolean('is_system').default(false),
+    branchId: uuid('branch_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    companyCodeUnq: uniqueIndex('payroll_concept_types_company_code_unq').on(t.companyId, t.code),
+  })
+);
 
 export const payrollIncidents = pgTable('payroll_incidents', {
   id: uuid('id')
@@ -1311,6 +1364,7 @@ export const payrollRunsRelations = relations(payrollRuns, ({ one, many }) => ({
   branch: one(branches, { fields: [payrollRuns.branchId], references: [branches.id] }),
   currency: one(currencies, { fields: [payrollRuns.currencyId], references: [currencies.id] }),
   items: many(payrollItems),
+  periodSettings: many(payrollPeriodSettings),
 }));
 
 export const payrollItemsRelations = relations(payrollItems, ({ one, many }) => ({
@@ -1325,6 +1379,10 @@ export const payrollItemLinesRelations = relations(payrollItemLines, ({ one }) =
 
 export const payrollSettingsRelations = relations(payrollSettings, ({ one }) => ({
   branch: one(branches, { fields: [payrollSettings.branchId], references: [branches.id] }),
+}));
+
+export const payrollPeriodSettingsRelations = relations(payrollPeriodSettings, ({ one }) => ({
+  run: one(payrollRuns, { fields: [payrollPeriodSettings.runId], references: [payrollRuns.id] }),
 }));
 
 export const payrollConceptTypesRelations = relations(payrollConceptTypes, ({ one, many }) => ({

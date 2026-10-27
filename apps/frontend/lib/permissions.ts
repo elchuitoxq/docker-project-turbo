@@ -92,6 +92,7 @@ export const PERMISSIONS = {
     DEPARTMENTS: { MANAGE: 'hr:departments:manage' },
     POSITIONS: { MANAGE: 'hr:positions:manage' },
     SETTINGS: { VIEW: 'hr:settings:view', MANAGE: 'hr:settings:manage' },
+    CONCEPTS: { VIEW: 'hr:concepts:view', MANAGE: 'hr:concepts:manage' },
   },
   SETTINGS: {
     VIEW: 'settings:view',

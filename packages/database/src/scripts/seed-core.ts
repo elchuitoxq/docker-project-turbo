@@ -14,6 +14,7 @@ import {
 import { uuidv7 } from '../schema';
 import * as bcrypt from 'bcryptjs';
 import { and, eq, ne, sql } from 'drizzle-orm';
+import { seedPayrollCatalog } from './seed-payroll-catalog';
 
 export async function seedCoreData() {
   console.log('Seeding core data...');
@@ -265,4 +266,6 @@ export async function seedCoreData() {
   }
 
   console.log('Core data seeding completed!');
+
+  await seedPayrollCatalog(company.id);
 }

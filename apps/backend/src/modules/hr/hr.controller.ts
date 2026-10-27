@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -34,6 +35,9 @@ import {
   TerminateEmployeeDto,
   UpdatePayrollSettingDto,
   PayrollSettingResponseDto,
+  CreatePayrollConceptDto,
+  UpdatePayrollConceptDto,
+  PayrollConceptResponseDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
@@ -166,6 +170,19 @@ export class HrController {
     return this.hrService.findOnePayrollRun(id, branchId);
   }
 
+  @Get('payroll/:id/parameters')
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({ summary: 'Get frozen payroll parameters of a run' })
+  @ApiResponse({
+    status: 200,
+    description: 'Parameters snapshot taken when the run was created',
+    type: [PayrollSettingResponseDto],
+  })
+  @ApiResponse({ status: 404, description: 'Payroll run not found' })
+  async getPayrollRunParameters(@Param('id') id: string): Promise<PayrollSettingResponseDto[]> {
+    return this.hrService.getPayrollRunParameters(id);
+  }
+
   @Post('payroll/generate')
   @ApiOperation({
     summary: 'Generate payroll',
@@ -245,25 +262,77 @@ export class HrController {
     type: [PayrollSettingResponseDto],
   })
   async findPayrollSettings(
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @Query('asOf') asOf?: string
   ): Promise<PayrollSettingResponseDto[]> {
-    return this.hrService.findPayrollSettings(branchId) as never;
+    return this.hrService.findPayrollSettings(branchId, asOf);
   }
 
   @Patch('settings')
   @RequirePermissions('hr:settings:manage')
   @ApiOperation({ summary: 'Create or update a payroll setting' })
   @ApiResponse({ status: 200, description: 'Payroll setting stored' })
+  @ApiResponse({ status: 400, description: 'Invalid value for the parameter type' })
   async updatePayrollSetting(
     @Body() dto: UpdatePayrollSettingDto,
     @CurrentBranch() branchId: string
   ): Promise<PayrollSettingResponseDto> {
-    return this.hrService.upsertPayrollSetting(dto, branchId) as never;
+    return this.hrService.upsertPayrollSetting(dto, branchId);
   }
+
   @Get('concept-types')
+  @RequirePermissions('hr:concepts:view')
   @ApiOperation({ summary: 'Get payroll concept types' })
-  @ApiResponse({ status: 200, description: 'List of concept types' })
-  async getPayrollConceptTypes() {
-    return this.hrService.getPayrollConceptTypes();
+  @ApiResponse({
+    status: 200,
+    description: 'List of concept types',
+    type: [PayrollConceptResponseDto],
+  })
+  async getPayrollConceptTypes(
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollConceptResponseDto[]> {
+    return this.hrService.getPayrollConceptTypes(branchId);
+  }
+
+  @Post('concept-types')
+  @RequirePermissions('hr:concepts:manage')
+  @ApiOperation({ summary: 'Create a payroll concept type' })
+  @ApiBody({ type: CreatePayrollConceptDto })
+  @ApiResponse({ status: 201, description: 'Concept created', type: PayrollConceptResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid expression' })
+  @ApiResponse({ status: 409, description: 'Concept code already exists' })
+  async createPayrollConcept(
+    @Body() dto: CreatePayrollConceptDto,
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollConceptResponseDto> {
+    return this.hrService.createPayrollConcept(dto, branchId);
+  }
+
+  @Patch('concept-types/:id')
+  @RequirePermissions('hr:concepts:manage')
+  @ApiOperation({ summary: 'Update a payroll concept type' })
+  @ApiBody({ type: UpdatePayrollConceptDto })
+  @ApiResponse({ status: 200, description: 'Concept updated', type: PayrollConceptResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid expression' })
+  @ApiResponse({ status: 404, description: 'Concept not found' })
+  async updatePayrollConcept(
+    @Param('id') id: string,
+    @Body() dto: UpdatePayrollConceptDto,
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollConceptResponseDto> {
+    return this.hrService.updatePayrollConcept(id, dto, branchId);
+  }
+
+  @Delete('concept-types/:id')
+  @RequirePermissions('hr:concepts:manage')
+  @ApiOperation({ summary: 'Delete a payroll concept type' })
+  @ApiResponse({ status: 200, description: 'Concept deleted' })
+  @ApiResponse({ status: 404, description: 'Concept not found' })
+  @ApiResponse({ status: 409, description: 'System concept or already used in a payroll' })
+  async deletePayrollConcept(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<{ deleted: true }> {
+    return this.hrService.deletePayrollConcept(id, branchId);
   }
 }
