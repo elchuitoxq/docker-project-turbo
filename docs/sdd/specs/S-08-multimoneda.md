@@ -33,8 +33,12 @@ distinguen**, y la tasa puede quedar congelada semanas sin que nadie lo note.
 3. **Tasa del dólar como referencia**: obtención automática diaria (BCV), con override manual auditado.
 4. **Conversión centralizada** en un único servicio; prohibido multiplicar montos a mano.
 5. **Libro contable en moneda funcional** con el monto original preservado.
-6. **Reportes** siempre agregados en moneda funcional, con conversión de presentación opcional.
+6. **Reportes** siempre agregados en moneda funcional (VES) **con columna paralela obligatoria en USD**
+   a la tasa de corte.
 7. **UI** con formato por moneda, monto dual y aviso cuando la tasa está vencida.
+
+> **D-01 resuelta (2026-10-26):** moneda funcional = **VES**; el reporte dual **VES + USD** es
+> obligatorio, no opcional. Política de tasa = **BCV automática con override manual auditado**.
 
 **No incluye:** revaluación de saldos por variación cambiaria (queda como job posterior), cuentas
 bancarias en cripto, ni cobertura de riesgo cambiario.
@@ -67,7 +71,7 @@ bancarias en cripto, ni cobertura de riesgo cambiario.
 ## 5. Contrato HTTP
 
 ```
-GET    /v1/settings/currencies                 → monedas + cuál es la base
+GET    /v1/settings/currencies                 → monedas + cuál es la base (VES)
 GET    /v1/settings/currencies/:code/rate      → ?date= (histórico) · última validada
 POST   /v1/settings/currencies/:code/rate      → override manual { rate, date, reason } (auditado)
 GET    /v1/settings/currencies/:code/rates     → historial paginado
@@ -75,6 +79,8 @@ POST   /v1/settings/currencies/refresh         → fuerza sincronización BCV (p
 GET    /v1/health/rates                        → estado de la tasa (edad, fuente, última sincronización)
 ```
 
+- **Todo endpoint de reporte** (`/v1/reports/*`, estados financieros, libros fiscales, resumen de
+  gestión) devuelve `base` y `usd` en el mismo payload, más `closingRate` y `closingRateDate`.
 - El antiguo `GET /v1/cron/trigger-bcv` **se retira**: mutaba estado por `GET` y no tenía permiso propio.
 - Permisos: `settings:currencies:view`, `settings:currencies:manage`, `settings:currencies:override`.
 - Errores: `409` si se intenta override con fecha ya cerrada contablemente · `422` si la tasa no pasa
@@ -88,7 +94,8 @@ GET    /v1/health/rates                        → estado de la tasa (edad, fuen
   documento y su equivalente en base.
 - Input de tasa manual: motivo obligatorio y confirmación explícita ("afecta a los documentos que se
   emitan a partir de ahora, no a los existentes").
-- Reportes: selector "Moneda de presentación" (base por defecto).
+- Reportes: **columnas fijas VES y USD**, con la tasa de corte y su fecha visibles en el encabezado.
+  No hay selector que permita ocultar la columna USD.
 
 ## 7. Reglas de negocio
 
@@ -104,6 +111,13 @@ GET    /v1/health/rates                        → estado de la tasa (edad, fuen
    pago y se registra la diferencia cambiaria como línea contable (no se pierde en el redondeo).
 7. Ninguna tasa se edita retroactivamente si hay documentos que la usaron: el override crea una fila
    nueva con su propio `date`.
+8. **Reporte dual obligatorio:** todo estado financiero, libro fiscal y reporte de gestión se emite
+   con dos columnas — **VES (funcional)** y **USD (paralela)** — convirtiendo a **una sola tasa de
+   corte** por reporte, de modo que ambas columnas cuadren por construcción.
+9. La columna USD del reporte es **informativa**: no altera saldos ni genera asientos. La revaluación
+   y la contabilización de la diferencia cambiaria de saldos son un proceso aparte (fuera de alcance).
+10. Si un período tiene documentos con tasas distintas, el reporte dual lo declara mostrando la tasa
+    de corte usada y, cuando aplica, la tasa promedio ponderada.
 
 ## 8. Criterios de aceptación (Gherkin)
 
@@ -133,8 +147,16 @@ Escenario: dos monedas base
 Escenario: reporte consolidado
   Dado facturas en USD y en VES del mismo período
   Cuando genero el reporte de ventas
-  Entonces el total se expresa en moneda base
+  Entonces el total se expresa en VES como moneda funcional
+  Y veo la columna paralela en USD a la tasa de corte
+  Y ambas columnas cuadran entre sí
   Y el detalle conserva la moneda original de cada documento
+
+Escenario: override manual de tasa
+  Dado que BCV no publicó tasa hoy
+  Cuando un administrador carga la tasa con motivo
+  Entonces la tasa queda con source=MANUAL y createdBy del usuario
+  Y los documentos emitidos antes conservan su tasa original
 ```
 
 ## 9. Plan de pruebas
@@ -147,6 +169,7 @@ Escenario: reporte consolidado
 | Integración | Backfill de `payments.amountBase` cuadra con `amount * exchange_rate`          |
 | Integración | Restricción de una sola moneda base (intento de segunda base falla)            |
 | Integración | Tasa única por `(currency, date)`; override crea fila nueva sin tocar la vieja |
+| Integración | Reporte dual: columnas VES y USD cuadran entre sí con una sola tasa de corte   |
 | E2E         | Aviso de tasa vencida bloquea la emisión hasta confirmar                       |
 
 ## 10. Riesgos y migración

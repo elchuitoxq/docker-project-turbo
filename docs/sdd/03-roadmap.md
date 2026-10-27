@@ -66,7 +66,7 @@ S-07 depende de S-01 (contratos) y S-04 (asientos para NC)
 | Llamadas del frontend que devuelven 404/405 | ≥ 15                           | 0                                           |
 | Endpoints con aislamiento por sucursal      | 0 %                            | 100 % de los de negocio                     |
 | Documentos con moneda, tasa y monto base    | parcial (`invoices` sí)        | 100 % de los que mueven dinero              |
-| Agregaciones contables en moneda funcional  | 0 % (el libro no tiene moneda) | 100 %                                       |
+| Agregaciones contables en moneda funcional  | 0 % (el libro no tiene moneda) | 100 % en VES + columna USD paralela         |
 | Cobertura backend (statements)              | 65 %                           | ≥ 80 %                                      |
 | Flujos E2E cubiertos                        | 3 (login, reset, health)       | 9 (incluye facturar en USD y cobrar en VES) |
 

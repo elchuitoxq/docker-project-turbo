@@ -53,18 +53,18 @@ Reglas a partir de ahora (implementadas en `S-00`):
 
 ### 4.1 Multimoneda — reglas obligatorias ([`S-08`](./specs/S-08-multimoneda.md))
 
-| Regla   | Detalle                                                                                                                                                        |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **M1**  | Existe **una sola** moneda funcional (base) en `currencies.isBase`, garantizada por restricción de BD. Toda agregación contable y de reportes va en ella.      |
-| **M2**  | Todo documento con monto persiste **tríada**: `currencyId`, `exchangeRate` aplicado y monto en moneda base (`amountBase`/`totalBase`).                         |
-| **M3**  | La tasa se **congela al emitir**. Nunca se recalcula un documento con la tasa de hoy.                                                                          |
-| **M4**  | La conversión ocurre **sólo** en `MoneyService`. Multiplicar un monto a mano (o con `parseFloat`) es motivo de rechazo del PR.                                 |
-| **M5**  | El **dólar es la referencia**: `exchange_rates.rate` = unidades de moneda base por 1 USD; otras monedas guardan su tasa directa con la convención documentada. |
-| **M6**  | IGTF se decide por `currencyId != baseCurrencyId`, **nunca** por `rate > 1`.                                                                                   |
-| **M7**  | Redondeo: precisión completa en el cálculo, redondeo sólo al persistir (`HALF_UP`, 2 decimales en base).                                                       |
-| **M8**  | Un pago en moneda distinta a la factura genera **diferencia cambiaria** como línea contable, no como residuo de redondeo.                                      |
-| **M9**  | La tasa puede venir de BCV o de un override humano; el override exige motivo, permiso `settings:currencies:override` y queda en `exchange_rate_log`.           |
-| **M10** | Los reportes se **agregan en base** y opcionalmente se presentan en otra moneda con la tasa de la fecha de corte, etiquetando siempre la conversión.           |
+| Regla   | Detalle                                                                                                                                                                                                                                                                                       |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M1**  | La moneda funcional es **VES** (`currencies.isBase = true`, garantizada por restricción de BD). Toda agregación contable y de reportes se hace en ella. **Decisión D-01, 2026-10-26.**                                                                                                        |
+| **M2**  | Todo documento con monto persiste **tríada**: `currencyId`, `exchangeRate` aplicado y monto en moneda base (`amountBase`/`totalBase`).                                                                                                                                                        |
+| **M3**  | La tasa se **congela al emitir**. Nunca se recalcula un documento con la tasa de hoy.                                                                                                                                                                                                         |
+| **M4**  | La conversión ocurre **sólo** en `MoneyService`. Multiplicar un monto a mano (o con `parseFloat`) es motivo de rechazo del PR.                                                                                                                                                                |
+| **M5**  | El **dólar es la referencia**: `exchange_rates.rate` = unidades de moneda base por 1 USD; otras monedas guardan su tasa directa con la convención documentada.                                                                                                                                |
+| **M6**  | IGTF se decide por `currencyId != baseCurrencyId`, **nunca** por `rate > 1`.                                                                                                                                                                                                                  |
+| **M7**  | Redondeo: precisión completa en el cálculo, redondeo sólo al persistir (`HALF_UP`, 2 decimales en base).                                                                                                                                                                                      |
+| **M8**  | Un pago en moneda distinta a la factura genera **diferencia cambiaria** como línea contable, no como residuo de redondeo.                                                                                                                                                                     |
+| **M9**  | La tasa puede venir de BCV o de un override humano; el override exige motivo, permiso `settings:currencies:override` y queda en `exchange_rate_log`.                                                                                                                                          |
+| **M10** | **Reporte dual obligatorio:** todo estado financiero, libro fiscal y reporte de gestión lleva columnas **VES** (funcional) y **USD** (paralela, a una sola tasa de corte), con `closingRate` y su fecha en el encabezado. La columna USD es informativa: no altera saldos ni genera asientos. |
 
 ## 5. Auditoría
 

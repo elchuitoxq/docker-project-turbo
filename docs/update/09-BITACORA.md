@@ -556,6 +556,37 @@ funcional. El plan pasa de 87 a **99 tareas** y de 14 a **16 semanas**.
 Elegir la **moneda funcional** del libro: VES (criterio fiscal venezolano, con USD como referencia
 de precio) o USD (operación dolarizada). Se resuelve antes de tocar esquema o código.
 
+---
+
+### BT-033 · 2026-10-26 · D-01 resuelta: libro en VES con reporte dual en USD
+
+**Decisión**
+
+| Punto                | Decisión                                                                                       |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| Moneda funcional     | **VES** — el libro, los asientos y las agregaciones se llevan en bolívares                     |
+| Reporte en USD       | **Obligatorio y paralelo**, a una sola tasa de corte por reporte, con `closingRate` visible    |
+| Obtención de la tasa | **BCV automática** (job programado) **+ override manual auditado** con motivo y permiso propio |
+
+**Por qué el dual es seguro**
+
+La columna USD se calcula con **una única tasa de corte** por reporte, así que debe cuadrar por
+construcción (debe = haber también en USD). Por eso el reporte dual **no** es revaluación: no genera
+asientos ni altera saldos. La revaluación de saldos sigue fuera de alcance.
+
+**Cambios aplicados**
+
+- `S-08`: alcance §2, reglas §7 (nuevas 8-10), contrato §5 (todo reporte devuelve `base` y `usd`),
+  UI §6 (columnas fijas, sin selector para ocultar USD), Gherkin y plan de pruebas ampliados.
+- `02-arquitectura` §4.1: **M1** fija VES como funcional; **M10** exige el reporte dual.
+- `04-plan-de-tareas`: **T-08-01 pasa a ✅** y se agrega **T-08-13** (reporte dual). E8 = 13 tareas,
+  plan = **100 tareas, 3 completadas**.
+- `03-roadmap`: métrica de agregaciones reescrita ("100 % en VES + columna USD paralela").
+
+**Verificación**
+
+- `pnpm format:check` verde · enlaces relativos validados · sin cambios de código funcional.
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
