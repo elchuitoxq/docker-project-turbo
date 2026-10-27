@@ -70,6 +70,7 @@ export const PERMISSIONS = {
       VOID: 'finance:payments:void',
     },
     RETENTIONS: { VIEW: 'finance:retentions:view' },
+    PAYABLES: { VIEW: 'finance:invoices:view' },
     REPORTS: { VIEW: 'finance:reports:view' },
     ACCOUNTS: { VIEW: 'finance:accounts:view', MANAGE: 'finance:accounts:manage' },
     ENTRIES: {

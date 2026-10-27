@@ -116,6 +116,26 @@ export class TreasuryController {
     return this.treasuryService.voidPayment(id, userId, branchId);
   }
 
+  @Get('retentions')
+  @ApiOperation({
+    summary: 'Comprobantes de retención emitidos',
+    description: 'Retenciones IVA/ISLR de la sucursal con su factura de origen',
+  })
+  @ApiQuery({ name: 'partnerId', required: false })
+  @ApiQuery({ name: 'type', required: false, enum: ['IVA', 'ISLR'] })
+  @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
+  @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Comprobantes de retención' })
+  async findRetentions(
+    @CurrentBranch() branchId: string,
+    @Query('partnerId') partnerId?: string,
+    @Query('type') type?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ) {
+    return this.treasuryService.findRetentions({ branchId, partnerId, type, from, to });
+  }
+
   @Get('methods')
   @ApiOperation({
     summary: 'Get payment methods',

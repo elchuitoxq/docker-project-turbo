@@ -73,7 +73,7 @@ describe('Secuencia fiscal (T-06-01)', () => {
 
     expect([first, second, third]).toEqual([1, 2, 3]);
     expect(await sequences.current(branch.id, 'RETENTION_IVA', year)).toBe(3);
-    expect(sequences.format('RETENTION_IVA', year, 42)).toBe('RET-2026-000042');
+    expect(sequences.format('RETENTION_IVA', year, 42)).toBe('RET-IVA-2026-000042');
   });
 
   it('cada tipo de documento lleva su propia secuencia', async () => {

@@ -66,10 +66,19 @@ export class FiscalSequenceService {
     return row?.lastNumber ?? 0;
   }
 
-  /** Formato del comprobante: `RET-2026-000042`. */
+  /**
+   * Formato del comprobante: `RET-IVA-2026-000042`, `RET-ISLR-2026-000007` o `FIS-2026-000042`.
+   *
+   * El tipo va en el número porque IVA e ISLR llevan secuencias separadas: sin el prefijo, el primer
+   * comprobante de ISLR del año repite el número de un comprobante de IVA (H-85).
+   */
   format(documentType: string, year: number, value: number): string {
     const prefix =
-      documentType === 'RETENTION_IVA' || documentType === 'RETENTION_ISLR' ? 'RET' : 'FIS';
+      documentType === 'RETENTION_IVA'
+        ? 'RET-IVA'
+        : documentType === 'RETENTION_ISLR'
+          ? 'RET-ISLR'
+          : 'FIS';
 
     return `${prefix}-${year}-${String(value).padStart(6, '0')}`;
   }

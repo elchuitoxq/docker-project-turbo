@@ -14,8 +14,9 @@ import {
   paymentMethods,
   partners,
 } from '../../../schema';
-import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, isNull, like, lte, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { computeInvoiceBalance } from '../../billing/purchasing/invoice-balance';
 import {
   CreatePaymentDto,
   PaymentResponseDto,
@@ -197,6 +198,51 @@ export class TreasuryService {
 
     const affectsBalance = PAYMENT_METHODS_BALANCE_AFFECTING.includes(method.code);
 
+    // Las asignaciones se validan antes de escribir: si el importe no cuadra, el pago no debe
+    // quedar registrado (regla 6 de `S-03`).
+    const allocationRequests =
+      createPaymentDto.allocations && createPaymentDto.allocations.length > 0
+        ? createPaymentDto.allocations
+        : createPaymentDto.invoiceId
+          ? [{ invoiceId: createPaymentDto.invoiceId, amount: createPaymentDto.amount }]
+          : [];
+
+    const requested = allocationRequests.reduce((sum, item) => sum + item.amount, 0);
+
+    if (Number(this.money.round(requested)) > Number(this.money.round(createPaymentDto.amount))) {
+      throw new BadRequestException(
+        `Las asignaciones (${requested}) superan el importe del pago (${createPaymentDto.amount})`
+      );
+    }
+
+    // Regla 4 de `S-03`: el pago no puede exceder el saldo de la factura. Si se paga en otra
+    // moneda, el monto equivalente depende de la tasa del día y la diferencia se registra como
+    // resultado cambiario, así que la comparación exacta sólo aplica en la moneda del documento.
+    for (const allocation of allocationRequests) {
+      const computed = await computeInvoiceBalance(allocation.invoiceId);
+
+      if (!computed) {
+        throw new NotFoundException(`Invoice with ID ${allocation.invoiceId} not found`);
+      }
+
+      const [target] = await db
+        .select({ currencyId: invoices.currencyId })
+        .from(invoices)
+        .where(eq(invoices.id, allocation.invoiceId))
+        .limit(1);
+
+      const sameCurrency = target?.currencyId === createPaymentDto.currencyId;
+
+      if (
+        sameCurrency &&
+        Number(this.money.round(allocation.amount)) > Number(this.money.round(computed.balance))
+      ) {
+        throw new BadRequestException(
+          `La asignación (${allocation.amount}) supera el saldo de la factura (${computed.balance})`
+        );
+      }
+    }
+
     if (affectsBalance && createPaymentDto.bankAccountId) {
       const [bankAccount] = await db
         .select()
@@ -235,6 +281,9 @@ export class TreasuryService {
           methodId: createPaymentDto.methodId,
           status: PaymentStatus.POSTED,
           type: createPaymentDto.type || PaymentType.INCOME,
+          direction:
+            (createPaymentDto.type || PaymentType.INCOME) === PaymentType.EXPENSE ? 'OUT' : 'IN',
+          retentionAmount: String(createPaymentDto.retentionAmount ?? 0),
           amount: String(createPaymentDto.amount),
           currencyId: createPaymentDto.currencyId,
           exchangeRate: String(createPaymentDto.exchangeRate),
@@ -251,17 +300,23 @@ export class TreasuryService {
       return row;
     });
 
-    if (createPaymentDto.invoiceId) {
-      await db.insert(paymentAllocations).values({
-        id: uuidv4(),
-        paymentId: newPayment.id,
-        invoiceId: createPaymentDto.invoiceId,
-        amount: String(createPaymentDto.amount),
-        amountBase: this.money.round(
-          this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
-        ),
-      });
+    if (allocationRequests.length > 0) {
+      for (const allocation of allocationRequests) {
+        await db.insert(paymentAllocations).values({
+          id: uuidv4(),
+          paymentId: newPayment.id,
+          invoiceId: allocation.invoiceId,
+          amount: String(allocation.amount),
+          amountBase: this.money.round(
+            this.money.toBase(allocation.amount, createPaymentDto.exchangeRate)
+          ),
+        });
 
+        await this.refreshInvoiceBalance(allocation.invoiceId);
+      }
+    }
+
+    if (createPaymentDto.invoiceId) {
       const [invoice] = await db
         .select()
         .from(invoices)
@@ -269,35 +324,28 @@ export class TreasuryService {
         .limit(1);
 
       if (invoice) {
-        // Se compara en moneda funcional: el pago puede venir en otra moneda y con otra tasa.
+        // El estado y el saldo los fija `refreshInvoiceBalance`; aquí sólo se registra la diferencia
+        // de cambio (M8) para que no se pierda al pagar con otra tasa.
         const allocatedBase = await this.calculateTotalPaidBase(createPaymentDto.invoiceId);
         const invoiceRate = invoice.exchangeRate ? Number(invoice.exchangeRate) : 1;
         const invoiceBase = Number(
           this.money.round(this.money.toBase(invoice.total ?? 0, invoiceRate))
         );
+        const exchangeDifference = Number(this.money.round(allocatedBase - invoiceBase));
 
-        if (allocatedBase >= invoiceBase) {
+        if (exchangeDifference !== 0) {
           await db
-            .update(invoices)
-            .set({ status: 'PAID' })
-            .where(eq(invoices.id, createPaymentDto.invoiceId));
-
-          // M8: la diferencia por cobrar con otra tasa no se pierde; queda registrada.
-          const exchangeDifference = Number(this.money.round(allocatedBase - invoiceBase));
-          if (exchangeDifference !== 0) {
-            await db
-              .update(payments)
-              .set({
-                metadata: {
-                  ...((newPayment.metadata as Record<string, unknown> | null) ?? {}),
-                  exchangeDifference,
-                  invoiceBase,
-                  allocatedBase,
-                  invoiceRate,
-                } as never,
-              })
-              .where(eq(payments.id, newPayment.id));
-          }
+            .update(payments)
+            .set({
+              metadata: {
+                ...((newPayment.metadata as Record<string, unknown> | null) ?? {}),
+                exchangeDifference,
+                invoiceBase,
+                allocatedBase,
+                invoiceRate,
+              } as never,
+            })
+            .where(eq(payments.id, newPayment.id));
         }
       }
     }
@@ -306,6 +354,73 @@ export class TreasuryService {
       ...newPayment,
       amount: createPaymentDto.amount,
     };
+  }
+
+  /**
+   * Recalcula la cach? `invoices.paid_amount` y el estado de la factura.
+   *
+   * Las compras pasan a `PENDING`/`PARTIAL`/`PAID` (el vencimiento lo decide la antigüedad, no el
+   * estado); las ventas conservan `PAID` para no cambiar el comportamiento anterior.
+   */
+  private async refreshInvoiceBalance(invoiceId: string): Promise<void> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1);
+    if (!invoice) return;
+
+    const computed = await computeInvoiceBalance(invoiceId);
+    if (!computed) return;
+
+    // `paid_amount` guarda sólo el efectivo aplicado (moneda del documento); el saldo exigible
+    // descuenta además notas de crédito y retenciones (H-82).
+    const status =
+      computed.balance <= 0.01 ? 'PAID' : computed.settled > 0.01 ? 'PARTIAL' : invoice.status;
+
+    await db
+      .update(invoices)
+      .set({ paidAmount: String(computed.paid), status })
+      .where(eq(invoices.id, invoiceId));
+  }
+
+  /**
+   * Comprobantes de retención emitidos (`T-03-04`), con su factura de origen.
+   * Filtra por sucursal, proveedor, tipo y rango de fechas.
+   */
+  async findRetentions(filters: {
+    branchId: string;
+    partnerId?: string;
+    type?: string;
+    from?: string;
+    to?: string;
+  }): Promise<unknown[]> {
+    const conditions = [eq(taxRetentions.branchId, filters.branchId)];
+
+    if (filters.partnerId) conditions.push(eq(taxRetentions.partnerId, filters.partnerId));
+    if (filters.type) conditions.push(eq(taxRetentions.type, filters.type));
+    if (filters.from) conditions.push(gte(taxRetentions.date, new Date(filters.from)));
+    if (filters.to) {
+      conditions.push(
+        lte(taxRetentions.date, new Date(`${filters.to.slice(0, 10)}T23:59:59.999Z`))
+      );
+    }
+
+    const rows = await db
+      .select()
+      .from(taxRetentions)
+      .where(and(...conditions))
+      .orderBy(desc(taxRetentions.date));
+
+    return rows.map(row => ({
+      id: row.id,
+      code: row.code,
+      voucherNumber: row.voucherNumber,
+      type: row.type,
+      partnerId: row.partnerId,
+      invoiceId: row.invoiceId,
+      period: row.period,
+      date: row.date,
+      totalBase: Number(row.totalBase),
+      totalTax: Number(row.totalTax ?? 0),
+      totalRetained: Number(row.totalRetained),
+    }));
   }
 
   /** Total asignado a la factura, expresado en moneda funcional. */

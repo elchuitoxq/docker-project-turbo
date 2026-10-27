@@ -1590,3 +1590,66 @@ El módulo de reportes fiscales ya generaba TXT/XML y libros en CSV, pero:
 - Los comprobantes de retención **no se crean** en ningún punto del backend (sólo se leen y se borran
   al anular un pago): eso llega con E3 (compras/CxP), que es quien emite la retención.
 - El dígito verificador del RIF necesita confirmación normativa antes de convertirlo en error.
+
+---
+
+### BT-048 · 2026-10-27 · E3: compras, retenciones y cuentas por pagar (T-03-01 … T-03-09)
+
+**Lo que había**
+
+El tipo `PURCHASE` existía desde E1 y la pantalla `operations/purchases` reutilizaba la vista de
+ventas, pero no había ciclo de compras: ni vencimiento, ni retención al proveedor, ni saldo, ni
+cuentas por pagar. Peor: el escenario de aceptación de `S-03` (compra de 1.000 + 16 %, retención del
+75 % → saldo 1.040) **no se podía ni expresar**, porque no existía la retención.
+
+**Qué se entregó, en orden**
+
+| Tarea   | Contenido                                                                                                                  |
+| ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| T-03-01 | Migración `0015`: `supplier_invoice_number`, `supplier_invoice_date`, `paid_amount` (backfill desde `payment_allocations`) |
+| T-03-02 | `partners.credit_days` y `resolveDueDate()`: vencimiento = emisión + días de crédito                                       |
+| T-03-03 | `supplier_retention_settings` por empresa (IVA 75/100 %, ISLR con tasa, sustraendo y umbral) + `GET/PATCH`                 |
+| T-03-04 | `SupplierRetentionService`: retención idempotente por `(invoiceId, type)` y comprobante correlativo por sucursal           |
+| T-03-05 | `GET /billing/invoices/payables` y `/payables/aging` con buckets por vencer, 1-30, 31-60, 61-90 y más de 90 días           |
+| T-03-06 | `payments.direction`, `retention_amount` y `allocations[]` con validación de sobreasignación y de saldo por factura        |
+| T-03-07 | `credit_notes.type` (`SALE`/`PURCHASE`); la NC de compra descuenta el saldo                                                |
+| T-03-08 | UI `operations/purchases`: vencimiento, total, retenido, saldo y estado por fila                                           |
+| T-03-09 | UI `finance/payables`: tarjetas de aging, filtros y pago con retención descontada                                          |
+
+**Decisiones**
+
+- **El saldo descuenta la retención** (H-82). El proveedor cobra el neto: si CxP mostrara 1.160 se
+  pagaría de más. El cálculo vive en un único `invoice-balance.ts`
+  (`total − pagado − notas de crédito de compra − retenciones`) que usan CxP y tesorería, para que la
+  pantalla y la validación del pago no puedan discrepar.
+- **La retención no marca la factura como "abonada"**: sólo cuentan el efectivo y las notas de
+  crédito. Una compra recién publicada queda `PENDING` con saldo 1.040, que es lo que espera el
+  analista de CxP.
+- **El pago valida el saldo sólo en la moneda del documento**: pagar una factura en divisa con
+  bolívares implica una tasa del día y la diferencia se registra como resultado cambiario (M8).
+  Comparar montos absolutos ahí bloquearía cobros legítimos.
+- **La asignación se valida antes de escribir** (H-84). Antes el pago se insertaba y el saldo del
+  banco se movía antes de comprobar las asignaciones: un `400` dejaba basura contable.
+- **El comprobante lleva el tipo en el número** (H-85): IVA e ISLR tienen secuencias separadas, así
+  que sin prefijo el primer comprobante de ISLR del año repetía el número de uno de IVA.
+
+**Verificación en vivo (Docker + navegador)**
+
+- Compra publicada en la sucursal principal: `A-90006`, total 2.320, retención 240, saldo 2.080,
+  vencimiento 26/11/2026 (emisión + 30 días), comprobante `RET-IVA-2026-000004`.
+- Pago parcial desde la UI de CxP: 500 → `Abonada`, saldo 1.580, `payments.direction = OUT`.
+- Sobrepago: `POST /treasury/payments` con 600 sobre saldo 540 → `400 La asignación (600) supera el
+saldo de la factura (540)`.
+- Anulación de una compra con pagos → `409 La factura tiene pagos aplicados`.
+- Aging al 10/12/2026: 540 en el bucket 1-30 tras el vencimiento.
+- Nota de crédito de compra por 200 → saldo 800 y estado `PARTIAL`.
+
+**Pruebas**
+
+- Backend **913/913** (16 nuevas de compras y CxP: retención 75/100 %, idempotencia, compra exenta,
+  numeración IVA/ISLR, vencimiento, CxP, aging, aislamiento por sucursal, pago parcial, sobrepago,
+  pago total, NC de compra y anulación con pagos).
+- Frontend **108/108** (6 nuevas: contrato del cliente de CxP y `formatDay`).
+- database **39/39** · turbo `lint typecheck build test:coverage` **16/16** · `format:check` verde ·
+  `pnpm audit --prod` sin vulnerabilidades.
+- Plan: **76 de 100 tareas**; **E3 cerrada, 9 de 9**.

@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsBoolean,
   IsEnum,
+  IsInt,
   Min,
   Max,
 } from 'class-validator';
@@ -97,6 +98,15 @@ export class CreatePartnerDto {
   @IsNumber()
   @Min(0)
   creditLimit?: number;
+
+  @ApiPropertyOptional({
+    description: 'Días de crédito para calcular el vencimiento de compras (T-03-02)',
+    example: 30,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  creditDays?: number;
 
   @ApiPropertyOptional({
     description: 'ISLR concept ID',
@@ -197,6 +207,15 @@ export class UpdatePartnerDto {
   creditLimit?: number;
 
   @ApiPropertyOptional({
+    description: 'Días de crédito para calcular el vencimiento de compras (T-03-02)',
+    example: 30,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  creditDays?: number;
+
+  @ApiPropertyOptional({
     description: 'ISLR concept ID',
     example: '550e8400-e29b-41d4-a716-446655440001',
   })
@@ -273,6 +292,12 @@ export class PartnerResponseDto {
     example: 10000.0,
   })
   creditLimit: number;
+
+  @ApiProperty({
+    description: 'Días de crédito para el vencimiento de compras',
+    example: 30,
+  })
+  creditDays: number;
 
   @ApiPropertyOptional({
     description: 'ISLR concept ID',

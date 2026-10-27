@@ -2,7 +2,7 @@
 
 | Campo          | Valor                                                                                        |
 | -------------- | -------------------------------------------------------------------------------------------- |
-| **Estado**     | ⬜ Especificada                                                                              |
+| **Estado**     | ✅ Implementada (T-03-01 … T-03-09)                                                          |
 | **Prioridad**  | 🟠 P1                                                                                        |
 | **Depende de** | S-00, S-01 (C)                                                                               |
 | **Épica**      | E3 · **Fuentes:** `audit-report/07-TESORERIA-BILLING-LOGIC.md`, `08-FISCALIDAD-VENEZUELA.md` |

@@ -185,15 +185,15 @@ en las pantallas de HR, inventario y finanzas.
 
 | ID      | Tarea                                                                               | Artefactos                              | Depende | Verificación                            | Talla | Estado |
 | ------- | ----------------------------------------------------------------------------------- | --------------------------------------- | ------- | --------------------------------------- | ----- | ------ |
-| T-03-01 | `invoices`: `supplierInvoiceNumber`, `supplierInvoiceDate`, `dueDate`, `paidAmount` | migración + `modules/billing/*`         | E1      | alta de compra con vencimiento          | M     | ⬜     |
-| T-03-02 | `partners.creditDays` y cálculo de vencimiento                                      | migración + `modules/partners/*`        | T-03-01 | vencimiento = emisión + días de crédito | S     | ⬜     |
-| T-03-03 | `supplier_retention_settings` por empresa                                           | tabla nueva + UI                        | T-03-01 | parámetros persistidos                  | M     | ⬜     |
-| T-03-04 | Retenciones IVA/ISLR al publicar factura de compra                                  | `modules/billing/*`, `tax_retentions`   | T-03-03 | comprobante con número correlativo      | L     | ⬜     |
-| T-03-05 | `GET /v1/billing/payables` y `/payables/aging`                                      | `modules/billing/*` + índices           | T-03-01 | buckets 0-30/31-60/61-90/+90 correctos  | M     | ⬜     |
-| T-03-06 | `payments.direction` (`IN`/`OUT`) + `retentionAmount` + allocations                 | migración + `modules/treasury/*`        | T-03-04 | pago cancela total o parcial            | L     | ⬜     |
-| T-03-07 | `credit_notes.type` y devolución a proveedor                                        | migración + `modules/credit-notes/*`    | T-03-01 | NC de compra descuenta saldo            | M     | ⬜     |
-| T-03-08 | UI `operations/purchases` + detalle con retenciones y pagos                         | `app/(dashboard)/operations/purchases/` | T-03-05 | saldo y estado por fila                 | L     | ⬜     |
-| T-03-09 | UI pantalla de CxP con antigüedad                                                   | `app/(dashboard)/finance/payables/`     | T-03-05 | filtros por proveedor y vencimiento     | M     | ⬜     |
+| T-03-01 | `invoices`: `supplierInvoiceNumber`, `supplierInvoiceDate`, `dueDate`, `paidAmount` | migración + `modules/billing/*`         | E1      | alta de compra con vencimiento          | M     | ✅     |
+| T-03-02 | `partners.creditDays` y cálculo de vencimiento                                      | migración + `modules/partners/*`        | T-03-01 | vencimiento = emisión + días de crédito | S     | ✅     |
+| T-03-03 | `supplier_retention_settings` por empresa                                           | tabla nueva + UI                        | T-03-01 | parámetros persistidos                  | M     | ✅     |
+| T-03-04 | Retenciones IVA/ISLR al publicar factura de compra                                  | `modules/billing/*`, `tax_retentions`   | T-03-03 | comprobante con número correlativo      | L     | ✅     |
+| T-03-05 | `GET /v1/billing/payables` y `/payables/aging`                                      | `modules/billing/*` + índices           | T-03-01 | buckets 0-30/31-60/61-90/+90 correctos  | M     | ✅     |
+| T-03-06 | `payments.direction` (`IN`/`OUT`) + `retentionAmount` + allocations                 | migración + `modules/treasury/*`        | T-03-04 | pago cancela total o parcial            | L     | ✅     |
+| T-03-07 | `credit_notes.type` y devolución a proveedor                                        | migración + `modules/credit-notes/*`    | T-03-01 | NC de compra descuenta saldo            | M     | ✅     |
+| T-03-08 | UI `operations/purchases` + detalle con retenciones y pagos                         | `app/(dashboard)/operations/purchases/` | T-03-05 | saldo y estado por fila                 | L     | ✅     |
+| T-03-09 | UI pantalla de CxP con antigüedad                                                   | `app/(dashboard)/finance/payables/`     | T-03-05 | filtros por proveedor y vencimiento     | M     | ✅     |
 
 **Gate de salida E3:** ciclo completo compra → retención → pago → asiento, con E2E.
 
@@ -293,11 +293,11 @@ trazada.
 | 4   | 6-7     | E2 nómina                              | 11      | 11     |
 | 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
-| 7   | 12-13   | E3 compras y CxP                       | 9       | 0      |
+| 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 0      |
 | 9   | 16      | E7 frontend restante                   | 7       | 0      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **67** |
+| —   | —       | **Total**                              | **100** | **76** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

@@ -66,6 +66,7 @@ export class PartnersService {
         retentionRate: createPartnerDto.retentionRate?.toString() || '0',
         isSpecialTaxpayer: createPartnerDto.isSpecialTaxpayer || false,
         creditLimit: createPartnerDto.creditLimit?.toString() || '0',
+        creditDays: createPartnerDto.creditDays ?? 0,
         islrConceptId: createPartnerDto.islrConceptId,
       })
       .returning();
@@ -108,6 +109,8 @@ export class PartnersService {
       updateData.isSpecialTaxpayer = updatePartnerDto.isSpecialTaxpayer;
     if (updatePartnerDto.creditLimit !== undefined)
       updateData.creditLimit = updatePartnerDto.creditLimit.toString();
+    if (updatePartnerDto.creditDays !== undefined)
+      updateData.creditDays = updatePartnerDto.creditDays;
     if (updatePartnerDto.islrConceptId !== undefined)
       updateData.islrConceptId = updatePartnerDto.islrConceptId;
 
@@ -234,6 +237,7 @@ export class PartnersService {
       retentionRate: partner.retentionRate ? Number(partner.retentionRate) : 0,
       isSpecialTaxpayer: partner.isSpecialTaxpayer || false,
       creditLimit: partner.creditLimit ? Number(partner.creditLimit) : 0,
+      creditDays: partner.creditDays ?? 0,
       islrConceptId: partner.islrConceptId,
       createdAt: partner.createdAt,
       updatedAt: partner.updatedAt,

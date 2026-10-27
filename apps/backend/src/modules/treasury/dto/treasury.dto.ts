@@ -21,6 +21,17 @@ export enum PaymentType {
   EXPENSE = 'EXPENSE',
 }
 
+export class PaymentAllocationDto {
+  @ApiProperty({ description: 'Factura a cancelar' })
+  @IsUUID()
+  invoiceId: string;
+
+  @ApiProperty({ description: 'Importe aplicado a esa factura', example: 500 })
+  @IsNumber()
+  @Min(0.01)
+  amount: number;
+}
+
 export class CreatePaymentDto {
   @ApiPropertyOptional({
     description: 'Invoice ID to link payment',
@@ -106,6 +117,26 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsEnum(PaymentType)
   type?: PaymentType;
+
+  @ApiPropertyOptional({
+    description: 'Retención que se descuenta al proveedor (no sale de la cuenta bancaria)',
+    example: 120,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  retentionAmount?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Facturas a las que se aplica el pago. Si falta, se usa `invoiceId` con el importe completo',
+    type: [PaymentAllocationDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaymentAllocationDto)
+  allocations?: PaymentAllocationDto[];
 }
 
 export class PaymentResponseDto {

@@ -46,20 +46,20 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 
 const STATUS_LABEL = {
   PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmado',
+  POSTED: 'Registrado',
   VOID: 'Anulado',
 } as const;
 
 const STATUS_VARIANT = {
   PENDING: 'secondary',
-  CONFIRMED: 'default',
+  POSTED: 'default',
   VOID: 'destructive',
 } as const;
 
 export function TreasuryView() {
   const t = useTranslations('common');
   const [search, setSearch] = React.useState('');
-  const [type, setType] = React.useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
+  const [type, setType] = React.useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
   const [status, setStatus] = React.useState<string>('ALL');
 
   const { data: accounts } = useQuery({
@@ -78,10 +78,10 @@ export function TreasuryView() {
 
   const totalBalance = (accounts ?? []).reduce((acc, a) => acc + Number(a.balance ?? 0), 0);
   const totalInflow = (payments?.data ?? [])
-    .filter(p => p.type === 'INBOUND' && p.status === 'CONFIRMED')
+    .filter(p => p.type === 'INCOME' && p.status === 'POSTED')
     .reduce((acc, p) => acc + Number(p.amount), 0);
   const totalOutflow = (payments?.data ?? [])
-    .filter(p => p.type === 'OUTBOUND' && p.status === 'CONFIRMED')
+    .filter(p => p.type === 'EXPENSE' && p.status === 'POSTED')
     .reduce((acc, p) => acc + Number(p.amount), 0);
 
   const filtered = (payments?.data ?? []).filter(
@@ -167,14 +167,14 @@ export function TreasuryView() {
                 className="pl-8"
               />
             </div>
-            <Select value={type} onValueChange={v => setType(v as 'ALL' | 'INBOUND' | 'OUTBOUND')}>
+            <Select value={type} onValueChange={v => setType(v as 'ALL' | 'INCOME' | 'EXPENSE')}>
               <SelectTrigger className="w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
-                <SelectItem value="INBOUND">Ingresos</SelectItem>
-                <SelectItem value="OUTBOUND">Egresos</SelectItem>
+                <SelectItem value="INCOME">Ingresos</SelectItem>
+                <SelectItem value="EXPENSE">Egresos</SelectItem>
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={setStatus}>
@@ -233,8 +233,8 @@ export function TreasuryView() {
                     <TableCell className="font-mono text-xs">{p.code}</TableCell>
                     <TableCell className="text-xs">{formatDate(p.date)}</TableCell>
                     <TableCell>
-                      <Badge variant={p.type === 'INBOUND' ? 'default' : 'secondary'}>
-                        {p.type === 'INBOUND' ? 'Ingreso' : 'Egreso'}
+                      <Badge variant={p.type === 'INCOME' ? 'default' : 'secondary'}>
+                        {p.type === 'INCOME' ? 'Ingreso' : 'Egreso'}
                       </Badge>
                     </TableCell>
                     <TableCell>{p.partnerName ?? '—'}</TableCell>
@@ -246,10 +246,10 @@ export function TreasuryView() {
                     </TableCell>
                     <TableCell
                       className={`text-right tabular-nums font-semibold ${
-                        p.type === 'INBOUND' ? 'text-emerald-600' : 'text-destructive'
+                        p.type === 'INCOME' ? 'text-emerald-600' : 'text-destructive'
                       }`}
                     >
-                      {p.type === 'INBOUND' ? '+' : '-'}
+                      {p.type === 'INCOME' ? '+' : '-'}
                       {formatCurrency(Number(p.amount), p.currencyCode === 'VES' ? 'VES' : 'USD')}
                     </TableCell>
                     <TableCell>

@@ -256,6 +256,8 @@ export const partners = pgTable('partners', {
   retentionRate: numeric('retention_rate', { precision: 3, scale: 0 }).default('0'),
   isSpecialTaxpayer: boolean('is_special_taxpayer').default(false),
   creditLimit: numeric('credit_limit', { precision: 20, scale: 2 }).default('0'),
+  /** Días de crédito por defecto para calcular el vencimiento de una compra (T-03-02). */
+  creditDays: integer('credit_days').default(0).notNull(),
   islrConceptId: uuid('islr_concept_id'),
   /** Baja logica (T-01-17): un maestro con movimientos no se borra, se desactiva. */
   isActive: boolean('is_active').default(true),
@@ -432,6 +434,11 @@ export const invoices = pgTable('invoices', {
   total: numeric('total', { precision: 20, scale: 2 }).default('0'),
   date: timestamp('date').defaultNow(),
   dueDate: timestamp('due_date'),
+  /** Número de factura del proveedor y su fecha de emisión (T-03-01). */
+  supplierInvoiceNumber: text('supplier_invoice_number'),
+  supplierInvoiceDate: timestamp('supplier_invoice_date'),
+  /** Cache del pagado en moneda funcional; la fuente de verdad son las asignaciones de pago. */
+  paidAmount: numeric('paid_amount', { precision: 20, scale: 2 }).default('0').notNull(),
   warehouseId: uuid('warehouse_id'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
@@ -451,6 +458,8 @@ export const invoiceItems = pgTable('invoice_items', {
 });
 
 export const creditNotes = pgTable('credit_notes', {
+  /** `SALE` devolución a cliente, `PURCHASE` devolución a proveedor (T-03-07). */
+  type: text('type').default('SALE').notNull(),
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
@@ -547,6 +556,12 @@ export const payments = pgTable(
     amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
     bankAccountId: uuid('bank_account_id'),
     payrollRunId: uuid('payroll_run_id'),
+    /** `IN` cobro, `OUT` pago. `type` se mantiene por compatibilidad (T-03-06). */
+    direction: text('direction').default('IN').notNull(),
+    /** Retención que se descuenta del pago al proveedor. */
+    retentionAmount: numeric('retention_amount', { precision: 20, scale: 2 })
+      .default('0')
+      .notNull(),
     reference: text('reference'),
     metadata: jsonb('metadata'),
     date: timestamp('date').defaultNow(),
@@ -584,27 +599,71 @@ export const paymentMethodAccounts = pgTable(
   })
 );
 
-export const taxRetentions = pgTable('tax_retentions', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  code: text('code').notNull().unique(),
-  partnerId: uuid('partner_id').notNull(),
-  branchId: uuid('branch_id').notNull(),
-  period: text('period').notNull(),
-  type: text('type').notNull(),
-  totalBase: numeric('total_base', { precision: 20, scale: 2 }).notNull(),
-  totalTax: numeric('total_tax', { precision: 20, scale: 2 }).default('0'),
-  totalRetained: numeric('total_retained', { precision: 20, scale: 2 }).notNull(),
-  /** Moneda y tasa del comprobante de retencion (M2 de `S-08`). */
-  currencyId: uuid('currency_id'),
-  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }),
-  totalRetainedBase: numeric('total_retained_base', { precision: 20, scale: 2 }),
-  xmlContent: text('xml_content'),
-  date: timestamp('date').defaultNow(),
-  userId: uuid('user_id'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const taxRetentions = pgTable(
+  'tax_retentions',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    code: text('code').notNull(),
+    partnerId: uuid('partner_id').notNull(),
+    branchId: uuid('branch_id').notNull(),
+    period: text('period').notNull(),
+    type: text('type').notNull(),
+    totalBase: numeric('total_base', { precision: 20, scale: 2 }).notNull(),
+    totalTax: numeric('total_tax', { precision: 20, scale: 2 }).default('0'),
+    totalRetained: numeric('total_retained', { precision: 20, scale: 2 }).notNull(),
+    /** Moneda y tasa del comprobante de retencion (M2 de `S-08`). */
+    currencyId: uuid('currency_id'),
+    exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }),
+    totalRetainedBase: numeric('total_retained_base', { precision: 20, scale: 2 }),
+    xmlContent: text('xml_content'),
+    /** Factura de compra que origin? el comprobante (T-03-04). */
+    invoiceId: uuid('invoice_id'),
+    /** Número de comprobante correlativo por sucursal y año (T-06-01). */
+    voucherNumber: text('voucher_number'),
+    date: timestamp('date').defaultNow(),
+    userId: uuid('user_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  // H-80: el correlativo es por sucursal, asi que la unicidad de `code` no puede ser global.
+  table => [
+    uniqueIndex('tax_retentions_branch_type_voucher_unq')
+      .on(table.branchId, table.type, table.voucherNumber)
+      .where(sql`${table.voucherNumber} is not null`),
+  ]
+);
+
+/**
+ * Parámetros de retención al proveedor por empresa (`T-03-03`).
+ *
+ * El porcentaje de IVA a retener depende de la condición del proveedor (75 % ordinario, 100 % en los
+ * supuestos especiales) y el ISLR de la tabla del decreto, que cambia por año: por eso es parámetro y
+ * no constante.
+ */
+export const supplierRetentionSettings = pgTable(
+  'supplier_retention_settings',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'restrict' }),
+    ivaRetentionRate: numeric('iva_retention_rate', { precision: 5, scale: 2 })
+      .default('75')
+      .notNull(),
+    ivaRetentionRateSpecial: numeric('iva_retention_rate_special', { precision: 5, scale: 2 })
+      .default('100')
+      .notNull(),
+    islrRate: numeric('islr_rate', { precision: 5, scale: 2 }).default('0').notNull(),
+    islrSustraendo: numeric('islr_sustraendo', { precision: 20, scale: 2 }).default('0').notNull(),
+    /** Umbral en moneda funcional a partir del cual se aplica la retención de ISLR. */
+    islrThreshold: numeric('islr_threshold', { precision: 20, scale: 2 }).default('0').notNull(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  table => [uniqueIndex('supplier_retention_settings_company_unq').on(table.companyId)]
+);
 
 export const taxRetentionLines = pgTable('tax_retention_lines', {
   id: uuid('id')

@@ -139,6 +139,22 @@ export class CreateInvoiceDto {
   @IsDateString()
   dueDate?: string;
 
+  @ApiPropertyOptional({
+    description: 'Número de factura del proveedor (compras)',
+    example: '00001234',
+  })
+  @IsOptional()
+  @IsString()
+  supplierInvoiceNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de emisión de la factura del proveedor; por defecto, la del documento',
+    example: '2026-06-15T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  supplierInvoiceDate?: string;
+
   @ApiProperty({
     description: 'Invoice items',
     type: [InvoiceItemDto],

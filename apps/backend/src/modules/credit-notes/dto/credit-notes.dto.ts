@@ -42,6 +42,15 @@ export class CreateCreditNoteItemDto {
 
 export class CreateCreditNoteDto {
   @ApiPropertyOptional({
+    description: 'SALE devuelve a un cliente; PURCHASE es una devolución a proveedor',
+    enum: ['SALE', 'PURCHASE'],
+    default: 'SALE',
+  })
+  @IsOptional()
+  @IsString()
+  type?: 'SALE' | 'PURCHASE';
+
+  @ApiPropertyOptional({
     description: 'Invoice ID this credit note is related to',
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
@@ -220,6 +229,13 @@ export class CreditNoteResponseDto {
     example: 'CN-2026-0001',
   })
   code: string;
+
+  @ApiProperty({
+    description: 'SALE devuelve a un cliente; PURCHASE es una devolución a proveedor',
+    enum: ['SALE', 'PURCHASE'],
+    example: 'SALE',
+  })
+  type: 'SALE' | 'PURCHASE';
 
   @ApiPropertyOptional({
     description: 'Invoice ID',

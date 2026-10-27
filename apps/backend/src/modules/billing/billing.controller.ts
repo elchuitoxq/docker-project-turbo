@@ -19,6 +19,8 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { BillingService } from './services/billing.service';
+import { PayablesService, type PayableStatus } from './purchasing/payables.service';
+import { SupplierRetentionService } from './purchasing/supplier-retention.service';
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -34,7 +36,11 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 @ApiTags('billing')
 @Controller('v1/billing/invoices')
 export class BillingController {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly billingService: BillingService,
+    private readonly payables: PayablesService = new PayablesService(),
+    private readonly retentions: SupplierRetentionService = new SupplierRetentionService()
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -96,6 +102,70 @@ export class BillingController {
   })
   async getStats(@CurrentBranch() branchId: string): Promise<InvoiceStatsDto> {
     return this.billingService.getStats(branchId);
+  }
+
+  // Cuentas por pagar (T-03-05)
+
+  @Get('payables')
+  @ApiOperation({
+    summary: 'Cuentas por pagar por factura',
+    description: 'Saldo = total ? pagado ? notas de crédito de compra. Sólo compras POSTED/PAID',
+  })
+  @ApiQuery({ name: 'partnerId', required: false })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['PENDING', 'PARTIAL', 'PAID', 'OVERDUE'],
+  })
+  @ApiQuery({ name: 'asOf', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Facturas por pagar con su saldo' })
+  async findPayables(
+    @CurrentBranch() branchId: string,
+    @Query('partnerId') partnerId?: string,
+    @Query('status') status?: PayableStatus,
+    @Query('asOf') asOf?: string
+  ) {
+    return this.payables.list(branchId, { partnerId, status, asOf });
+  }
+
+  @Get('payables/aging')
+  @ApiOperation({
+    summary: 'Antigüedad de saldos (aging)',
+    description: 'Buckets: por vencer, 1-30, 31-60, 61-90 y más de 90 días',
+  })
+  @ApiQuery({ name: 'asOf', required: false, example: '2026-10-31' })
+  @ApiResponse({ status: 200, description: 'Antigüedad por bucket y por proveedor' })
+  async findPayablesAging(@CurrentBranch() branchId: string, @Query('asOf') asOf?: string) {
+    return this.payables.aging(branchId, asOf);
+  }
+
+  // Parámetros de retención al proveedor (T-03-03)
+
+  @Get('supplier-retention-settings')
+  @ApiOperation({ summary: 'Parámetros de retención al proveedor de la empresa' })
+  @ApiResponse({ status: 200, description: 'Parámetros vigentes' })
+  async getRetentionSettings(@CurrentBranch() branchId: string) {
+    return this.retentions.getSettings(await this.retentions.companyOfBranch(branchId));
+  }
+
+  @Patch('supplier-retention-settings')
+  @ApiOperation({
+    summary: 'Actualizar parámetros de retención',
+    description: 'IVA (ordinario y especial), ISLR y su umbral. Cambian por decreto: son parámetro',
+  })
+  @ApiResponse({ status: 200, description: 'Parámetros actualizados' })
+  async updateRetentionSettings(
+    @CurrentBranch() branchId: string,
+    @Body()
+    body: Partial<{
+      ivaRetentionRate: number;
+      ivaRetentionRateSpecial: number;
+      islrRate: number;
+      islrSustraendo: number;
+      islrThreshold: number;
+    }>
+  ) {
+    return this.retentions.updateSettings(await this.retentions.companyOfBranch(branchId), body);
   }
 
   @Get(':id')

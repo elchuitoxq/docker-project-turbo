@@ -445,6 +445,47 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
   correlativo `FIS-aaaa-nnnnnn` por sucursal, y devuelve el contenido. Responde `409` con el detalle
   de los hallazgos si la validación tiene errores.
 
+## Compras y cuentas por pagar (desde 2026-10-27)
+
+`T-03-01 … T-03-09`. Todo se resuelve contra la sucursal activa (`x-branch-id`).
+
+| Método  | Ruta                                                  | Permiso                   |
+| ------- | ----------------------------------------------------- | ------------------------- |
+| `GET`   | `/v1/billing/invoices/payables?partnerId&status&asOf` | `finance:invoices:view`   |
+| `GET`   | `/v1/billing/invoices/payables/aging?asOf`            | `finance:invoices:view`   |
+| `GET`   | `/v1/billing/invoices/supplier-retention-settings`    | `finance:invoices:view`   |
+| `PATCH` | `/v1/billing/invoices/supplier-retention-settings`    | `finance:invoices:edit`   |
+| `GET`   | `/v1/treasury/retentions?partnerId&type&from&to`      | `finance:retentions:view` |
+| `POST`  | `/v1/treasury/payments` con `allocations[]`           | `finance:payments:create` |
+| `POST`  | `/v1/credit-notes` con `type: 'PURCHASE'`             | `finance:invoices:create` |
+
+- **Las rutas `payables` se declaran antes de `@Get(':id')`**: si se registran después, `payables` se
+  interpreta como un id y la petición responde `404`.
+- **Saldo de una cuenta por pagar** = `total − pagado − notas de crédito de compra − retenciones`.
+  El proveedor cobra el neto: en la compra de 1.000 + 160 con retención de 120 el saldo es **1.040**,
+  no 1.160. El cálculo vive en `modules/billing/purchasing/invoice-balance.ts` y lo comparten CxP y
+  tesorería.
+- `payables` devuelve compras en `POSTED`, `PARTIAL` y `PAID` (un borrador no es una obligación). El
+  `status` de la fila se deriva del saldo y del vencimiento: `PAID`, `OVERDUE`, `PARTIAL` (con efectivo
+  o nota de crédito aplicados) o `PENDING`. **Una retención no convierte la factura en `PARTIAL`.**
+- `aging` devuelve `buckets[CURRENT | D1_30 | D31_60 | D61_90 | D90_PLUS]`, `byPartner[]` y
+  `totals { balance, overdue }`. El corte es `asOf` (por defecto hoy) y sólo suma saldos positivos.
+- **Vencimiento**: si el cuerpo no trae `dueDate`, se calcula `emisión + partners.creditDays`. Sin días
+  de crédito la factura queda sin vencimiento y cae en el bucket `CURRENT`.
+- **Retenciones**: al publicar una compra se emiten comprobantes con numeración por sucursal
+  (`RET-IVA-aaaa-nnnnnn` y `RET-ISLR-aaaa-nnnnnn`; cada tipo lleva su propia secuencia). La retención
+  es idempotente por `(invoiceId, type)`: republicar no duplica comprobantes. Una compra exenta
+  (IVA 0) no emite comprobante de IVA.
+- **Pago a proveedor**: `type: 'EXPENSE'` (el backend deriva `direction: 'OUT'`), `amount` y
+  `allocations[{ invoiceId, amount }]`. Se rechaza con `400` si las asignaciones superan el importe
+  del pago o el saldo de una factura **en la misma moneda del documento** (si se paga en otra moneda,
+  la diferencia es cambiaria y se registra en `payments.metadata.exchangeDifference`).
+- Las asignaciones se validan **antes** de escribir el pago o mover el banco: un `400` no deja rastros.
+- Una factura con pagos aplicados no se anula: responde `409` y obliga a anular el pago o emitir una
+  nota de crédito (regla 5 de `S-03`).
+- **Notas de crédito de compra**: `credit_notes.type = 'PURCHASE'` y la respuesta incluye `type`.
+  Descuentan el saldo del proveedor mientras estén `POSTED`.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

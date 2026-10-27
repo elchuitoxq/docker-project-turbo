@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { db } from '../../../database';
 
 /** Horas maximas de antiguedad de una tasa antes de exigir confirmacion (T-08-10). */
@@ -13,6 +18,7 @@ import {
 } from '../../../schema';
 import { eq, and, desc, inArray, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { SupplierRetentionService } from '../purchasing/supplier-retention.service';
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -28,6 +34,10 @@ const IGTF_RATE = 0.03;
 
 @Injectable()
 export class BillingService {
+  constructor(
+    private readonly retentions: SupplierRetentionService = new SupplierRetentionService()
+  ) {}
+
   /**
    * Siguiente código de factura. `invoices.code` es único a nivel global, así que la
    * numeración también lo es; el llamador debe invocarlo dentro de la transacción que
@@ -324,7 +334,11 @@ export class BillingService {
           totalTax: String(totals.totalTax),
           totalIgtf: String(totals.totalIgtf),
           total: String(totals.total),
-          dueDate: createInvoiceDto.dueDate ? new Date(createInvoiceDto.dueDate) : null,
+          dueDate: this.resolveDueDate(createInvoiceDto, partner),
+          supplierInvoiceNumber: createInvoiceDto.supplierInvoiceNumber ?? null,
+          supplierInvoiceDate: createInvoiceDto.supplierInvoiceDate
+            ? new Date(createInvoiceDto.supplierInvoiceDate)
+            : null,
           warehouseId: createInvoiceDto.warehouseId,
           userId,
         })
@@ -477,7 +491,30 @@ export class BillingService {
       })
       .where(eq(invoices.id, id));
 
+    // En una compra, publicar es el momento fiscal: se emiten los comprobantes de retención.
+    if (invoice.type === 'PURCHASE') {
+      await this.retentions.retainInvoice(invoice.id);
+    }
+
     return this.findOne(id);
+  }
+
+  /**
+   * Vencimiento de la factura: el que llega en el body o, si falta, emisión + días de crédito del
+   * partner (`T-03-02`). Sin días de crédito y sin fecha, queda sin vencimiento (se trata como
+   * "por vencer" en la antigüedad).
+   */
+  private resolveDueDate(
+    dto: { dueDate?: string; date?: string },
+    partner: typeof partners.$inferSelect
+  ): Date | null {
+    if (dto.dueDate) return new Date(dto.dueDate);
+
+    const creditDays = Number(partner.creditDays ?? 0);
+    if (creditDays <= 0) return null;
+
+    const issue = dto.date ? new Date(dto.date) : new Date();
+    return new Date(issue.getTime() + creditDays * 24 * 60 * 60 * 1000);
   }
 
   async void(id: string, branchId?: string): Promise<InvoiceResponseDto> {
@@ -489,6 +526,13 @@ export class BillingService {
 
     if (invoice.status === InvoiceStatus.VOID) {
       throw new BadRequestException('Invoice is already void');
+    }
+
+    // Regla 5 de `S-03`: primero se anula el pago o se emite una nota de crédito.
+    if (Number(invoice.paidAmount ?? 0) > 0) {
+      throw new ConflictException(
+        'La factura tiene pagos aplicados: anula el pago o emite una nota de crédito'
+      );
     }
 
     await db

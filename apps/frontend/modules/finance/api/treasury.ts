@@ -19,7 +19,9 @@ export type Payment = {
   partnerName?: string;
   bankAccountId: string;
   bankAccount?: BankAccount;
-  type: 'INBOUND' | 'OUTBOUND';
+  /** `INCOME` cobra al cliente; `EXPENSE` paga al proveedor. `direction` lo deriva el backend. */
+  type: 'INCOME' | 'EXPENSE';
+  direction?: 'IN' | 'OUT';
   amount: string;
   currencyId: string;
   currencyCode?: string;
@@ -27,7 +29,24 @@ export type Payment = {
   date: string;
   reference?: string;
   notes?: string;
-  status: 'PENDING' | 'CONFIRMED' | 'VOID';
+  status: 'PENDING' | 'POSTED' | 'VOID';
+};
+
+export type PaymentAllocation = { invoiceId: string; amount: number };
+
+export type CreatePaymentPayload = {
+  partnerId: string;
+  branchId?: string;
+  methodId: string;
+  type: 'INCOME' | 'EXPENSE';
+  amount: number;
+  currencyId: string;
+  exchangeRate: number;
+  bankAccountId?: string;
+  reference?: string;
+  retentionAmount?: number;
+  /** Asignación a facturas; el backend rechaza sobreasignar el saldo (`S-03` regla 4). */
+  allocations?: PaymentAllocation[];
 };
 
 export type PaymentMethod = {
@@ -43,7 +62,7 @@ export const treasuryApi = {
   listAccounts: () => apiClient.get<BankAccount[]>('/treasury/bank-accounts'),
   listMethods: () => apiClient.get<PaymentMethod[]>('/treasury/methods'),
   listPayments: (
-    filters: { type?: 'INBOUND' | 'OUTBOUND'; status?: string; page?: number; limit?: number } = {}
+    filters: { type?: 'INCOME' | 'EXPENSE'; status?: string; page?: number; limit?: number } = {}
   ) => {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(filters)) if (v) params.set(k, String(v));
@@ -52,7 +71,8 @@ export const treasuryApi = {
       `/treasury/payments${qs ? `?${qs}` : ''}`
     );
   },
-  createPayment: (data: Partial<Payment>) => apiClient.post<Payment>('/treasury/payments', data),
+  createPayment: (data: CreatePaymentPayload) =>
+    apiClient.post<Payment>('/treasury/payments', data),
   voidPayment: (id: string, reason: string) =>
     apiClient.post<Payment>(`/treasury/payments/${id}/void`, { reason }),
 };

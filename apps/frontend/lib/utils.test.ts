@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatCurrency, formatDate } from './utils';
+import { cn, formatCurrency, formatDate, formatDay } from './utils';
 
 describe('utils', () => {
   it('cn() merges classes', () => {
@@ -22,5 +22,12 @@ describe('utils', () => {
   it('formatDate() formats date', () => {
     const out = formatDate('2026-06-04T00:00:00.000Z');
     expect(out).toMatch(/2026|04|06/);
+  });
+
+  it('formatDay() no corre el día por zona horaria', () => {
+    // `new Date('2026-11-26')` es medianoche UTC: en Venezuela restaría un día.
+    expect(formatDay('2026-11-26')).toMatch(/26/);
+    expect(formatDay('2026-11-26')).toMatch(/11/);
+    expect(formatDay(null)).toBe('—');
   });
 });

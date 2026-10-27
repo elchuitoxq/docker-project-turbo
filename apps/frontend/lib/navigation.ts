@@ -91,6 +91,12 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'Receipt',
       },
       {
+        title: 'Cuentas por pagar',
+        url: '/dashboard/finance/payables',
+        permission: PERMISSIONS.FINANCE.PAYABLES.VIEW,
+        icon: 'Wallet',
+      },
+      {
         title: 'Tesorería',
         url: '/dashboard/finance/treasury',
         permission: PERMISSIONS.FINANCE.TREASURY.VIEW,

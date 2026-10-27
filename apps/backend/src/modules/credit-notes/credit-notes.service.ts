@@ -118,6 +118,7 @@ export class CreditNotesService {
     return {
       id: creditNote.id,
       code: creditNote.code,
+      type: creditNote.type as 'SALE' | 'PURCHASE',
       invoiceId: creditNote.invoiceId,
       partnerId: creditNote.partnerId,
       branchId: creditNote.branchId,
@@ -175,6 +176,8 @@ export class CreditNotesService {
         currencyId: createCreditNoteDto.currencyId,
         exchangeRate: createCreditNoteDto.exchangeRate.toString(),
         status: 'DRAFT',
+        // `SALE` devuelve a un cliente; `PURCHASE` es una devolución a proveedor (T-03-07).
+        type: createCreditNoteDto.type ?? 'SALE',
         totalBase: totalBase.toString(),
         totalTax: totalTax.toString(),
         totalIgtf: totalIgtf.toString(),
