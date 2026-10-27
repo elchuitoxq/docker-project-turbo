@@ -550,7 +550,7 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
 | `GET`  | `/v1/audit/entities`                                                                     | `settings:users:view` |
 | `GET`  | `/v1/audit/:entityTable/:entityId`                                                       | `settings:users:view` |
 | `GET`  | `/v1/bi/kpis`                                                                            | `bi:view`             |
-| `GET`  | `/v1/bi/chart?type=sales                                                                 | payments&year`        | `bi:view` |
+| `GET`  | `/v1/bi/chart?type=sales\|payments&year`                                                 | `bi:view`             |
 | `GET`  | `/v1/bi/activity`                                                                        | `bi:view`             |
 
 - **Auditoría paginada es aditiva**: con `paginated=true` devuelve `{ data, total, page, limit }`; sin
@@ -564,6 +564,49 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
 - `/bi/chart` devuelve los 12 meses del año pedido, con ceros donde no hubo movimiento.
 - El panel y sus KPIs respetan la sucursal activa porque el cliente envía `x-branch-id` en cada
   llamada; los endpoints de BI aún agregan por sucursal sólo donde el servicio lo aplica ⚠️.
+
+## Notas de crédito, préstamos y stock (desde 2026-10-27)
+
+`T-07-02`, `T-07-03`, `T-07-06`.
+
+| Método  | Ruta                                    | Permiso (UI)              |
+| ------- | --------------------------------------- | ------------------------- |
+| `GET`   | `/v1/credit-notes?partnerId&status`     | `finance:invoices:view`   |
+| `GET`   | `/v1/credit-notes/:id`                  | `finance:invoices:view`   |
+| `POST`  | `/v1/credit-notes`                      | `finance:invoices:view`   |
+| `PATCH` | `/v1/credit-notes/:id`                  | `finance:invoices:view`   |
+| `POST`  | `/v1/credit-notes/:id/post`             | `finance:invoices:view`   |
+| `POST`  | `/v1/credit-notes/:id/void`             | `finance:invoices:view`   |
+| `POST`  | `/v1/credit-notes/:id/apply/:invoiceId` | `finance:invoices:view`   |
+| `GET`   | `/v1/loans?employeeId&status`           | `finance:invoices:view`   |
+| `GET`   | `/v1/loans/:id`                         | `finance:invoices:view`   |
+| `POST`  | `/v1/loans`                             | `finance:invoices:view`   |
+| `PATCH` | `/v1/loans/:id`                         | `finance:invoices:view`   |
+| `POST`  | `/v1/loans/:id/approve`                 | `finance:invoices:view`   |
+| `POST`  | `/v1/loans/:id/reject`                  | `finance:invoices:view`   |
+| `POST`  | `/v1/loans/:id/pay`                     | `finance:invoices:view`   |
+| `GET`   | `/v1/inventory/stock/:warehouseId`      | `inventory:products:view` |
+
+> ⚠️ **La columna "Permiso (UI)" es la del menú, no un control del backend.** Estos controladores
+> todavía no declaran `@RequirePermissions` y sólo exigen autenticación + contexto de sucursal
+> (`H-100`).
+
+- **Notas de crédito**: ciclo `DRAFT → POSTED → APPLIED`, con `VOIDED` como salida. Sólo se aplican
+  contra una factura las que están `POSTED`; `apply` devuelve `{ id, invoiceId, amount,
+availableAmount }` y rechaza si `amount` supera el disponible de la nota o el saldo de la factura.
+  El `type` (`SALE`/`PURCHASE`) define contra qué lado del libro impacta.
+- **Préstamos: es préstamo de artículos, no de dinero.** `loans` + `loan_items` guarda producto, serie
+  y condición; por eso `pay` registra la **devolución** y no genera movimiento de tesorería ni asiento
+  contable. Ciclo `PENDING → ACTIVE → PAID` (más `REJECTED`/`CANCELLED`).
+- `loan_items.kind` distingue `DELIVERED` (entrega, al crear) de `RETURNED` (devolución, en `pay`).
+  El préstamo pasa a `PAID` con `returnDate` sólo cuando lo devuelto cubre lo entregado por producto
+  (`H-99`); una devolución parcial lo deja `ACTIVE`. `pay` sobre un préstamo que no está `ACTIVE`
+  devuelve 400.
+- `items` viaja como DTO anidado (`@ValidateNested` + `@Type`): sin el `@Type` la validación no corre y
+  cualquier alta con artículos fallaba con `productId must be a UUID` (`H-98`).
+- **Stock**: `GET /inventory/stock/:warehouseId` devuelve `quantity`, `reserved`, `available`,
+  `minStock` y `belowMinimum`, para que la pantalla pueda alertar sin recalcular en el cliente. El
+  endpoint respeta la sucursal del almacén (404 si pertenece a otra).
 
 ## Brechas pendientes
 

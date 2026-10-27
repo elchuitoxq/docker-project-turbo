@@ -1361,16 +1361,24 @@ export const loans = pgTable(
   })
 );
 
-export const loanItems = pgTable('loan_items', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  loanId: uuid('loan_id').notNull(),
-  productId: uuid('product_id').notNull(),
-  quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
-  serialNumber: text('serial_number'),
-  condition: text('condition').default('GOOD'),
-});
+export const loanItems = pgTable(
+  'loan_items',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    loanId: uuid('loan_id').notNull(),
+    productId: uuid('product_id').notNull(),
+    quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
+    serialNumber: text('serial_number'),
+    condition: text('condition').default('GOOD'),
+    /** `DELIVERED` al crear el préstamo; `RETURNED` cuando vuelve el artículo (H-99). */
+    kind: text('kind').default('DELIVERED').notNull(),
+  },
+  t => ({
+    loanKindIdx: index('loan_items_loan_kind_idx').on(t.loanId, t.kind),
+  })
+);
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   user: one(users, { fields: [auditLogs.userId], references: [users.id] }),

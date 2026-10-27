@@ -9,6 +9,7 @@ import {
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export enum LoanStatus {
   PENDING = 'PENDING',
@@ -104,6 +105,7 @@ export class CreateLoanDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @Type(() => CreateLoanItemDto)
   items?: CreateLoanItemDto[];
 }
 
@@ -149,6 +151,7 @@ export class PayLoanDto {
   })
   @IsArray()
   @ValidateNested({ each: true })
+  @Type(() => CreateLoanItemDto)
   items: CreateLoanItemDto[];
 }
 
@@ -188,6 +191,13 @@ export class LoanItemResponseDto {
     example: 'GOOD',
   })
   condition: string | null;
+
+  @ApiProperty({
+    description: 'Movimiento del ítem: entrega o devolución',
+    enum: ['DELIVERED', 'RETURNED'],
+    example: 'DELIVERED',
+  })
+  kind: 'DELIVERED' | 'RETURNED';
 }
 
 export class LoanResponseDto {

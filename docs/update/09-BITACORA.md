@@ -1760,3 +1760,67 @@ dashboard era literalmente un stub con cuatro tarjetas que decían "Stub — con
 - Frontend **115/115** (7 nuevas: contrato del cliente de auditoría y `diffRows`).
 - database **39/39** · turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
 - Plan: **89 de 100 tareas**; E7 **4 de 7** (faltan notas de crédito, préstamos y stock por almacén).
+
+### BT-051 · 2026-10-27 · E7 (parte 2): notas de crédito, préstamos de equipos y stock por almacén (T-07-02, T-07-03, T-07-06)
+
+**Lo que había**
+
+Las tres pantallas que cerraban E7 no existían, y dos de los tres servicios detrás de ellas no
+funcionaban como decía su contrato: ningún préstamo con artículos se podía crear por API (`H-98`) y
+una devolución dejaba el préstamo `ACTIVE` para siempre (`H-99`).
+
+**Qué se entregó, en orden**
+
+| Tarea   | Contenido                                                                                                                     |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| T-07-02 | `modules/credit-notes` + `finance/credit-notes`: listado, alta desde factura con líneas precargadas, emitir, anular y aplicar |
+| T-07-03 | `modules/loans` + `finance/loans`: alta con artículos, aprobar, rechazar y registrar devolución (parcial y total)             |
+| T-07-06 | `inventory/stock`: stock por almacén con `minStock`/`belowMinimum` del backend y alerta visual                                |
+
+**Decisiones**
+
+- **`loans` es préstamo de artículos, no de dinero.** El modelo (`productId`, `serialNumber`,
+  `condition`) no admite una interpretación financiera, así que `pay` registra una devolución y **no**
+  genera movimiento de tesorería ni asiento. El criterio "approve → pay genera movimiento" del WBS no
+  aplica y quedó corregido en `S-07` §2.B y en la tabla de E7.
+- **`loan_items.kind` (`DELIVERED`/`RETURNED`)** en lugar de una tabla aparte: la devolución es otro
+  movimiento del mismo préstamo y así el detalle cuenta la historia completa sin joins nuevos
+  (migración `0019`, aplicada en dev y en las dos bases de prueba).
+- **El cierre del préstamo es por producto**: se compara lo devuelto contra lo entregado y sólo pasa a
+  `PAID` con `returnDate` cuando todo está cubierto; una devolución parcial lo deja `ACTIVE`.
+- **El listado de préstamos ahora trae sus ítems** en una sola consulta extra (`inArray` sobre los
+  ids de la página) para que la columna "Devuelto" muestre `devuelto / entregado` sin N+1.
+- **El stock dice si está bajo mínimo en el backend** (`minStock`, `belowMinimum`) en vez de que el
+  cliente lo deduzca: el umbral vive con el producto, no en la pantalla.
+
+**Verificación en vivo**
+
+- API (sucursal `…0010`): NC por 100 → `POSTED` → aplicada a la factura → `availableAmount 0` y
+  `usages 1`. Préstamo con 2 artículos → `PENDING` con `kind=DELIVERED` → `ACTIVE` → devolución de 1
+  queda `ACTIVE` → devolución completa pasa a `PAID` con `returnDate`; un sexto intento devuelve
+  `400 Loan must be ACTIVE to record payment`.
+- Navegador (`superadmin`, sucursal `…0001`): alta de préstamo por UI (`0 / 2`) → aprobar
+  (`Entregado`) → devolución de 1 (`1 / 2`, sigue `Entregado`) → devolución de 1 (`2 / 2`,
+  `Devuelto`, fecha `27/10/2026`) y el botón "Devolución" desaparece. `inventory/stock` lista
+  `TEST-SKU-001` con 1 sobre un mínimo de 10.
+
+**Hallazgos**
+
+- **H-98** (alto): faltaba `@Type(() => CreateLoanItemDto)` en `CreateLoanDto.items` y
+  `PayLoanDto.items`; la validación anidada nunca corría y toda alta con artículos fallaba con
+  `items.0.productId must be a UUID`. Resuelto.
+- **H-99** (alto): `pay` insertaba devoluciones sin distinguirlas de las entregas y no cerraba el
+  préstamo. Resuelto con `kind` + cierre por cobertura.
+- **H-100** (alto, pendiente): 13 de 22 controladores no declaran `@RequirePermissions`, así que
+  endpoints como `POST /v1/invoices` o `POST /v1/loans/:id/approve` sólo exigen estar autenticado.
+  Queda para TX-03 porque hay que revisar la matriz de roles completa.
+
+**Pruebas**
+
+- Backend **939/939** (7 nuevas de integración contra Postgres: alta con `kind=DELIVERED`, devolución
+  parcial que no cierra, devolución total que cierra, `pay` sin `ACTIVE`, `pay` sin ítems, aislamiento
+  por sucursal y persistencia del `PAID`; más las unitarias de `pay` reescritas para el cierre).
+- Frontend **126/126** (11 nuevas: contrato de `loansApi` y `creditNotesApi`, `loanItemTotals` y
+  normalización de listados).
+- database **39/39** · turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
+- Plan: **92 de 100 tareas**; E7 **7 de 7**. Quedan las 6 transversales (TX-01 … TX-06).

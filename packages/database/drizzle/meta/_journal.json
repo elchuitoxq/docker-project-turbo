@@ -134,6 +134,13 @@
       "when": 1793129000000,
       "tag": "0018_audit_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793132000000,
+      "tag": "0019_loan_item_kind",
+      "breakpoints": true
     }
   ]
 }

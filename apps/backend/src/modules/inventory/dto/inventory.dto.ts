@@ -395,4 +395,16 @@ export class StockResponseDto {
     example: 'BATCH-2026-001',
   })
   batchNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Stock mínimo del producto',
+    example: '10.00',
+  })
+  minStock?: string | null;
+
+  @ApiProperty({
+    description: 'El stock está por debajo del mínimo del producto (T-07-06)',
+    example: false,
+  })
+  belowMinimum: boolean;
 }

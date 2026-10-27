@@ -540,6 +540,7 @@ export class InventoryService {
     let productName: string | undefined;
     let productSku: string | undefined;
     let batchNumber: string | undefined;
+    let minStock: string | null = null;
 
     const [product] = await db
       .select()
@@ -550,6 +551,7 @@ export class InventoryService {
     if (product) {
       productName = product.name;
       productSku = product.sku;
+      minStock = product.minStock ?? null;
     }
 
     if (item.batchId) {
@@ -564,6 +566,9 @@ export class InventoryService {
       }
     }
 
+    const quantity = Number(item.quantity ?? 0);
+    const minimum = Number(minStock ?? 0);
+
     return {
       id: item.id,
       warehouseId: item.warehouseId,
@@ -574,6 +579,8 @@ export class InventoryService {
       productName,
       productSku,
       batchNumber,
+      minStock,
+      belowMinimum: minimum > 0 && quantity < minimum,
     };
   }
 

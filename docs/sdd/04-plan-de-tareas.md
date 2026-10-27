@@ -254,15 +254,15 @@ trazada.
 
 ## 8. Épica E7 · Frontend restante — [`S-07`](./specs/S-07-frontend-restante.md)
 
-| ID      | Tarea                                                   | Artefactos                                       | Depende | Verificación                         | Talla | Estado |
-| ------- | ------------------------------------------------------- | ------------------------------------------------ | ------- | ------------------------------------ | ----- | ------ |
-| T-07-01 | `GET /v1/audit` paginado con filtros + índice           | `modules/audit/*` + índice                       | E0      | filtros por entidad, usuario y fecha | M     | ✅     |
-| T-07-02 | Módulo y pantalla de notas de crédito                   | `modules/credit-notes/*`, `finance/credit-notes` | E4      | NC aplicada descuenta saldo          | L     | ⬜     |
-| T-07-03 | Módulo y pantalla de préstamos                          | `modules/loans/*`, `finance/loans`               | E5      | approve → pay genera movimiento      | L     | ⬜     |
-| T-07-04 | Visor de auditoría con diff legible                     | `settings/audit`                                 | T-07-01 | "campo: antes → después"             | M     | ✅     |
-| T-07-05 | Home del dashboard con KPIs, gráfico y actividad reales | `app/(dashboard)/dashboard/page.tsx`             | E0, BI  | 4 KPIs por sucursal                  | M     | ✅     |
-| T-07-06 | Pantalla de stock por almacén con alertas de mínimo     | `inventory/stock`                                | E1      | lista bajo mínimo                    | M     | ⬜     |
-| T-07-07 | Navegación y permisos de UI sincronizados               | `lib/navigation.ts`, `lib/permissions.ts`        | todas   | cada módulo visible solo con permiso | S     | ✅     |
+| ID      | Tarea                                                   | Artefactos                                       | Depende | Verificación                                              | Talla | Estado |
+| ------- | ------------------------------------------------------- | ------------------------------------------------ | ------- | --------------------------------------------------------- | ----- | ------ |
+| T-07-01 | `GET /v1/audit` paginado con filtros + índice           | `modules/audit/*` + índice                       | E0      | filtros por entidad, usuario y fecha                      | M     | ✅     |
+| T-07-02 | Módulo y pantalla de notas de crédito                   | `modules/credit-notes/*`, `finance/credit-notes` | E4      | NC aplicada descuenta saldo                               | L     | ✅     |
+| T-07-03 | Módulo y pantalla de préstamos                          | `modules/loans/*`, `finance/loans`               | E5      | devolución total cierra (PAID + `returnDate`); parcial no | L     | ✅     |
+| T-07-04 | Visor de auditoría con diff legible                     | `settings/audit`                                 | T-07-01 | "campo: antes → después"                                  | M     | ✅     |
+| T-07-05 | Home del dashboard con KPIs, gráfico y actividad reales | `app/(dashboard)/dashboard/page.tsx`             | E0, BI  | 4 KPIs por sucursal                                       | M     | ✅     |
+| T-07-06 | Pantalla de stock por almacén con alertas de mínimo     | `inventory/stock`                                | E1      | lista bajo mínimo                                         | M     | ✅     |
+| T-07-07 | Navegación y permisos de UI sincronizados               | `lib/navigation.ts`, `lib/permissions.ts`        | todas   | cada módulo visible solo con permiso                      | S     | ✅     |
 
 ---
 
@@ -295,9 +295,9 @@ trazada.
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 9      |
-| 9   | 16      | E7 frontend restante                   | 7       | 4      |
+| 9   | 16      | E7 frontend restante                   | 7       | 7      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **89** |
+| —   | —       | **Total**                              | **100** | **92** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y
@@ -326,6 +326,7 @@ antes de E3/E5/E6, que producen documentos con monto.
 | Elegir mal la moneda funcional (D-01) encarece todo lo que venga después   | T-08-01 se cierra como documento aprobado **antes** de tocar esquema o código                              |
 | El scraping de BCV se rompe cuando cambian el HTML                         | Job con reintentos, alerta por antigüedad de la tasa y override manual auditado                            |
 | Documentos históricos sin tasa verificable                                 | Backfill con la tasa del documento; si no existe, la del día y la fila se marca para revisión              |
+| **13 de 22 controladores sin `@RequirePermissions`** (`H-100`)             | TX-03: decorar por ruta, ajustar `seed-rbac.ts` y la matriz de roles antes de exponer la API fuera de dev  |
 
 ## 12. Fuera de alcance (no entra en estas 16 semanas)
 

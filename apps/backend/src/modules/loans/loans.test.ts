@@ -51,7 +51,24 @@ const mockLoanItem = {
   quantity: '5',
   serialNumber: 'SN-12345',
   condition: 'GOOD',
+  kind: 'DELIVERED' as const,
 };
+
+/** Constructor de consultas encadenable que resuelve a `rows` en cualquier punto del await. */
+const selectBuilder = (rows: any[]) =>
+  ({
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue(Promise.resolve(rows)),
+        then: (resolve: any) => Promise.resolve(rows).then(resolve),
+        [Symbol.toStringTag]: 'Promise',
+      }),
+      then: (resolve: any) => Promise.resolve(rows).then(resolve),
+      [Symbol.toStringTag]: 'Promise',
+    }),
+    then: (resolve: any) => Promise.resolve(rows).then(resolve),
+    [Symbol.toStringTag]: 'Promise',
+  }) as any;
 
 const createMockSelectQuery = (returnValue: any) => {
   const queryBuilder = {
@@ -846,37 +863,61 @@ describe('LoansService', () => {
 
     it('should record payment for an active loan', async () => {
       const activeLoan = { ...mockLoan, status: LoanStatus.ACTIVE };
+      const returnedItem = { ...mockLoanItem, quantity: '1', kind: 'RETURNED' as const };
 
-      const findQueryBuilder = {
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([activeLoan]).then(resolve),
-              [Symbol.toStringTag]: 'Promise',
-            }),
-            then: (resolve: any) => Promise.resolve([activeLoan]).then(resolve),
-            [Symbol.toStringTag]: 'Promise',
-          }),
-          then: (resolve: any) => Promise.resolve([activeLoan]).then(resolve),
-          [Symbol.toStringTag]: 'Promise',
-        }),
-        then: (resolve: any) => Promise.resolve([activeLoan]).then(resolve),
-        [Symbol.toStringTag]: 'Promise',
-      };
-
+      vi.mocked(db).select.mockReset();
       vi.mocked(db)
-        .select.mockReturnValueOnce(findQueryBuilder as any)
-        .mockReturnValueOnce(findQueryBuilder as any);
+        .select // prestamo
+        .mockReturnValueOnce(selectBuilder([activeLoan]))
+        // items tras registrar la devolucion (parcial: 1 de 5)
+        .mockReturnValueOnce(selectBuilder([mockLoanItem, returnedItem]))
+        // findOne
+        .mockReturnValueOnce(selectBuilder([activeLoan]))
+        // items de la respuesta
+        .mockReturnValueOnce(selectBuilder([mockLoanItem, returnedItem]));
 
       vi.mocked(db).insert.mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([mockLoanItem]),
-        }),
+        values: vi.fn().mockResolvedValue(undefined),
       } as any);
+      const updateSpy = vi.fn();
+      vi.mocked(db).update.mockReturnValue(updateSpy as any);
 
       const result = await service.pay(mockLoan.id, payLoanDto);
 
       expect(result.status).toBe(LoanStatus.ACTIVE);
+      expect(result.returnDate).toBeNull();
+      expect(updateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should close the loan when the return covers the delivered quantity', async () => {
+      const activeLoan = { ...mockLoan, status: LoanStatus.ACTIVE };
+      const closedLoan = { ...activeLoan, status: LoanStatus.PAID, returnDate: new Date() };
+      const returnedItems = [
+        mockLoanItem,
+        { ...mockLoanItem, id: '550e8400-e29b-41d4-a716-446655440021', kind: 'RETURNED' as const },
+      ];
+
+      vi.mocked(db).select.mockReset();
+      vi.mocked(db)
+        .select.mockReturnValueOnce(selectBuilder([activeLoan]))
+        .mockReturnValueOnce(selectBuilder(returnedItems))
+        .mockReturnValueOnce(selectBuilder([closedLoan]))
+        .mockReturnValueOnce(selectBuilder(returnedItems));
+
+      vi.mocked(db).insert.mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+      } as any);
+
+      const where = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(db).update.mockReturnValue({
+        set: vi.fn().mockReturnValue({ where }),
+      } as any);
+
+      const result = await service.pay(mockLoan.id, payLoanDto);
+
+      expect(result.status).toBe(LoanStatus.PAID);
+      expect(result.returnDate).toBeInstanceOf(Date);
+      expect(where).toHaveBeenCalledTimes(1);
     });
 
     it('should throw BadRequestException when loan is not ACTIVE', async () => {

@@ -77,6 +77,12 @@ export const NAV_ITEMS: NavGroup[] = [
         permission: PERMISSIONS.INVENTORY.MOVES.VIEW,
         icon: 'ArrowLeftRight',
       },
+      {
+        title: 'Stock',
+        url: '/dashboard/inventory/stock',
+        permission: PERMISSIONS.INVENTORY.PRODUCTS.VIEW,
+        icon: 'Package',
+      },
     ],
   },
   {
@@ -95,6 +101,18 @@ export const NAV_ITEMS: NavGroup[] = [
         url: '/dashboard/finance/payables',
         permission: PERMISSIONS.FINANCE.PAYABLES.VIEW,
         icon: 'Wallet',
+      },
+      {
+        title: 'Notas de crédito',
+        url: '/dashboard/finance/credit-notes',
+        permission: PERMISSIONS.FINANCE.INVOICES.VIEW,
+        icon: 'FileMinus',
+      },
+      {
+        title: 'Préstamos',
+        url: '/dashboard/finance/loans',
+        permission: PERMISSIONS.FINANCE.INVOICES.VIEW,
+        icon: 'PackageCheck',
       },
       {
         title: 'Tesorería',

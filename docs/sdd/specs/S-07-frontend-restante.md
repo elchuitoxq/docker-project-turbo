@@ -28,7 +28,12 @@ ficha de empleado y detalle de nómina (estas dos últimas en `S-02`).
 - `modules/loans` con listado, detalle y acciones `approve`, `reject`, `pay`.
 - Pantalla `finance/loans` (o `hr/loans` si son adelantos de empleado — **decidir con negocio**;
   el schema `loans` + `loan_items` parece préstamos a terceros/empleados).
-- Al pagar, generar movimiento de tesorería y asiento.
+- **Decisión tomada (2026-10-27):** `loans` + `loan_items` modela **préstamo de artículos**
+  (`productId`, `serialNumber`, `condition`), no préstamos de dinero. Por eso `pay` registra una
+  **devolución** y no genera movimiento de tesorería ni asiento contable: el criterio original
+  "al pagar, generar movimiento de tesorería y asiento" no aplica a este modelo. Los ítems llevan
+  `kind` (`DELIVERED` al crear / `RETURNED` al devolver) y el préstamo pasa a `PAID` con
+  `returnDate` solo cuando lo devuelto cubre lo entregado (`H-99`).
 
 ### C. Auditoría (depende de S-00)
 
@@ -86,7 +91,9 @@ ficha de empleado y detalle de nómina (estas dos últimas en `S-02`).
 
 1. Un módulo visible en el menú exige permiso de lectura del backend.
 2. Las acciones se deshabilitan (no se ocultan) cuando el estado no lo permite, con tooltip del motivo.
-3. Préstamos: `approve` sólo desde `PENDING`; `pay` descuenta del saldo y no permite sobrepago.
+3. Préstamos: `approve` sólo desde `PENDING`; `pay` registra devoluciones sin permitir devolver
+   más de lo entregado y cierra el préstamo (`PAID` + `returnDate`) cuando la devolución cubre lo
+   entregado.
 4. Auditoría: sólo lectura, sin acciones de edición.
 5. El home nunca muestra datos de una sucursal distinta a la activa.
 
@@ -99,10 +106,15 @@ Escenario: NC aplicada a factura
   Entonces el saldo de la factura pasa a 200
   Y la NC queda marcada como aplicada
 
+Escenario: préstamo devuelto por completo
+  Dado un préstamo ACTIVE con 2 artículos entregados
+  Cuando registro la devolución de 1
+  Entonces el préstamo sigue ACTIVE y el listado muestra 1 / 2
+
 Escenario: préstamo pagado dos veces
   Dado un préstamo PAID
-  Cuando intento pagar de nuevo
-  Entonces recibe 409 y la UI muestra el motivo
+  Cuando intento registrar otra devolución
+  Entonces recibe 400 con "Loan must be ACTIVE" y la UI ya no ofrece el botón
 
 Escenario: home con datos reales
   Cuando abro /dashboard
@@ -112,17 +124,17 @@ Escenario: home con datos reales
 
 ## 9. Plan de pruebas
 
-| Tipo          | Caso                                                           |
-| ------------- | -------------------------------------------------------------- |
-| Unitario      | Hooks de cada módulo (mock MSW)                                |
-| Integración   | NC aplicada; préstamo pagado; auditoría filtrada               |
-| E2E           | Emitir NC y ver saldo; aprobar y pagar préstamo; home con KPIs |
-| Accesibilidad | Navegación por teclado en tablas y diálogos                    |
+| Tipo          | Caso                                                                    |
+| ------------- | ----------------------------------------------------------------------- |
+| Unitario      | Hooks de cada módulo (mock MSW)                                         |
+| Integración   | NC aplicada; devolución parcial y total de préstamo; auditoría filtrada |
+| E2E           | Emitir NC y ver saldo; aprobar y pagar préstamo; home con KPIs          |
+| Accesibilidad | Navegación por teclado en tablas y diálogos                             |
 
 ## 10. Riesgos
 
-| Riesgo                                 | Mitigación                                                        |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| Falta de specs de negocio en préstamos | Definir con negocio antes de construir (¿empleados o terceros?)   |
-| Auditoría con mucho volumen            | Paginación server-side + índices + límite de rango (máx. 90 días) |
-| Navegación saturada                    | Agrupar en submenús y respetar permisos                           |
+| Riesgo                                 | Mitigación                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| Falta de specs de negocio en préstamos | **Resuelto:** el modelo es préstamo de artículos (bienes); documentado en §2.B |
+| Auditoría con mucho volumen            | Paginación server-side + índices + límite de rango (máx. 90 días)              |
+| Navegación saturada                    | Agrupar en submenús y respetar permisos                                        |

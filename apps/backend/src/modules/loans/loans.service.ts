@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { db } from '../../database';
 import { loans, loanItems, partners } from '../../schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import {
   CreateLoanDto,
   UpdateLoanDto,
@@ -41,7 +41,29 @@ export class LoansService {
     }
 
     const allLoans = await query;
-    return Promise.all(allLoans.map(loan => this.toResponseDto(loan)));
+
+    if (allLoans.length === 0) return [];
+
+    // El listado muestra artículos entregados/devueltos: se cargan en una sola consulta.
+    const items = await db
+      .select()
+      .from(loanItems)
+      .where(
+        inArray(
+          loanItems.loanId,
+          allLoans.map(loan => loan.id)
+        )
+      );
+
+    return Promise.all(
+      allLoans.map(loan =>
+        this.toResponseDto(
+          loan,
+          true,
+          items.filter(item => item.loanId === loan.id)
+        )
+      )
+    );
   }
 
   async findOne(id: string, branchId?: string): Promise<LoanResponseDto> {
@@ -86,6 +108,7 @@ export class LoansService {
           quantity: item.quantity.toString(),
           serialNumber: item.serialNumber,
           condition: item.condition || 'GOOD',
+          kind: 'DELIVERED',
         }))
       );
     }
@@ -193,15 +216,38 @@ export class LoansService {
         quantity: item.quantity.toString(),
         serialNumber: item.serialNumber,
         condition: item.condition || 'GOOD',
+        kind: 'RETURNED',
       }))
     );
+
+    // El préstamo se cierra cuando lo devuelto cubre lo entregado (H-99).
+    const allItems = await db.select().from(loanItems).where(eq(loanItems.loanId, id));
+    const delivered = new Map<string, number>();
+    const returned = new Map<string, number>();
+
+    for (const item of allItems) {
+      const target = item.kind === 'RETURNED' ? returned : delivered;
+      target.set(item.productId, (target.get(item.productId) ?? 0) + Number(item.quantity));
+    }
+
+    const fullyReturned = [...delivered.entries()].every(
+      ([productId, quantity]) => (returned.get(productId) ?? 0) >= quantity
+    );
+
+    if (fullyReturned) {
+      await db
+        .update(loans)
+        .set({ status: LoanStatus.PAID, returnDate: new Date() })
+        .where(eq(loans.id, id));
+    }
 
     return this.findOne(id);
   }
 
   private async toResponseDto(
     loan: typeof loans.$inferSelect,
-    includeItems = false
+    includeItems = false,
+    preloadedItems?: (typeof loanItems.$inferSelect)[]
   ): Promise<LoanResponseDto> {
     const response: LoanResponseDto = {
       id: loan.id,
@@ -216,7 +262,8 @@ export class LoansService {
     };
 
     if (includeItems) {
-      const items = await db.select().from(loanItems).where(eq(loanItems.loanId, loan.id));
+      const items =
+        preloadedItems ?? (await db.select().from(loanItems).where(eq(loanItems.loanId, loan.id)));
 
       response.items = items.map(item => this.toItemResponseDto(item));
     }
@@ -232,6 +279,7 @@ export class LoansService {
       quantity: Number(item.quantity),
       serialNumber: item.serialNumber,
       condition: item.condition,
+      kind: item.kind as 'DELIVERED' | 'RETURNED',
     };
   }
 }
