@@ -30,8 +30,11 @@ import {
 } from './dto/products.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('products')
 @Controller('v1/products')
+@RequirePermissions('inventory:products:view')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -101,6 +104,7 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
+  @RequirePermissions('inventory:products:create')
   @Post()
   @ApiOperation({
     summary: 'Create a new product',
@@ -119,6 +123,7 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  @RequirePermissions('inventory:products:edit')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a product',
@@ -149,6 +154,7 @@ export class ProductsController {
     return this.productsService.update(id, updateProductDto);
   }
 
+  @RequirePermissions('inventory:products:delete')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -172,6 +178,7 @@ export class ProductsController {
     return this.productsService.remove(id);
   }
 
+  @RequirePermissions('inventory:products:create')
   @Post('categories')
   @ApiOperation({
     summary: 'Create a new product category',
@@ -188,6 +195,7 @@ export class ProductsController {
     return this.productsService.createCategory(createCategoryDto);
   }
 
+  @RequirePermissions('inventory:products:edit')
   @Patch('categories/:id')
   @ApiOperation({
     summary: 'Update a product category',

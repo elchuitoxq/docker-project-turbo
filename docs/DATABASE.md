@@ -1040,6 +1040,24 @@ employees ───< loans
 
 ---
 
+## ↩️ Rollback de migraciones recientes (TX-06)
+
+Cada migración de este bloque se puede deshacer con el SQL inverso. Todas son **aditivas**
+(`ADD COLUMN`, `CREATE INDEX`, `CREATE TABLE`) salvo `0016`, que elimina una restricción y crea un
+índice único; ninguna borra datos, así que el rollback no pierde información.
+
+| Migración | Qué hace                                                                                                                          | Rollback                                                                                                                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0016`    | Quita el UNIQUE global de `tax_retentions.code` y crea el único por sucursal+tipo+comprobante                                     | `DROP INDEX tax_retentions_branch_type_voucher_unq;` y `ALTER TABLE tax_retentions ADD CONSTRAINT tax_retentions_code_unique UNIQUE (code);` (falla si ya hay números repetidos entre sucursales)               |
+| `0017`    | Banderas de `payment_methods`, `bank_accounts` (`bank_id`, `initial_balance`, `notes`), `daily_closes`, conciliación y caja chica | `DROP TABLE daily_closes, bank_statement_lines, bank_statement_imports, petty_cash_movements, petty_cash_funds;` y `ALTER TABLE … DROP COLUMN` de cada columna añadida                                          |
+| `0018`    | Índices de `audit_logs`                                                                                                           | `DROP INDEX audit_logs_entity_created_idx, audit_logs_user_created_idx, audit_logs_created_idx;`                                                                                                                |
+| `0019`    | `loan_items.kind` (`DELIVERED`/`RETURNED`) + índice                                                                               | `DROP INDEX loan_items_loan_kind_idx;` y `ALTER TABLE loan_items DROP COLUMN kind;` (se pierde la distinción entre entrega y devolución: los préstamos cerrados volverían a `ACTIVE` si se recalcula el estado) |
+
+**Si un despliegue falla a mitad de una migración:** `drizzle-kit migrate` es transaccional por
+archivo, así que la tabla queda como estaba; se corrige el SQL y se reaplica. Si el problema es de
+datos (p. ej. `0016` con números repetidos), el orden es: corregir los comprobantes duplicados,
+reintentar el índice y recién entonces desplegar el código que depende de él.
+
 ## 🚀 Scripts de Base de Datos
 
 | Script                 | Ubicación                    | Descripción              |

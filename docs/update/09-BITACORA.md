@@ -1861,3 +1861,68 @@ ningún DTO de nómina, contabilidad, compras, tesorería, notas de crédito ni 
   `api-types.ts` +10.536/−4.715 reflejan los DTOs de todas las épicas cerradas.
 - Gate completo (`lint`, `typecheck`, `build`, `test:coverage`) 16/16 · `format:check` verde ·
   `audit --prod` sin vulnerabilidades.
+
+### BT-053 · 2026-10-27 · Transversales (parte 2): la API deja de fiarse del menú (TX-01, TX-03, TX-05, TX-06)
+
+**Lo que había**
+
+El `PermissionsGuard` sólo actúa donde existe `@RequirePermissions`, y 13 de 22 controladores no lo
+declaraban: `POST /v1/billing/invoices`, `POST /v1/treasury/payments`, `POST /v1/credit-notes/:id/void`
+o `POST /v1/loans/:id/approve` respondían a **cualquier usuario autenticado de la sucursal**, sin
+importar su rol. La UI ocultaba los módulos, la API no exigía nada (`H-100`).
+
+**Qué se hizo**
+
+| Tarea | Contenido                                                                                             |
+| ----- | ----------------------------------------------------------------------------------------------------- |
+| TX-03 | 12 controladores decorados: permiso de lectura a nivel de clase y permiso de escritura por ruta       |
+| TX-03 | 4 permisos nuevos (`finance:credit-notes:view/manage`, `finance:loans:view/manage`) + matriz de roles |
+| TX-03 | `lib/permissions.ts` y la navegación usan los permisos nuevos para NC y préstamos                     |
+| TX-06 | Sección de rollback por migración en `docs/DATABASE.md` (`0016`…`0019`)                               |
+| TX-01 | Un commit por frente, con la spec enlazada y la evidencia de ejecución en esta bitácora               |
+| TX-05 | Gate completo antes de cada commit (lint · typecheck · build · coverage · format · audit)             |
+
+**Decisiones**
+
+- **Permiso de lectura en la clase y de escritura en el método.** Asi `getAllAndOverride` da el
+  default barato y cada `POST/PATCH/DELETE` se restringe sin repetir el decorador 15 veces.
+- **Se reutilizan los códigos existentes donde los había** (`finance:invoices:*`, `finance:payments:*`,
+  `inventory:products:*`, `operations:partners:*`, `settings:banks:*`); sólo se crean los cuatro que
+  el catálogo no tenía. Menos permisos nuevos es menos matriz que auditar.
+- **Nadie pierde una pantalla que ya usaba.** El seed gana los grants que hacían falta para que la UI
+  siga funcionando: `SELLER` obtiene `finance:invoices:view/create` (vende) y `inventory:products:view`
+  (catálogo); `ACCOUNTANT` y `MANAGER` obtienen `inventory:products:view`, `settings:banks:view`,
+  `settings:taxes:view`, `finance:payments:create` y `finance:treasury:create_account`.
+- **Anular un pago queda sólo en ADMIN** (`finance:payments:void`): es la única operación de tesorería
+  que se endurece a propósito, porque revierte un cobro ya registrado.
+- **`bi` se protege con `dashboard:view`** y `audit` con `settings:users:view`: son los permisos que
+  ya gobernaban esas pantallas, así que no se inventó un código nuevo para nada.
+
+**Verificación por rol (API real, sucursal `…0010`)**
+
+| Usuario         | products | partners | invoices | treasury | NC  | loans | bi  | audit | banks | taxes |
+| --------------- | -------- | -------- | -------- | -------- | --- | ----- | --- | ----- | ----- | ----- |
+| test-admin      | 200      | 200      | 200      | 200      | 200 | 200   | 200 | 200   | 200   | 200   |
+| test-seller     | 200      | 200      | 200      | 403      | 403 | 403   | 200 | 403   | 403   | 403   |
+| test-accountant | 200      | 200      | 200      | 200      | 200 | 200   | 200 | 403   | 200   | 200   |
+| test-warehouse  | 200      | 403      | 403      | 403      | 403 | 403   | 200 | 403   | 403   | 403   |
+| test-manager    | 200      | 200      | 200      | 200      | 200 | 200   | 200 | 403   | 200   | 200   |
+
+Las escrituras se comprobaron con cuerpo vacío: el guard devuelve 403 **antes** de validar, así que
+`400` significa "el permiso pasó" y `403` "no lo tiene". `SELLER` crea facturas (400), `ACCOUNTANT` no
+(403); `MANAGER` crea productos y préstamos (400), `ACCOUNTANT` no (403); `MANAGER` y `ACCOUNTANT`
+registran pagos (400), `SELLER` no (403).
+
+**UI**: 17 pantallas recorridas con `superadmin` — panel, facturación, CxP, notas de crédito,
+préstamos, las cinco de tesorería, cierre diario, retenciones, contabilidad, reportes, ventas, pedidos,
+compras, movimientos, stock, bancos, conceptos de impuesto, métodos de pago y auditoría: **0 respuestas
+403**.
+
+**Pruebas**
+
+- Backend **942/942** (3 nuevas de `permissions-coverage`: ningún controlador de módulo queda sin
+  `@RequirePermissions` salvo `auth` y `health`, y todo código usado existe en `seed-rbac.ts`).
+- Frontend **126/126** · database **39/39** · turbo **16/16** · `format:check` verde ·
+  `audit --prod` sin vulnerabilidades.
+- Plan: **98 de 100**. Transversales 6/6; quedan `T-00-12` (E2E de aislamiento sobre build de
+  producción) y `T-08-12` (aviso de tasa vencida).

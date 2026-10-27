@@ -3,8 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { BiService, KpiResult, ChartResult, ActivityResult, MonthlyData } from './bi.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('bi')
 @Controller('v1/bi')
+@RequirePermissions('dashboard:view')
 export class BiController {
   constructor(private readonly biService: BiService) {}
 

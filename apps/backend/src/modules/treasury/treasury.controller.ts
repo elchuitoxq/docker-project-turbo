@@ -51,8 +51,11 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('treasury')
 @Controller('v1/treasury')
+@RequirePermissions('finance:view')
 export class TreasuryController {
   constructor(
     private readonly treasuryService: TreasuryService,
@@ -97,6 +100,7 @@ export class TreasuryController {
     return this.treasuryService.findOne(id, branchId);
   }
 
+  @RequirePermissions('finance:payments:create')
   @Post('payments')
   @ApiOperation({
     summary: 'Create a new payment',
@@ -116,6 +120,7 @@ export class TreasuryController {
     return this.treasuryService.create(createPaymentDto, user.id, branchId);
   }
 
+  @RequirePermissions('finance:payments:void')
   @Post('payments/:id/void')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -182,6 +187,7 @@ export class TreasuryController {
     return this.treasuryService.getAllMethods(branchId);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Patch('methods/:id')
   @ApiOperation({
     summary: 'Actualizar un método de pago',
@@ -196,6 +202,7 @@ export class TreasuryController {
     return this.treasuryService.updateMethod(id, dto);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('methods')
   @ApiOperation({
     summary: 'Create a payment method',
@@ -227,6 +234,7 @@ export class TreasuryController {
     return this.treasuryService.getBankAccounts(branchId);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('bank-accounts')
   @ApiOperation({
     summary: 'Create a bank account',
@@ -244,6 +252,7 @@ export class TreasuryController {
     return this.treasuryService.createBankAccount(createBankAccountDto);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Patch('bank-accounts/:id')
   @ApiOperation({
     summary: 'Actualizar una cuenta bancaria',
@@ -293,6 +302,7 @@ export class TreasuryController {
     return this.dailyClose.summary(branchId, date);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('daily-close/:date/close')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -311,6 +321,7 @@ export class TreasuryController {
     return this.dailyClose.close(branchId, date, user?.id ?? null, dto);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('daily-close/:date/reopen')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -344,6 +355,7 @@ export class TreasuryController {
 
   // -- Conciliación bancaria (T-05-04, T-05-05)
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('reconciliation/import')
   @ApiOperation({
     summary: 'Importar extracto bancario (CSV)',
@@ -374,6 +386,7 @@ export class TreasuryController {
     return this.reconciliation.report(branchId, bankAccountId, { from, to });
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('reconciliation/:lineId/match')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -391,6 +404,7 @@ export class TreasuryController {
     return this.reconciliation.match(branchId, lineId, dto.paymentId, user?.id ?? null);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('reconciliation/:lineId/unmatch')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Desconciliar una línea' })
@@ -411,6 +425,7 @@ export class TreasuryController {
     return this.pettyCash.list(branchId);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('petty-cash')
   @ApiOperation({ summary: 'Crear un fondo de caja chica' })
   @ApiBody({ type: CreatePettyCashFundDto })
@@ -432,6 +447,7 @@ export class TreasuryController {
     return this.pettyCash.findOne(branchId, id);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('petty-cash/:id/movements')
   @ApiOperation({
     summary: 'Registrar gasto o reposición',
@@ -448,6 +464,7 @@ export class TreasuryController {
     return this.pettyCash.addMovement(branchId, id, dto, user?.id ?? null);
   }
 
+  @RequirePermissions('finance:treasury:create_account')
   @Post('petty-cash/:id/close')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Cerrar el fondo devolviendo el saldo' })

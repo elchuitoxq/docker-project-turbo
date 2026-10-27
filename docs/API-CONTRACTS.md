@@ -569,27 +569,27 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
 
 `T-07-02`, `T-07-03`, `T-07-06`.
 
-| Método  | Ruta                                    | Permiso (UI)              |
-| ------- | --------------------------------------- | ------------------------- |
-| `GET`   | `/v1/credit-notes?partnerId&status`     | `finance:invoices:view`   |
-| `GET`   | `/v1/credit-notes/:id`                  | `finance:invoices:view`   |
-| `POST`  | `/v1/credit-notes`                      | `finance:invoices:view`   |
-| `PATCH` | `/v1/credit-notes/:id`                  | `finance:invoices:view`   |
-| `POST`  | `/v1/credit-notes/:id/post`             | `finance:invoices:view`   |
-| `POST`  | `/v1/credit-notes/:id/void`             | `finance:invoices:view`   |
-| `POST`  | `/v1/credit-notes/:id/apply/:invoiceId` | `finance:invoices:view`   |
-| `GET`   | `/v1/loans?employeeId&status`           | `finance:invoices:view`   |
-| `GET`   | `/v1/loans/:id`                         | `finance:invoices:view`   |
-| `POST`  | `/v1/loans`                             | `finance:invoices:view`   |
-| `PATCH` | `/v1/loans/:id`                         | `finance:invoices:view`   |
-| `POST`  | `/v1/loans/:id/approve`                 | `finance:invoices:view`   |
-| `POST`  | `/v1/loans/:id/reject`                  | `finance:invoices:view`   |
-| `POST`  | `/v1/loans/:id/pay`                     | `finance:invoices:view`   |
-| `GET`   | `/v1/inventory/stock/:warehouseId`      | `inventory:products:view` |
+| Método  | Ruta                                    | Permiso                       |
+| ------- | --------------------------------------- | ----------------------------- |
+| `GET`   | `/v1/credit-notes?partnerId&status`     | `finance:credit-notes:view`   |
+| `GET`   | `/v1/credit-notes/:id`                  | `finance:credit-notes:view`   |
+| `POST`  | `/v1/credit-notes`                      | `finance:credit-notes:manage` |
+| `PATCH` | `/v1/credit-notes/:id`                  | `finance:credit-notes:manage` |
+| `POST`  | `/v1/credit-notes/:id/post`             | `finance:credit-notes:manage` |
+| `POST`  | `/v1/credit-notes/:id/void`             | `finance:credit-notes:manage` |
+| `POST`  | `/v1/credit-notes/:id/apply/:invoiceId` | `finance:credit-notes:manage` |
+| `GET`   | `/v1/loans?employeeId&status`           | `finance:loans:view`          |
+| `GET`   | `/v1/loans/:id`                         | `finance:loans:view`          |
+| `POST`  | `/v1/loans`                             | `finance:loans:manage`        |
+| `PATCH` | `/v1/loans/:id`                         | `finance:loans:manage`        |
+| `POST`  | `/v1/loans/:id/approve`                 | `finance:loans:manage`        |
+| `POST`  | `/v1/loans/:id/reject`                  | `finance:loans:manage`        |
+| `POST`  | `/v1/loans/:id/pay`                     | `finance:loans:manage`        |
+| `GET`   | `/v1/inventory/stock/:warehouseId`      | `inventory:products:view`     |
 
-> ⚠️ **La columna "Permiso (UI)" es la del menú, no un control del backend.** Estos controladores
-> todavía no declaran `@RequirePermissions` y sólo exigen autenticación + contexto de sucursal
-> (`H-100`).
+> **Los permisos son del backend, no sólo del menú.** Desde `H-100` cada controlador declara
+> `@RequirePermissions` a nivel de clase (lectura) y por ruta en las escrituras: una petición sin el
+> permiso devuelve 403 antes de validar el cuerpo.
 
 - **Notas de crédito**: ciclo `DRAFT → POSTED → APPLIED`, con `VOIDED` como salida. Sólo se aplican
   contra una factura las que están `POSTED`; `apply` devuelve `{ id, invoiceId, amount,

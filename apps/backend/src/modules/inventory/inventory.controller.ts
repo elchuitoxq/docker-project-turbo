@@ -80,6 +80,7 @@ export class InventoryController {
     return this.inventoryService.findOneWarehouse(id, branchId);
   }
 
+  @RequirePermissions('inventory:warehouses:edit')
   @Delete('warehouses/:id')
   @RequirePermissions('inventory:warehouses:edit')
   @ApiOperation({
@@ -120,6 +121,7 @@ export class InventoryController {
     return this.inventoryService.updateWarehouse(id, updateWarehouseDto);
   }
 
+  @RequirePermissions('inventory:products:view')
   @Get('stock/:warehouseId')
   @ApiOperation({
     summary: 'Get stock by warehouse',
@@ -146,6 +148,7 @@ export class InventoryController {
     return this.inventoryService.findStockByWarehouse(warehouseId, branchId);
   }
 
+  @RequirePermissions('inventory:moves:view')
   @Get('moves')
   @ApiOperation({
     summary: 'List all inventory moves',
@@ -177,6 +180,7 @@ export class InventoryController {
     return this.inventoryService.findAllMoves(status, warehouseId, branchId);
   }
 
+  @RequirePermissions('inventory:moves:view')
   @Get('moves/:id')
   @ApiOperation({
     summary: 'Get inventory move by ID',
@@ -203,6 +207,7 @@ export class InventoryController {
     return this.inventoryService.findOneMove(id, branchId);
   }
 
+  @RequirePermissions('inventory:moves:create')
   @Post('moves')
   @ApiOperation({
     summary: 'Create a new inventory move',
@@ -223,6 +228,7 @@ export class InventoryController {
     return this.inventoryService.createMove(createMoveDto);
   }
 
+  @RequirePermissions('inventory:moves:approve')
   @Post('moves/:id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -251,6 +257,7 @@ export class InventoryController {
     return this.inventoryService.approveMove(id);
   }
 
+  @RequirePermissions('inventory:moves:approve')
   @Post('moves/:id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

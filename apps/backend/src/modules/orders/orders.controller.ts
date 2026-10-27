@@ -31,8 +31,11 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('orders')
 @Controller('v1/orders')
+@RequirePermissions('operations:orders:view')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
@@ -107,6 +110,7 @@ export class OrdersController {
     return this.ordersService.findOne(id, branchId);
   }
 
+  @RequirePermissions('operations:orders:create')
   @Post()
   @ApiOperation({
     summary: 'Create a new order',
@@ -128,6 +132,7 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, branchId);
   }
 
+  @RequirePermissions('operations:orders:edit')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update an order',
@@ -159,6 +164,7 @@ export class OrdersController {
     return this.ordersService.update(id, updateOrderDto, branchId);
   }
 
+  @RequirePermissions('operations:orders:approve')
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -190,6 +196,7 @@ export class OrdersController {
     return this.ordersService.confirm(id, branchId);
   }
 
+  @RequirePermissions('operations:orders:edit')
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -221,6 +228,7 @@ export class OrdersController {
     return this.ordersService.cancel(id, branchId);
   }
 
+  @RequirePermissions('operations:orders:approve')
   @Post(':id/invoice')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

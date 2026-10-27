@@ -14,10 +14,13 @@ import { BanksService } from './banks.service';
 import { CreateBankDto, UpdateBankDto, BankResponseDto } from './dto/banks.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+
 @ApiTags('settings-banks')
 @Controller('v1/settings/banks')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+@RequirePermissions('settings:banks:view')
 export class BanksController {
   constructor(private readonly banksService: BanksService) {}
 
@@ -35,6 +38,7 @@ export class BanksController {
     return this.banksService.findAll();
   }
 
+  @RequirePermissions('settings:banks:manage')
   @Post()
   @ApiOperation({
     summary: 'Create a new bank',
@@ -53,6 +57,7 @@ export class BanksController {
     return this.banksService.create(createBankDto);
   }
 
+  @RequirePermissions('settings:banks:manage')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a bank',
@@ -83,6 +88,7 @@ export class BanksController {
     return this.banksService.update(id, updateBankDto);
   }
 
+  @RequirePermissions('settings:banks:manage')
   @Post(':id/toggle')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

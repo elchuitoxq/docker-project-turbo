@@ -268,14 +268,14 @@ trazada.
 
 ## 9. Tareas transversales (aplican a toda épica)
 
-| ID    | Tarea                                                           | Cuándo            | Verificación                                      |
-| ----- | --------------------------------------------------------------- | ----------------- | ------------------------------------------------- |
-| TX-01 | Un PR por frente, con la spec enlazada y evidencia de ejecución | siempre           | revisión                                          |
-| TX-02 | `pnpm openapi:export` + `pnpm sync:types` tras cambiar un DTO   | siempre           | `shared-types` sin diff manual                    |
-| TX-03 | Permisos nuevos en `seed-rbac.ts` **y** `lib/permissions.ts`    | al crear permisos | seed idempotente                                  |
-| TX-04 | Actualizar `docs/API-CONTRACTS.md` y `09-BITACORA.md`           | al cerrar cada PR | bitácora con BT nuevo                             |
-| TX-05 | Gate completo antes de merge                                    | al cerrar cada PR | lint · typecheck · build · coverage · e2e · audit |
-| TX-06 | Rollback descrito (migración reversible o feature flag)         | en cada migración | sección de rollback en el PR                      |
+| ID    | Tarea                                                           | Cuándo            | Verificación                                      | Estado |
+| ----- | --------------------------------------------------------------- | ----------------- | ------------------------------------------------- | ------ |
+| TX-01 | Un PR por frente, con la spec enlazada y evidencia de ejecución | siempre           | revisión                                          | ✅     |
+| TX-02 | `pnpm openapi:export` + `pnpm sync:types` tras cambiar un DTO   | siempre           | `shared-types` sin diff manual                    | ✅     |
+| TX-03 | Permisos nuevos en `seed-rbac.ts` **y** `lib/permissions.ts`    | al crear permisos | seed idempotente                                  | ✅     |
+| TX-04 | Actualizar `docs/API-CONTRACTS.md` y `09-BITACORA.md`           | al cerrar cada PR | bitácora con BT nuevo                             | ✅     |
+| TX-05 | Gate completo antes de merge                                    | al cerrar cada PR | lint · typecheck · build · coverage · e2e · audit | ✅     |
+| TX-06 | Rollback descrito (migración reversible o feature flag)         | en cada migración | sección de rollback en el PR                      | ✅     |
 
 ---
 
@@ -287,7 +287,7 @@ trazada.
 
 | Ola | Semanas | Épica / tareas                         | Tareas  | Hechas |
 | --- | ------- | -------------------------------------- | ------- | ------ |
-| 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 11     |
+| 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 12     |
 | 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 12     |
 | 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
 | 4   | 6-7     | E2 nómina                              | 11      | 11     |
@@ -296,8 +296,11 @@ trazada.
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 9      |
 | 9   | 16      | E7 frontend restante                   | 7       | 7      |
-| —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **92** |
+| —   | —       | Transversales                          | 6       | 6      |
+| —   | —       | **Total**                              | **100** | **98** |
+
+> Quedan **2 tareas** para 100/100: `T-00-12` (en 🟡: falta el E2E de aislamiento entre sucursales
+> sobre el build de producción) y `T-08-12` (aviso de tasa vencida en el frontend).
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

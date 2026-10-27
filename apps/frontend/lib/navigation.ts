@@ -105,13 +105,13 @@ export const NAV_ITEMS: NavGroup[] = [
       {
         title: 'Notas de crédito',
         url: '/dashboard/finance/credit-notes',
-        permission: PERMISSIONS.FINANCE.INVOICES.VIEW,
+        permission: PERMISSIONS.FINANCE.CREDIT_NOTES.VIEW,
         icon: 'FileMinus',
       },
       {
         title: 'Préstamos',
         url: '/dashboard/finance/loans',
-        permission: PERMISSIONS.FINANCE.INVOICES.VIEW,
+        permission: PERMISSIONS.FINANCE.LOANS.VIEW,
         icon: 'PackageCheck',
       },
       {

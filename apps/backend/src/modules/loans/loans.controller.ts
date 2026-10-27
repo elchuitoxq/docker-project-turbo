@@ -29,8 +29,11 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('loans')
 @Controller('v1/loans')
+@RequirePermissions('finance:loans:view')
 export class LoansController {
   constructor(private readonly loansService: LoansService) {}
 
@@ -91,6 +94,7 @@ export class LoansController {
     return this.loansService.findOne(id, branchId);
   }
 
+  @RequirePermissions('finance:loans:manage')
   @Post()
   @ApiOperation({
     summary: 'Create a new loan',
@@ -112,6 +116,7 @@ export class LoansController {
     return this.loansService.create(createLoanDto, branchId);
   }
 
+  @RequirePermissions('finance:loans:manage')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a loan',
@@ -139,6 +144,7 @@ export class LoansController {
     return this.loansService.update(id, updateLoanDto, branchId);
   }
 
+  @RequirePermissions('finance:loans:manage')
   @Post(':id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -170,6 +176,7 @@ export class LoansController {
     return this.loansService.approve(id, branchId);
   }
 
+  @RequirePermissions('finance:loans:manage')
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -201,6 +208,7 @@ export class LoansController {
     return this.loansService.reject(id, branchId);
   }
 
+  @RequirePermissions('finance:loans:manage')
   @Post(':id/pay')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

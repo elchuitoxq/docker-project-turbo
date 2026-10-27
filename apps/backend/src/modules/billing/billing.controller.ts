@@ -33,8 +33,11 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('billing')
 @Controller('v1/billing/invoices')
+@RequirePermissions('finance:view')
 export class BillingController {
   constructor(
     private readonly billingService: BillingService,
@@ -148,6 +151,7 @@ export class BillingController {
     return this.retentions.getSettings(await this.retentions.companyOfBranch(branchId));
   }
 
+  @RequirePermissions('finance:invoices:edit')
   @Patch('supplier-retention-settings')
   @ApiOperation({
     summary: 'Actualizar parámetros de retención',
@@ -189,6 +193,7 @@ export class BillingController {
     return this.billingService.findOne(id, branchId);
   }
 
+  @RequirePermissions('finance:invoices:create')
   @Post()
   @ApiOperation({
     summary: 'Create a new invoice',
@@ -212,6 +217,7 @@ export class BillingController {
     return this.billingService.create(createInvoiceDto, user.id, branchId);
   }
 
+  @RequirePermissions('finance:invoices:edit')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update an invoice',
@@ -239,6 +245,7 @@ export class BillingController {
     return this.billingService.update(id, updateInvoiceDto, branchId);
   }
 
+  @RequirePermissions('finance:invoices:post')
   @Post(':id/post')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -265,6 +272,7 @@ export class BillingController {
     return this.billingService.post(id, branchId);
   }
 
+  @RequirePermissions('finance:invoices:void')
   @Post(':id/void')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

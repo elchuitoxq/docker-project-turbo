@@ -33,8 +33,11 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('credit-notes')
 @Controller('v1/credit-notes')
+@RequirePermissions('finance:credit-notes:view')
 export class CreditNotesController {
   constructor(private readonly creditNotesService: CreditNotesService) {}
 
@@ -95,6 +98,7 @@ export class CreditNotesController {
     return this.creditNotesService.findOne(id, branchId);
   }
 
+  @RequirePermissions('finance:credit-notes:manage')
   @Post()
   @ApiOperation({
     summary: 'Create a new credit note',
@@ -113,6 +117,7 @@ export class CreditNotesController {
     return this.creditNotesService.create(createCreditNoteDto, user?.userId, branchId);
   }
 
+  @RequirePermissions('finance:credit-notes:manage')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a credit note',
@@ -144,6 +149,7 @@ export class CreditNotesController {
     return this.creditNotesService.update(id, updateCreditNoteDto, branchId);
   }
 
+  @RequirePermissions('finance:credit-notes:manage')
   @Post(':id/post')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -175,6 +181,7 @@ export class CreditNotesController {
     return this.creditNotesService.post(id, branchId);
   }
 
+  @RequirePermissions('finance:credit-notes:manage')
   @Post(':id/void')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -206,6 +213,7 @@ export class CreditNotesController {
     return this.creditNotesService.void(id, branchId);
   }
 
+  @RequirePermissions('finance:credit-notes:manage')
   @Post(':id/apply/:invoiceId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

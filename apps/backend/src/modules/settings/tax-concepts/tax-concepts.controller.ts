@@ -19,10 +19,13 @@ import {
 } from './dto/tax-concepts.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
+import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
+
 @ApiTags('settings-tax-concepts')
 @Controller('v1/settings/tax-concepts')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
+@RequirePermissions('settings:taxes:view')
 export class TaxConceptsController {
   constructor(private readonly taxConceptsService: TaxConceptsService) {}
 
@@ -63,6 +66,7 @@ export class TaxConceptsController {
     return this.taxConceptsService.findOne(id);
   }
 
+  @RequirePermissions('settings:taxes:manage')
   @Post()
   @ApiOperation({
     summary: 'Create a new tax concept',
@@ -81,6 +85,7 @@ export class TaxConceptsController {
     return this.taxConceptsService.create(createTaxConceptDto);
   }
 
+  @RequirePermissions('settings:taxes:manage')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a tax concept',
@@ -111,6 +116,7 @@ export class TaxConceptsController {
     return this.taxConceptsService.update(id, updateTaxConceptDto);
   }
 
+  @RequirePermissions('settings:taxes:manage')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

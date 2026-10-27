@@ -28,8 +28,11 @@ import {
 } from './dto/partners.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+
 @ApiTags('partners')
 @Controller('v1/partners')
+@RequirePermissions('operations:partners:view')
 export class PartnersController {
   constructor(private readonly partnersService: PartnersService) {}
 
@@ -113,6 +116,7 @@ export class PartnersController {
     return this.partnersService.findOne(id);
   }
 
+  @RequirePermissions('operations:partners:create')
   @Post()
   @ApiOperation({
     summary: 'Create a new partner',
@@ -131,6 +135,7 @@ export class PartnersController {
     return this.partnersService.create(createPartnerDto);
   }
 
+  @RequirePermissions('operations:partners:edit')
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a partner',
@@ -161,6 +166,7 @@ export class PartnersController {
     return this.partnersService.update(id, updatePartnerDto);
   }
 
+  @RequirePermissions('operations:partners:delete')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
