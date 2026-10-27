@@ -1824,3 +1824,40 @@ una devolución dejaba el préstamo `ACTIVE` para siempre (`H-99`).
   normalización de listados).
 - database **39/39** · turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
 - Plan: **92 de 100 tareas**; E7 **7 de 7**. Quedan las 6 transversales (TX-01 … TX-06).
+
+### BT-052 · 2026-10-27 · Transversales (parte 1): los tipos del contrato vuelven a generarse (TX-02, TX-04)
+
+**Lo que había**
+
+`pnpm sync:types` fallaba con "OpenAPI not found" desde que existe el script: calculaba la ruta del
+spec subiendo un solo nivel desde `packages/shared-types`, es decir buscaba
+`packages/apps/backend/docs/openapi.json`. Como el gate nunca lo ejecutaba, nadie lo notó:
+`packages/shared-types/src/api-types.ts` seguía congelado en el estado del 2026-10-26 y no tenía
+ningún DTO de nómina, contabilidad, compras, tesorería, notas de crédito ni préstamos.
+
+**Qué se hizo**
+
+| Tarea | Contenido                                                                                       |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| TX-02 | Ruta del spec corregida en `sync.mjs`; `openapi:export` + `sync:types` ejecutados y verificados |
+| TX-04 | `API-CONTRACTS.md` con la sección de notas de crédito, préstamos y stock; bitácora al día       |
+
+**Decisiones**
+
+- **El spec vive en `apps/backend/docs/openapi.json`** y se versiona; `packages/shared-types/openapi.json`
+  es una copia de trabajo (`gitignore`) que sólo existe para que `openapi-typescript` resuelva las
+  referencias relativas.
+- **Los tipos generados se commitean** (`api-types.ts`): son el contrato que consume el frontend y
+  revisar su diff es la forma de detectar un cambio incompatible.
+
+**Hallazgos**
+
+- **H-101** (medio): el script de sincronización apuntaba a una ruta inexistente y los tipos llevaban
+  un día entero sin regenerarse. Resuelto.
+
+**Pruebas**
+
+- `pnpm sync:types` verde; `typecheck` de `shared-types` verde; `openapi.json` +3.608 líneas y
+  `api-types.ts` +10.536/−4.715 reflejan los DTOs de todas las épicas cerradas.
+- Gate completo (`lint`, `typecheck`, `build`, `test:coverage`) 16/16 · `format:check` verde ·
+  `audit --prod` sin vulnerabilidades.
