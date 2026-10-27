@@ -29,6 +29,7 @@ import {
   StockResponseDto,
 } from './dto/inventory.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('inventory')
 @Controller('v1/inventory')
@@ -45,8 +46,8 @@ export class InventoryController {
     description: 'List of warehouses',
     type: [WarehouseResponseDto],
   })
-  async findAllWarehouses(): Promise<WarehouseResponseDto[]> {
-    return this.inventoryService.findAllWarehouses();
+  async findAllWarehouses(@CurrentBranch() branchId: string): Promise<WarehouseResponseDto[]> {
+    return this.inventoryService.findAllWarehouses(branchId);
   }
 
   @Post('warehouses')
@@ -111,9 +112,10 @@ export class InventoryController {
     description: 'Warehouse not found',
   })
   async findStockByWarehouse(
-    @Param('warehouseId') warehouseId: string
+    @Param('warehouseId') warehouseId: string,
+    @CurrentBranch() branchId: string
   ): Promise<StockResponseDto[]> {
-    return this.inventoryService.findStockByWarehouse(warehouseId);
+    return this.inventoryService.findStockByWarehouse(warehouseId, branchId);
   }
 
   @Get('moves')
@@ -140,10 +142,11 @@ export class InventoryController {
     type: [InventoryMoveResponseDto],
   })
   async findAllMoves(
+    @CurrentBranch() branchId: string,
     @Query('status') status?: string,
     @Query('warehouseId') warehouseId?: string
   ): Promise<InventoryMoveResponseDto[]> {
-    return this.inventoryService.findAllMoves(status, warehouseId);
+    return this.inventoryService.findAllMoves(status, warehouseId, branchId);
   }
 
   @Get('moves/:id')
@@ -165,8 +168,11 @@ export class InventoryController {
     status: 404,
     description: 'Inventory move not found',
   })
-  async findOneMove(@Param('id') id: string): Promise<InventoryMoveResponseDto> {
-    return this.inventoryService.findOneMove(id);
+  async findOneMove(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<InventoryMoveResponseDto> {
+    return this.inventoryService.findOneMove(id, branchId);
   }
 
   @Post('moves')

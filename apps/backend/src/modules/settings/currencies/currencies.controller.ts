@@ -9,9 +9,12 @@ import {
   LatestRatesResponseDto,
 } from './dto/currencies.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { SkipBranch } from '../../../common/decorators/skip-branch.decorator';
 
 @ApiTags('settings-currencies')
 @Controller('v1/settings/currencies')
+// Monedas y tasas son maestros compartidos: se consultan antes de elegir sucursal (regla R5).
+@SkipBranch()
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class CurrenciesController {

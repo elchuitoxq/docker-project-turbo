@@ -6,6 +6,10 @@ import { inArray, sql } from 'drizzle-orm';
 export const ALL_PERMISSIONS = [
   'dashboard:view',
 
+  // Ámbito transversal (S-00): consolidado entre sucursales y escritura de maestros compartidos.
+  'core:branch:all',
+  'core:catalog:manage',
+
   'operations:view',
   'operations:partners:view',
   'operations:partners:create',
@@ -81,7 +85,8 @@ export const ALL_PERMISSIONS = [
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   SUPER_ADMIN: ALL_PERMISSIONS,
-  ADMIN: ALL_PERMISSIONS,
+  // ADMIN administra todo, pero el modo consolidado entre sucursales queda sólo en SUPER_ADMIN.
+  ADMIN: ALL_PERMISSIONS.filter(code => code !== 'core:branch:all'),
   MANAGER: [
     'dashboard:view',
     'settings:companies:view',

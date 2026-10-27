@@ -27,6 +27,7 @@ import {
   LoanStatus,
 } from './dto/loans.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('loans')
 @Controller('v1/loans')
@@ -57,10 +58,11 @@ export class LoansController {
     type: [LoanResponseDto],
   })
   async findAll(
+    @CurrentBranch() branchId: string,
     @Query('employeeId') employeeId?: string,
     @Query('status') status?: string
   ): Promise<LoanResponseDto[]> {
-    return this.loansService.findAll({ employeeId, status });
+    return this.loansService.findAll({ employeeId, status }, branchId);
   }
 
   @Get(':id')
@@ -82,8 +84,11 @@ export class LoansController {
     status: 404,
     description: 'Loan not found',
   })
-  async findOne(@Param('id') id: string): Promise<LoanResponseDto> {
-    return this.loansService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<LoanResponseDto> {
+    return this.loansService.findOne(id, branchId);
   }
 
   @Post()
@@ -100,8 +105,11 @@ export class LoansController {
     status: 404,
     description: 'Partner not found',
   })
-  async create(@Body() createLoanDto: CreateLoanDto): Promise<LoanResponseDto> {
-    return this.loansService.create(createLoanDto);
+  async create(
+    @Body() createLoanDto: CreateLoanDto,
+    @CurrentBranch() branchId: string
+  ): Promise<LoanResponseDto> {
+    return this.loansService.create(createLoanDto, branchId);
   }
 
   @Patch(':id')
@@ -125,9 +133,10 @@ export class LoansController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateLoanDto: UpdateLoanDto
+    @Body() updateLoanDto: UpdateLoanDto,
+    @CurrentBranch() branchId: string
   ): Promise<LoanResponseDto> {
-    return this.loansService.update(id, updateLoanDto);
+    return this.loansService.update(id, updateLoanDto, branchId);
   }
 
   @Post(':id/approve')
@@ -154,8 +163,11 @@ export class LoansController {
     status: 404,
     description: 'Loan not found',
   })
-  async approve(@Param('id') id: string): Promise<LoanResponseDto> {
-    return this.loansService.approve(id);
+  async approve(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<LoanResponseDto> {
+    return this.loansService.approve(id, branchId);
   }
 
   @Post(':id/reject')
@@ -182,8 +194,11 @@ export class LoansController {
     status: 404,
     description: 'Loan not found',
   })
-  async reject(@Param('id') id: string): Promise<LoanResponseDto> {
-    return this.loansService.reject(id);
+  async reject(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<LoanResponseDto> {
+    return this.loansService.reject(id, branchId);
   }
 
   @Post(':id/pay')
@@ -210,7 +225,11 @@ export class LoansController {
     status: 404,
     description: 'Loan not found',
   })
-  async pay(@Param('id') id: string, @Body() payLoanDto: PayLoanDto): Promise<LoanResponseDto> {
-    return this.loansService.pay(id, payLoanDto);
+  async pay(
+    @Param('id') id: string,
+    @Body() payLoanDto: PayLoanDto,
+    @CurrentBranch() branchId: string
+  ): Promise<LoanResponseDto> {
+    return this.loansService.pay(id, payLoanDto, branchId);
   }
 }

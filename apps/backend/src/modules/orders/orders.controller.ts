@@ -29,6 +29,7 @@ import {
   CancelOrderResponseDto,
 } from './dto/orders.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('orders')
 @Controller('v1/orders')
@@ -59,10 +60,11 @@ export class OrdersController {
     type: [OrderResponseDto],
   })
   async findAll(
+    @CurrentBranch() branchId: string,
     @Query('status') status?: OrderStatus,
     @Query('partnerId') partnerId?: string
   ): Promise<OrderResponseDto[]> {
-    return this.ordersService.findAll(status, partnerId);
+    return this.ordersService.findAll(status, partnerId, branchId);
   }
 
   @Get('stats')
@@ -75,8 +77,8 @@ export class OrdersController {
     description: 'Order statistics',
     type: OrderStatsResponseDto,
   })
-  async getStats(): Promise<OrderStatsResponseDto> {
-    return this.ordersService.getStats();
+  async getStats(@CurrentBranch() branchId: string): Promise<OrderStatsResponseDto> {
+    return this.ordersService.getStats(branchId);
   }
 
   @Get(':id')
@@ -98,8 +100,11 @@ export class OrdersController {
     status: 404,
     description: 'Order not found',
   })
-  async findOne(@Param('id') id: string): Promise<OrderResponseDto> {
-    return this.ordersService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.findOne(id, branchId);
   }
 
   @Post()
@@ -116,8 +121,11 @@ export class OrdersController {
     status: 400,
     description: 'Invalid request data or order code already exists',
   })
-  async create(@Body() createOrderDto: CreateOrderDto): Promise<OrderResponseDto> {
-    return this.ordersService.create(createOrderDto);
+  async create(
+    @Body() createOrderDto: CreateOrderDto,
+    @CurrentBranch() branchId: string
+  ): Promise<OrderResponseDto> {
+    return this.ordersService.create(createOrderDto, branchId);
   }
 
   @Patch(':id')
@@ -145,9 +153,10 @@ export class OrdersController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateOrderDto: UpdateOrderDto
+    @Body() updateOrderDto: UpdateOrderDto,
+    @CurrentBranch() branchId: string
   ): Promise<OrderResponseDto> {
-    return this.ordersService.update(id, updateOrderDto);
+    return this.ordersService.update(id, updateOrderDto, branchId);
   }
 
   @Post(':id/confirm')
@@ -174,8 +183,11 @@ export class OrdersController {
     status: 400,
     description: 'Only draft orders can be confirmed',
   })
-  async confirm(@Param('id') id: string): Promise<ConfirmOrderResponseDto> {
-    return this.ordersService.confirm(id);
+  async confirm(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<ConfirmOrderResponseDto> {
+    return this.ordersService.confirm(id, branchId);
   }
 
   @Post(':id/cancel')
@@ -202,8 +214,11 @@ export class OrdersController {
     status: 400,
     description: 'Order cannot be cancelled in current status',
   })
-  async cancel(@Param('id') id: string): Promise<CancelOrderResponseDto> {
-    return this.ordersService.cancel(id);
+  async cancel(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<CancelOrderResponseDto> {
+    return this.ordersService.cancel(id, branchId);
   }
 
   @Post(':id/invoice')
@@ -229,7 +244,10 @@ export class OrdersController {
     status: 400,
     description: 'Only confirmed or processing orders can be invoiced',
   })
-  async invoice(@Param('id') id: string): Promise<{ message: string; orderId: string }> {
-    return this.ordersService.invoice(id);
+  async invoice(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<{ message: string; orderId: string }> {
+    return this.ordersService.invoice(id, branchId);
   }
 }

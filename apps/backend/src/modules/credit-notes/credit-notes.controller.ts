@@ -31,6 +31,7 @@ import {
 } from './dto/credit-notes.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('credit-notes')
 @Controller('v1/credit-notes')
@@ -61,10 +62,11 @@ export class CreditNotesController {
     type: [CreditNoteListResponseDto],
   })
   async findAll(
+    @CurrentBranch() branchId: string,
     @Query('partnerId') partnerId?: string,
     @Query('status') status?: string
   ): Promise<CreditNoteListResponseDto[]> {
-    return this.creditNotesService.findAll(partnerId, status);
+    return this.creditNotesService.findAll(partnerId, status, branchId);
   }
 
   @Get(':id')
@@ -86,8 +88,11 @@ export class CreditNotesController {
     status: 404,
     description: 'Credit note not found',
   })
-  async findOne(@Param('id') id: string): Promise<CreditNoteResponseDto> {
-    return this.creditNotesService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<CreditNoteResponseDto> {
+    return this.creditNotesService.findOne(id, branchId);
   }
 
   @Post()
@@ -102,9 +107,10 @@ export class CreditNotesController {
   })
   async create(
     @Body() createCreditNoteDto: CreateCreditNoteDto,
-    @CurrentUser() user?: { userId: string }
+    @CurrentUser() user?: { userId: string },
+    @CurrentBranch() branchId?: string
   ): Promise<CreditNoteResponseDto> {
-    return this.creditNotesService.create(createCreditNoteDto, user?.userId);
+    return this.creditNotesService.create(createCreditNoteDto, user?.userId, branchId);
   }
 
   @Patch(':id')
@@ -132,9 +138,10 @@ export class CreditNotesController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateCreditNoteDto: UpdateCreditNoteDto
+    @Body() updateCreditNoteDto: UpdateCreditNoteDto,
+    @CurrentBranch() branchId: string
   ): Promise<CreditNoteResponseDto> {
-    return this.creditNotesService.update(id, updateCreditNoteDto);
+    return this.creditNotesService.update(id, updateCreditNoteDto, branchId);
   }
 
   @Post(':id/post')
@@ -161,8 +168,11 @@ export class CreditNotesController {
     status: 404,
     description: 'Credit note not found',
   })
-  async post(@Param('id') id: string): Promise<PostCreditNoteResponseDto> {
-    return this.creditNotesService.post(id);
+  async post(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<PostCreditNoteResponseDto> {
+    return this.creditNotesService.post(id, branchId);
   }
 
   @Post(':id/void')
@@ -189,8 +199,11 @@ export class CreditNotesController {
     status: 404,
     description: 'Credit note not found',
   })
-  async void(@Param('id') id: string): Promise<VoidCreditNoteResponseDto> {
-    return this.creditNotesService.void(id);
+  async void(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<VoidCreditNoteResponseDto> {
+    return this.creditNotesService.void(id, branchId);
   }
 
   @Post(':id/apply/:invoiceId')
@@ -225,8 +238,9 @@ export class CreditNotesController {
   async apply(
     @Param('id') id: string,
     @Param('invoiceId') invoiceId: string,
-    @Body() applyDto: ApplyCreditNoteDto
+    @Body() applyDto: ApplyCreditNoteDto,
+    @CurrentBranch() branchId: string
   ): Promise<ApplyCreditNoteResponseDto> {
-    return this.creditNotesService.apply(id, invoiceId, applyDto);
+    return this.creditNotesService.apply(id, invoiceId, applyDto, branchId);
   }
 }

@@ -9,6 +9,7 @@ export interface AuditLogResponseDto {
   entityId: string;
   action: string;
   changes: unknown;
+  branchId: string | null;
   userId: string | null;
   ipAddress: string | null;
   userAgent: string | null;
@@ -21,12 +22,40 @@ export interface AuditLogResponseDto {
 export interface AuditLogFilters {
   userId?: string;
   entityTable?: string;
+  branchId?: string;
   from?: Date;
   to?: Date;
 }
 
+export interface AuditRecordInput {
+  entityTable: string;
+  entityId: string;
+  action: string;
+  branchId?: string | null;
+  userId?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  changes?: unknown;
+  description?: string | null;
+}
+
 @Injectable()
 export class AuditService {
+  /** Escritura append-only desde el interceptor de cambios sensibles (`S-00`, regla R3 de auditoría). */
+  async record(input: AuditRecordInput): Promise<void> {
+    await db.insert(auditLogs).values({
+      entityTable: input.entityTable,
+      entityId: input.entityId,
+      action: input.action,
+      branchId: input.branchId ?? null,
+      userId: input.userId ?? null,
+      ipAddress: input.ipAddress ?? null,
+      userAgent: input.userAgent ?? null,
+      changes: (input.changes ?? null) as never,
+      description: input.description ?? null,
+    });
+  }
+
   async findByEntity(entityTable: string, entityId: string): Promise<AuditLogResponseDto[]> {
     const logs = await db
       .select()
@@ -46,6 +75,10 @@ export class AuditService {
 
     if (filters.entityTable) {
       conditions.push(eq(auditLogs.entityTable, filters.entityTable));
+    }
+
+    if (filters.branchId) {
+      conditions.push(eq(auditLogs.branchId, filters.branchId));
     }
 
     if (filters.from) {
@@ -74,6 +107,7 @@ export class AuditService {
       entityId: log.entityId,
       action: log.action,
       changes: log.changes,
+      branchId: log.branchId,
       userId: log.userId,
       ipAddress: log.ipAddress,
       userAgent: log.userAgent,

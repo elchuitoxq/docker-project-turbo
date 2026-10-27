@@ -13,10 +13,17 @@ import {
 
 @Injectable()
 export class LoansService {
-  async findAll(filters: { employeeId?: string; status?: string }): Promise<LoanResponseDto[]> {
+  async findAll(
+    filters: { employeeId?: string; status?: string },
+    branchId?: string
+  ): Promise<LoanResponseDto[]> {
     let query = db.select().from(loans);
 
     const conditions = [];
+
+    if (branchId) {
+      conditions.push(eq(loans.branchId, branchId));
+    }
 
     if (filters.employeeId) {
       conditions.push(eq(loans.partnerId, filters.employeeId));
@@ -37,17 +44,18 @@ export class LoansService {
     return Promise.all(allLoans.map(loan => this.toResponseDto(loan)));
   }
 
-  async findOne(id: string): Promise<LoanResponseDto> {
+  async findOne(id: string, branchId?: string): Promise<LoanResponseDto> {
     const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
-    if (!loan) {
+    // R2: prestamo de otra sucursal -> 404.
+    if (!loan || (branchId && loan.branchId !== branchId)) {
       throw new NotFoundException(`Loan with ID ${id} not found`);
     }
 
     return this.toResponseDto(loan, true);
   }
 
-  async create(createLoanDto: CreateLoanDto): Promise<LoanResponseDto> {
+  async create(createLoanDto: CreateLoanDto, branchId?: string): Promise<LoanResponseDto> {
     const [existingPartner] = await db
       .select()
       .from(partners)
@@ -63,6 +71,7 @@ export class LoansService {
       .values({
         code: createLoanDto.code,
         partnerId: createLoanDto.partnerId,
+        branchId: branchId ?? null,
         status: LoanStatus.PENDING,
         dueDate: createLoanDto.dueDate ? new Date(createLoanDto.dueDate) : null,
         notes: createLoanDto.notes,
@@ -84,7 +93,12 @@ export class LoansService {
     return this.findOne(newLoan.id);
   }
 
-  async update(id: string, updateLoanDto: UpdateLoanDto): Promise<LoanResponseDto> {
+  async update(
+    id: string,
+    updateLoanDto: UpdateLoanDto,
+    branchId?: string
+  ): Promise<LoanResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [existing] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!existing) {
@@ -113,7 +127,8 @@ export class LoansService {
     return this.findOne(id);
   }
 
-  async approve(id: string): Promise<LoanResponseDto> {
+  async approve(id: string, branchId?: string): Promise<LoanResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
@@ -134,7 +149,8 @@ export class LoansService {
     return this.findOne(id);
   }
 
-  async reject(id: string): Promise<LoanResponseDto> {
+  async reject(id: string, branchId?: string): Promise<LoanResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {
@@ -152,7 +168,8 @@ export class LoansService {
     return this.findOne(id);
   }
 
-  async pay(id: string, payLoanDto: PayLoanDto): Promise<LoanResponseDto> {
+  async pay(id: string, payLoanDto: PayLoanDto, branchId?: string): Promise<LoanResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [loan] = await db.select().from(loans).where(eq(loans.id, id)).limit(1);
 
     if (!loan) {

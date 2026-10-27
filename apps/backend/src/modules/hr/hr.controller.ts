@@ -31,6 +31,7 @@ import {
   PayslipDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('hr')
@@ -42,7 +43,7 @@ export class HrController {
   @ApiOperation({ summary: 'Get all employees' })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of employees', type: [EmployeeResponseDto] })
-  async findAllEmployees(@Query('branchId') branchId?: string): Promise<EmployeeResponseDto[]> {
+  async findAllEmployees(@CurrentBranch() branchId: string): Promise<EmployeeResponseDto[]> {
     return this.hrService.findAllEmployees(branchId);
   }
 
@@ -50,8 +51,11 @@ export class HrController {
   @ApiOperation({ summary: 'Get employee by ID' })
   @ApiResponse({ status: 200, description: 'Employee details', type: EmployeeResponseDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
-  async findOneEmployee(@Param('id') id: string): Promise<EmployeeResponseDto> {
-    return this.hrService.findOneEmployee(id);
+  async findOneEmployee(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<EmployeeResponseDto> {
+    return this.hrService.findOneEmployee(id, branchId);
   }
 
   @Post('employees')
@@ -78,7 +82,7 @@ export class HrController {
   @ApiOperation({ summary: 'Get all departments' })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of departments' })
-  async findAllDepartments(@Query('branchId') branchId?: string) {
+  async findAllDepartments(@CurrentBranch() branchId: string) {
     return this.hrService.findAllDepartments(branchId);
   }
 
@@ -109,7 +113,7 @@ export class HrController {
   @ApiOperation({ summary: 'Get all payroll runs' })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of payroll runs', type: [PayrollRunResponseDto] })
-  async findAllPayrollRuns(@Query('branchId') branchId?: string): Promise<PayrollRunResponseDto[]> {
+  async findAllPayrollRuns(@CurrentBranch() branchId: string): Promise<PayrollRunResponseDto[]> {
     return this.hrService.findAllPayrollRuns(branchId);
   }
 
@@ -117,8 +121,11 @@ export class HrController {
   @ApiOperation({ summary: 'Get payroll run by ID' })
   @ApiResponse({ status: 200, description: 'Payroll run details', type: PayrollRunResponseDto })
   @ApiResponse({ status: 404, description: 'Payroll run not found' })
-  async findOnePayrollRun(@Param('id') id: string): Promise<PayrollRunResponseDto> {
-    return this.hrService.findOnePayrollRun(id);
+  async findOnePayrollRun(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollRunResponseDto> {
+    return this.hrService.findOnePayrollRun(id, branchId);
   }
 
   @Post('payroll/generate')

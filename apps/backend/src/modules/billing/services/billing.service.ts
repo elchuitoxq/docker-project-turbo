@@ -97,20 +97,14 @@ export class BillingService {
     return { totalBase, totalTax, totalIgtf, total };
   }
 
-  async findAll(branchId?: string, status?: InvoiceStatus): Promise<InvoiceResponseDto[]> {
-    let query = db.select().from(invoices);
-
-    const conditions = [];
-    if (branchId) conditions.push(eq(invoices.branchId, branchId));
+  async findAll(branchId: string, status?: InvoiceStatus): Promise<InvoiceResponseDto[]> {
+    const conditions = [eq(invoices.branchId, branchId)];
     if (status) conditions.push(eq(invoices.status, status));
 
-    const allInvoices =
-      conditions.length > 0
-        ? await db
-            .select()
-            .from(invoices)
-            .where(and(...conditions))
-        : await db.select().from(invoices);
+    const allInvoices = await db
+      .select()
+      .from(invoices)
+      .where(and(...conditions));
 
     const invoicesWithItems: InvoiceResponseDto[] = [];
 
@@ -136,10 +130,11 @@ export class BillingService {
     return invoicesWithItems;
   }
 
-  async findOne(id: string): Promise<InvoiceResponseDto> {
+  async findOne(id: string, branchId?: string): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
-    if (!invoice) {
+    // R2: un recurso de otra sucursal responde 404, no 403 (no se filtra su existencia).
+    if (!invoice || (branchId && invoice.branchId !== branchId)) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
@@ -161,7 +156,14 @@ export class BillingService {
     };
   }
 
-  async create(createInvoiceDto: CreateInvoiceDto, userId: string): Promise<InvoiceResponseDto> {
+  async create(
+    createInvoiceDto: CreateInvoiceDto,
+    userId: string,
+    branchId?: string
+  ): Promise<InvoiceResponseDto> {
+    // La sucursal validada por el guard manda sobre lo que venga en el body.
+    const invoiceBranchId = branchId ?? createInvoiceDto.branchId;
+
     const [partner] = await db
       .select()
       .from(partners)
@@ -179,7 +181,7 @@ export class BillingService {
     }
 
     const exchangeRate = createInvoiceDto.exchangeRate || (await this.getExchangeRate(currencyId));
-    const code = await this.getNextInvoiceCode(createInvoiceDto.branchId);
+    const code = await this.getNextInvoiceCode(invoiceBranchId);
 
     const productIds = createInvoiceDto.items.map(item => item.productId);
     const productRecords =
@@ -212,7 +214,7 @@ export class BillingService {
         id: uuidv4(),
         code,
         partnerId: createInvoiceDto.partnerId,
-        branchId: createInvoiceDto.branchId,
+        branchId: invoiceBranchId,
         currencyId,
         exchangeRate: String(exchangeRate),
         type: createInvoiceDto.type || 'SALE',
@@ -266,10 +268,14 @@ export class BillingService {
     };
   }
 
-  async update(id: string, updateInvoiceDto: UpdateInvoiceDto): Promise<InvoiceResponseDto> {
+  async update(
+    id: string,
+    updateInvoiceDto: UpdateInvoiceDto,
+    branchId?: string
+  ): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
-    if (!invoice) {
+    if (!invoice || (branchId && invoice.branchId !== branchId)) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
@@ -347,10 +353,10 @@ export class BillingService {
     return this.findOne(id);
   }
 
-  async post(id: string): Promise<InvoiceResponseDto> {
+  async post(id: string, branchId?: string): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
-    if (!invoice) {
+    if (!invoice || (branchId && invoice.branchId !== branchId)) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
@@ -370,10 +376,10 @@ export class BillingService {
     return this.findOne(id);
   }
 
-  async void(id: string): Promise<InvoiceResponseDto> {
+  async void(id: string, branchId?: string): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
-    if (!invoice) {
+    if (!invoice || (branchId && invoice.branchId !== branchId)) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);
     }
 
@@ -392,8 +398,8 @@ export class BillingService {
     return this.findOne(id);
   }
 
-  async getStats(branchId?: string): Promise<InvoiceStatsDto> {
-    const conditions = branchId ? [eq(invoices.branchId, branchId)] : [];
+  async getStats(branchId: string): Promise<InvoiceStatsDto> {
+    const conditions = [eq(invoices.branchId, branchId)];
 
     const allInvoices =
       conditions.length > 0
@@ -438,8 +444,8 @@ export class BillingService {
     };
   }
 
-  async getFiscalJson(id: string): Promise<FiscalJsonDto> {
-    const invoice = await this.findOne(id);
+  async getFiscalJson(id: string, branchId?: string): Promise<FiscalJsonDto> {
+    const invoice = await this.findOne(id, branchId);
 
     if (!invoice) {
       throw new NotFoundException(`Invoice with ID ${id} not found`);

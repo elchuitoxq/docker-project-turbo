@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiCookieAuth } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
+import { SkipBranch } from '../../common/decorators/skip-branch.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
 import { buildAuthCookie, buildClearedAuthCookie } from './auth.cookie';
@@ -59,6 +60,8 @@ export class AuthController {
   }
 
   @Get('me')
+  // El arranque de la UI ocurre antes de elegir sucursal: devuelve las asignadas.
+  @SkipBranch()
   @ApiCookieAuth('cookie-auth')
   @ApiOperation({ summary: 'Perfil del usuario autenticado' })
   @ApiResponse({ status: 200, type: AuthUserResponseDto })

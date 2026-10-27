@@ -74,6 +74,13 @@ export class AuthUserResponseDto {
 
   @ApiProperty({ type: [AuthBranchDto] })
   branches: AuthBranchDto[];
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Sucursal con la que la UI debe arrancar (predeterminada o la única asignada)',
+  })
+  defaultBranchId: string | null;
 }
 
 export class AuthResponseDto {

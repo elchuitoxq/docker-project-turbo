@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env.validation';
+import { BranchContextGuard } from './common/branch/branch-context.guard';
+import { AuditWriteInterceptor } from './common/audit/audit-write.interceptor';
 import { PermissionsGuard } from './common/guards/permissions.guard';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AuthModule } from './modules/auth/auth.module';
@@ -74,6 +76,8 @@ import { HealthModule } from './modules/health/health.module';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
+    { provide: APP_GUARD, useClass: BranchContextGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditWriteInterceptor },
   ],
 })
 export class AppModule {}

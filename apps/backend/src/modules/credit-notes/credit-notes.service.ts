@@ -25,8 +25,30 @@ import {
 
 @Injectable()
 export class CreditNotesService {
-  async findAll(partnerId?: string, status?: string): Promise<CreditNoteListResponseDto[]> {
+  /** R2: valida que la nota pertenezca a la sucursal activa (404 si no). */
+  private async assertBranch(id: string, branchId?: string): Promise<void> {
+    if (!branchId) return;
+
+    const [creditNote] = await db
+      .select({ branchId: creditNotes.branchId })
+      .from(creditNotes)
+      .where(eq(creditNotes.id, id))
+      .limit(1);
+
+    if (!creditNote || creditNote.branchId !== branchId) {
+      throw new NotFoundException(`Credit note with ID ${id} not found`);
+    }
+  }
+  async findAll(
+    partnerId?: string,
+    status?: string,
+    branchId?: string
+  ): Promise<CreditNoteListResponseDto[]> {
     const conditions = [];
+
+    if (branchId) {
+      conditions.push(eq(creditNotes.branchId, branchId));
+    }
 
     if (partnerId) {
       conditions.push(eq(creditNotes.partnerId, partnerId));
@@ -72,10 +94,11 @@ export class CreditNotesService {
     return result;
   }
 
-  async findOne(id: string): Promise<CreditNoteResponseDto> {
+  async findOne(id: string, branchId?: string): Promise<CreditNoteResponseDto> {
     const [creditNote] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
-    if (!creditNote) {
+    // R2: nota de crédito de otra sucursal -> 404.
+    if (!creditNote || (branchId && creditNote.branchId !== branchId)) {
       throw new NotFoundException(`Credit note with ID ${id} not found`);
     }
 
@@ -118,8 +141,10 @@ export class CreditNotesService {
 
   async create(
     createCreditNoteDto: CreateCreditNoteDto,
-    userId?: string
+    userId?: string,
+    branchId?: string
   ): Promise<CreditNoteResponseDto> {
+    const creditNoteBranchId = branchId ?? createCreditNoteDto.branchId;
     const code = await this.generateCode();
 
     let totalBase = 0;
@@ -145,7 +170,7 @@ export class CreditNotesService {
         code,
         invoiceId: createCreditNoteDto.invoiceId,
         partnerId: createCreditNoteDto.partnerId,
-        branchId: createCreditNoteDto.branchId,
+        branchId: creditNoteBranchId,
         warehouseId: createCreditNoteDto.warehouseId,
         currencyId: createCreditNoteDto.currencyId,
         exchangeRate: createCreditNoteDto.exchangeRate.toString(),
@@ -174,8 +199,10 @@ export class CreditNotesService {
 
   async update(
     id: string,
-    updateCreditNoteDto: UpdateCreditNoteDto
+    updateCreditNoteDto: UpdateCreditNoteDto,
+    branchId?: string
   ): Promise<CreditNoteResponseDto> {
+    await this.assertBranch(id, branchId);
     const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
@@ -205,7 +232,8 @@ export class CreditNotesService {
     return this.findOne(id);
   }
 
-  async post(id: string): Promise<PostCreditNoteResponseDto> {
+  async post(id: string, branchId?: string): Promise<PostCreditNoteResponseDto> {
+    await this.assertBranch(id, branchId);
     const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
@@ -231,7 +259,8 @@ export class CreditNotesService {
     };
   }
 
-  async void(id: string): Promise<VoidCreditNoteResponseDto> {
+  async void(id: string, branchId?: string): Promise<VoidCreditNoteResponseDto> {
+    await this.assertBranch(id, branchId);
     const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
     if (!existing) {
@@ -264,8 +293,10 @@ export class CreditNotesService {
   async apply(
     creditNoteId: string,
     invoiceId: string,
-    applyDto: ApplyCreditNoteDto
+    applyDto: ApplyCreditNoteDto,
+    branchId?: string
   ): Promise<ApplyCreditNoteResponseDto> {
+    await this.assertBranch(creditNoteId, branchId);
     const [creditNote] = await db
       .select()
       .from(creditNotes)

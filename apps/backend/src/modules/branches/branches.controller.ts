@@ -25,11 +25,14 @@ import {
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
+import { SkipBranch } from '../../common/decorators/skip-branch.decorator';
 
 @ApiTags('branches')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('v1/branches')
+// Catálogo de empresa/sucursal: la UI lo necesita para elegir sucursal (regla R5).
+@SkipBranch()
 export class BranchesController {
   constructor(private readonly branchesService: BranchesService) {}
 

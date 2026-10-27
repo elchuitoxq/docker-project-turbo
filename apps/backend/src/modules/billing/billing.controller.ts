@@ -29,6 +29,7 @@ import {
 } from './dto/billing.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('billing')
 @Controller('v1/billing/invoices')
@@ -39,11 +40,6 @@ export class BillingController {
   @ApiOperation({
     summary: 'Get all invoices',
     description: 'Retrieves a list of all invoices with optional filtering by branch and status',
-  })
-  @ApiQuery({
-    name: 'branchId',
-    required: false,
-    description: 'Filter by branch ID',
   })
   @ApiQuery({
     name: 'status',
@@ -57,7 +53,7 @@ export class BillingController {
     type: [InvoiceResponseDto],
   })
   async findAll(
-    @Query('branchId') branchId?: string,
+    @CurrentBranch() branchId: string,
     @Query('status') status?: InvoiceStatus
   ): Promise<InvoiceResponseDto[]> {
     return this.billingService.findAll(branchId, status);
@@ -68,17 +64,12 @@ export class BillingController {
     summary: 'Get invoice statistics',
     description: 'Retrieves aggregated statistics for invoices',
   })
-  @ApiQuery({
-    name: 'branchId',
-    required: false,
-    description: 'Filter by branch ID',
-  })
   @ApiResponse({
     status: 200,
     description: 'Invoice statistics',
     type: InvoiceStatsDto,
   })
-  async getStats(@Query('branchId') branchId?: string): Promise<InvoiceStatsDto> {
+  async getStats(@CurrentBranch() branchId: string): Promise<InvoiceStatsDto> {
     return this.billingService.getStats(branchId);
   }
 
@@ -96,8 +87,11 @@ export class BillingController {
     status: 404,
     description: 'Invoice not found',
   })
-  async findOne(@Param('id') id: string): Promise<InvoiceResponseDto> {
-    return this.billingService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<InvoiceResponseDto> {
+    return this.billingService.findOne(id, branchId);
   }
 
   @Post()
@@ -117,9 +111,10 @@ export class BillingController {
   })
   async create(
     @Body() createInvoiceDto: CreateInvoiceDto,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
+    @CurrentBranch() branchId: string
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.create(createInvoiceDto, user.id);
+    return this.billingService.create(createInvoiceDto, user.id, branchId);
   }
 
   @Patch(':id')
@@ -143,9 +138,10 @@ export class BillingController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateInvoiceDto: UpdateInvoiceDto
+    @Body() updateInvoiceDto: UpdateInvoiceDto,
+    @CurrentBranch() branchId: string
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.update(id, updateInvoiceDto);
+    return this.billingService.update(id, updateInvoiceDto, branchId);
   }
 
   @Post(':id/post')
@@ -167,8 +163,11 @@ export class BillingController {
     status: 404,
     description: 'Invoice not found',
   })
-  async post(@Param('id') id: string): Promise<InvoiceResponseDto> {
-    return this.billingService.post(id);
+  async post(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<InvoiceResponseDto> {
+    return this.billingService.post(id, branchId);
   }
 
   @Post(':id/void')
@@ -190,8 +189,11 @@ export class BillingController {
     status: 404,
     description: 'Invoice not found',
   })
-  async void(@Param('id') id: string): Promise<InvoiceResponseDto> {
-    return this.billingService.void(id);
+  async void(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<InvoiceResponseDto> {
+    return this.billingService.void(id, branchId);
   }
 
   @Get(':id/fiscal-json')
@@ -208,7 +210,10 @@ export class BillingController {
     status: 404,
     description: 'Invoice not found',
   })
-  async getFiscalJson(@Param('id') id: string): Promise<FiscalJsonDto> {
-    return this.billingService.getFiscalJson(id);
+  async getFiscalJson(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<FiscalJsonDto> {
+    return this.billingService.getFiscalJson(id, branchId);
   }
 }

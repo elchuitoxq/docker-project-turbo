@@ -1,4 +1,10 @@
 export const PERMISSIONS = {
+  CORE: {
+    /** Modo consolidado: permite operar sobre sucursales no asignadas (sólo SUPER_ADMIN). */
+    BRANCH_ALL: 'core:branch:all',
+    /** Escritura de maestros compartidos entre sucursales (partners, products, banks). */
+    CATALOG_MANAGE: 'core:catalog:manage',
+  },
   DASHBOARD: { VIEW: 'dashboard:view' },
   OPERATIONS: {
     VIEW: 'operations:view',

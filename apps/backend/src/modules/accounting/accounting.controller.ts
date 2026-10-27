@@ -29,6 +29,7 @@ import {
   AccountingMapApplyResponseDto,
 } from './dto/accounting.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 @ApiTags('accounting')
 @Controller('v1/accounting')
@@ -119,11 +120,12 @@ export class AccountingController {
     type: [EntryResponseDto],
   })
   async findAllEntries(
+    @CurrentBranch() branchId: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
     @Query('accountId') accountId?: string
   ): Promise<EntryResponseDto[]> {
-    return this.accountingService.findAllEntries({ dateFrom, dateTo, accountId });
+    return this.accountingService.findAllEntries({ dateFrom, dateTo, accountId, branchId });
   }
 
   @Get('entries/:id')
@@ -145,8 +147,11 @@ export class AccountingController {
     status: 404,
     description: 'Entry not found',
   })
-  async findOneEntry(@Param('id') id: string): Promise<EntryResponseDto> {
-    return this.accountingService.findOneEntry(id);
+  async findOneEntry(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<EntryResponseDto> {
+    return this.accountingService.findOneEntry(id, branchId);
   }
 
   @Post('entries')
@@ -244,8 +249,8 @@ export class AccountingController {
     type: [MapResponseDto],
   })
   async findAllMaps(
-    @Query('module') module?: string,
-    @Query('branchId') branchId?: string
+    @CurrentBranch() branchId: string,
+    @Query('module') module?: string
   ): Promise<MapResponseDto[]> {
     return this.accountingService.findAllMaps({ module, branchId });
   }

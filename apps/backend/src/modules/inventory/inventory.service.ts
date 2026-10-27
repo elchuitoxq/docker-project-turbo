@@ -11,7 +11,7 @@ import {
   inventoryMoveLinesRelations,
   stockRelations,
 } from '../../schema';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import {
   CreateWarehouseDto,
   UpdateWarehouseDto,
@@ -25,7 +25,16 @@ import {
 
 @Injectable()
 export class InventoryService {
-  async findAllWarehouses(): Promise<WarehouseResponseDto[]> {
+  async findAllWarehouses(branchId?: string): Promise<WarehouseResponseDto[]> {
+    if (branchId) {
+      const warehousesOfBranch = await db
+        .select()
+        .from(warehouses)
+        .where(eq(warehouses.branchId, branchId));
+
+      return warehousesOfBranch.map(this.toWarehouseResponseDto);
+    }
+
     const allWarehouses = await db.select().from(warehouses);
     return allWarehouses.map(this.toWarehouseResponseDto);
   }
@@ -86,7 +95,19 @@ export class InventoryService {
     return this.findOneWarehouse(id);
   }
 
-  async findStockByWarehouse(warehouseId: string): Promise<StockResponseDto[]> {
+  async findStockByWarehouse(warehouseId: string, branchId?: string): Promise<StockResponseDto[]> {
+    if (branchId) {
+      const [warehouse] = await db
+        .select({ branchId: warehouses.branchId })
+        .from(warehouses)
+        .where(eq(warehouses.id, warehouseId))
+        .limit(1);
+
+      if (!warehouse || warehouse.branchId !== branchId) {
+        throw new NotFoundException(`Warehouse with ID ${warehouseId} not found`);
+      }
+    }
+
     const [warehouse] = await db
       .select()
       .from(warehouses)
@@ -108,8 +129,12 @@ export class InventoryService {
     return result;
   }
 
-  async findAllMoves(status?: string, warehouseId?: string): Promise<InventoryMoveResponseDto[]> {
-    const conditions = [];
+  async findAllMoves(
+    status?: string,
+    warehouseId?: string,
+    branchId?: string
+  ): Promise<InventoryMoveResponseDto[]> {
+    const conditions = [...(branchId ? [eq(inventoryMoves.branchId, branchId)] : [])];
 
     if (status) {
       conditions.push(eq(inventoryMoves.status, status) as any);
@@ -146,10 +171,11 @@ export class InventoryService {
     return result;
   }
 
-  async findOneMove(id: string): Promise<InventoryMoveResponseDto> {
+  async findOneMove(id: string, branchId?: string): Promise<InventoryMoveResponseDto> {
     const [move] = await db.select().from(inventoryMoves).where(eq(inventoryMoves.id, id)).limit(1);
 
-    if (!move) {
+    // R2: movimiento de otra sucursal -> 404.
+    if (!move || (branchId && move.branchId !== branchId)) {
       throw new NotFoundException(`Inventory move with ID ${id} not found`);
     }
 
@@ -158,8 +184,10 @@ export class InventoryService {
 
   async createMove(
     createMoveDto: CreateInventoryMoveDto,
-    userId?: string
+    userId?: string,
+    branchId?: string
   ): Promise<InventoryMoveResponseDto> {
+    const moveBranchId = branchId ?? (await this.resolveBranchFromWarehouse(createMoveDto));
     if (createMoveDto.type === 'SALIDA' && !createMoveDto.fromWarehouseId) {
       throw new BadRequestException('fromWarehouseId is required for SALIDA moves');
     }
@@ -186,6 +214,7 @@ export class InventoryService {
         type: createMoveDto.type,
         status: 'EN_TRAMITE',
         source: 'MANUAL',
+        branchId: moveBranchId,
         fromWarehouseId: createMoveDto.fromWarehouseId,
         toWarehouseId: createMoveDto.toWarehouseId,
         note: createMoveDto.note,
@@ -289,6 +318,25 @@ export class InventoryService {
       .returning();
 
     return this.toMoveResponseDto(updatedMove, true);
+  }
+
+  /** Deduce la sucursal del movimiento a partir de los almacenes implicados. */
+  private async resolveBranchFromWarehouse(
+    createMoveDto: CreateInventoryMoveDto
+  ): Promise<string | null> {
+    const warehouseIds = [createMoveDto.fromWarehouseId, createMoveDto.toWarehouseId].filter(
+      (id): id is string => Boolean(id)
+    );
+
+    if (warehouseIds.length === 0) return null;
+
+    const [warehouse] = await db
+      .select({ branchId: warehouses.branchId })
+      .from(warehouses)
+      .where(inArray(warehouses.id, warehouseIds))
+      .limit(1);
+
+    return warehouse?.branchId ?? null;
   }
 
   private async addStock(

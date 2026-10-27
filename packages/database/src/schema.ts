@@ -8,6 +8,7 @@ import {
   primaryKey,
   numeric,
   integer,
+  index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
@@ -18,23 +19,29 @@ function uuidv7() {
 
 export { uuidv7 };
 
-export const auditLogs = pgTable('audit_logs', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  entityTable: text('entity_table').notNull(),
-  entityId: uuid('entity_id').notNull(),
-  action: text('action').notNull(),
-  changes: jsonb('changes'),
-  userId: uuid('user_id'),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  documentCode: text('document_code'),
-  documentStatus: text('document_status'),
-  description: text('description'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
-
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    entityTable: text('entity_table').notNull(),
+    entityId: uuid('entity_id').notNull(),
+    action: text('action').notNull(),
+    changes: jsonb('changes'),
+    branchId: uuid('branch_id'),
+    userId: uuid('user_id'),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    documentCode: text('document_code'),
+    documentStatus: text('document_status'),
+    description: text('description'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    branchCreatedIdx: index('audit_logs_branch_created_idx').on(t.branchId, t.createdAt),
+  })
+);
 export const permissions = pgTable('permissions', {
   id: uuid('id')
     .primaryKey()
@@ -322,23 +329,30 @@ export const stock = pgTable(
   })
 );
 
-export const inventoryMoves = pgTable('inventory_moves', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  code: text('code').notNull(),
-  type: text('type').notNull(),
-  status: text('status').notNull().default('APPROVED'),
-  source: text('source').notNull().default('SYSTEM'),
-  approvedBy: uuid('approved_by'),
-  approvedAt: timestamp('approved_at'),
-  rejectionReason: text('rejection_reason'),
-  fromWarehouseId: uuid('from_warehouse_id'),
-  toWarehouseId: uuid('to_warehouse_id'),
-  date: timestamp('date').defaultNow(),
-  note: text('note'),
-  userId: uuid('user_id'),
-});
+export const inventoryMoves = pgTable(
+  'inventory_moves',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    code: text('code').notNull(),
+    type: text('type').notNull(),
+    status: text('status').notNull().default('APPROVED'),
+    branchId: uuid('branch_id'),
+    source: text('source').notNull().default('SYSTEM'),
+    approvedBy: uuid('approved_by'),
+    approvedAt: timestamp('approved_at'),
+    rejectionReason: text('rejection_reason'),
+    fromWarehouseId: uuid('from_warehouse_id'),
+    toWarehouseId: uuid('to_warehouse_id'),
+    date: timestamp('date').defaultNow(),
+    note: text('note'),
+    userId: uuid('user_id'),
+  },
+  t => ({
+    branchDateIdx: index('inventory_moves_branch_date_idx').on(t.branchId, t.date),
+  })
+);
 
 export const inventoryMoveLines = pgTable('inventory_move_lines', {
   id: uuid('id')
@@ -877,19 +891,26 @@ export const accountingMaps = pgTable('accounting_maps', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const loans = pgTable('loans', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  code: text('code').notNull().unique(),
-  partnerId: uuid('partner_id').notNull(),
-  status: text('status').default('ACTIVE'),
-  startDate: timestamp('start_date').defaultNow(),
-  dueDate: timestamp('due_date'),
-  returnDate: timestamp('return_date'),
-  notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const loans = pgTable(
+  'loans',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    code: text('code').notNull().unique(),
+    partnerId: uuid('partner_id').notNull(),
+    branchId: uuid('branch_id'),
+    status: text('status').default('ACTIVE'),
+    startDate: timestamp('start_date').defaultNow(),
+    dueDate: timestamp('due_date'),
+    returnDate: timestamp('return_date'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    branchIdx: index('loans_branch_idx').on(t.branchId),
+  })
+);
 
 export const loanItems = pgTable('loan_items', {
   id: uuid('id')

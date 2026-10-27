@@ -15,10 +15,18 @@ import {
 
 @Injectable()
 export class OrdersService {
-  async findAll(status?: OrderStatus, partnerId?: string): Promise<OrderResponseDto[]> {
+  async findAll(
+    status?: OrderStatus,
+    partnerId?: string,
+    branchId?: string
+  ): Promise<OrderResponseDto[]> {
     let query = db.select().from(orders);
 
     const conditions = [];
+
+    if (branchId) {
+      conditions.push(eq(orders.branchId, branchId));
+    }
 
     if (status) {
       conditions.push(eq(orders.status, status));
@@ -36,17 +44,18 @@ export class OrdersService {
     return Promise.all(allOrders.map(order => this.toResponseDto(order)));
   }
 
-  async findOne(id: string): Promise<OrderResponseDto> {
+  async findOne(id: string, branchId?: string): Promise<OrderResponseDto> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
-    if (!order) {
+    // R2: pedido de otra sucursal -> 404.
+    if (!order || (branchId && order.branchId !== branchId)) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
     return this.toResponseDto(order, true);
   }
 
-  async create(createOrderDto: CreateOrderDto): Promise<OrderResponseDto> {
+  async create(createOrderDto: CreateOrderDto, branchId?: string): Promise<OrderResponseDto> {
     const [existingOrder] = await db
       .select()
       .from(orders)
@@ -64,7 +73,7 @@ export class OrdersService {
       .values({
         code: createOrderDto.code,
         partnerId: createOrderDto.partnerId,
-        branchId: createOrderDto.branchId,
+        branchId: branchId ?? createOrderDto.branchId,
         warehouseId: createOrderDto.warehouseId,
         type: createOrderDto.type || 'SALE',
         status: OrderStatus.DRAFT,
@@ -88,7 +97,12 @@ export class OrdersService {
     return this.findOne(newOrder.id);
   }
 
-  async update(id: string, updateOrderDto: UpdateOrderDto): Promise<OrderResponseDto> {
+  async update(
+    id: string,
+    updateOrderDto: UpdateOrderDto,
+    branchId?: string
+  ): Promise<OrderResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [existing] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
     if (!existing) {
@@ -139,7 +153,8 @@ export class OrdersService {
     return this.findOne(id);
   }
 
-  async confirm(id: string): Promise<ConfirmOrderResponseDto> {
+  async confirm(id: string, branchId?: string): Promise<ConfirmOrderResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [existing] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
     if (!existing) {
@@ -165,7 +180,8 @@ export class OrdersService {
     };
   }
 
-  async cancel(id: string): Promise<CancelOrderResponseDto> {
+  async cancel(id: string, branchId?: string): Promise<CancelOrderResponseDto> {
+    if (branchId) await this.findOne(id, branchId);
     const [existing] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
     if (!existing) {
@@ -195,7 +211,8 @@ export class OrdersService {
     };
   }
 
-  async invoice(id: string): Promise<{ message: string; orderId: string }> {
+  async invoice(id: string, branchId?: string): Promise<{ message: string; orderId: string }> {
+    if (branchId) await this.findOne(id, branchId);
     const [existing] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 
     if (!existing) {
@@ -212,15 +229,18 @@ export class OrdersService {
     };
   }
 
-  async getStats(): Promise<OrderStatsResponseDto> {
-    const stats = await db
+  async getStats(branchId?: string): Promise<OrderStatsResponseDto> {
+    const statsQuery = db
       .select({
         status: orders.status,
         count: sql<number>`count(*)`.as('count'),
         totalSum: sql<string>`COALESCE(SUM(${orders.total}::numeric), 0)`.as('total_sum'),
       })
-      .from(orders)
-      .groupBy(orders.status);
+      .from(orders);
+
+    const stats = await (branchId
+      ? statsQuery.where(eq(orders.branchId, branchId)).groupBy(orders.status)
+      : statsQuery.groupBy(orders.status));
 
     const formattedStats: OrderStatsResponseDto = {
       total: 0,

@@ -52,18 +52,14 @@ export class TreasuryService {
     return `PAY-${String(nextNumber).padStart(5, '0')}`;
   }
 
-  async findAll(branchId?: string, status?: PaymentStatus): Promise<PaymentResponseDto[]> {
-    const conditions = [];
-    if (branchId) conditions.push(eq(payments.branchId, branchId));
+  async findAll(branchId: string, status?: PaymentStatus): Promise<PaymentResponseDto[]> {
+    const conditions = [eq(payments.branchId, branchId)];
     if (status) conditions.push(eq(payments.status, status));
 
-    const allPayments =
-      conditions.length > 0
-        ? await db
-            .select()
-            .from(payments)
-            .where(and(...conditions))
-        : await db.select().from(payments);
+    const allPayments = await db
+      .select()
+      .from(payments)
+      .where(and(...conditions));
 
     return allPayments.map(p => ({
       ...p,
@@ -71,10 +67,11 @@ export class TreasuryService {
     }));
   }
 
-  async findOne(id: string): Promise<PaymentResponseDto> {
+  async findOne(id: string, branchId?: string): Promise<PaymentResponseDto> {
     const [payment] = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
 
-    if (!payment) {
+    // R2: recurso de otra sucursal -> 404.
+    if (!payment || (branchId && payment.branchId !== branchId)) {
       throw new NotFoundException(`Payment with ID ${id} not found`);
     }
 
@@ -84,7 +81,12 @@ export class TreasuryService {
     };
   }
 
-  async create(createPaymentDto: CreatePaymentDto, userId: string): Promise<PaymentResponseDto> {
+  async create(
+    createPaymentDto: CreatePaymentDto,
+    userId: string,
+    branchId?: string
+  ): Promise<PaymentResponseDto> {
+    const paymentBranchId = branchId ?? createPaymentDto.branchId;
     const [method] = await db
       .select()
       .from(paymentMethods)
@@ -122,10 +124,10 @@ export class TreasuryService {
       .insert(payments)
       .values({
         id: uuidv4(),
-        code: await this.getNextPaymentCode(createPaymentDto.branchId),
+        code: await this.getNextPaymentCode(paymentBranchId),
         invoiceId: createPaymentDto.invoiceId,
         partnerId: createPaymentDto.partnerId,
-        branchId: createPaymentDto.branchId,
+        branchId: paymentBranchId,
         methodId: createPaymentDto.methodId,
         status: PaymentStatus.POSTED,
         type: createPaymentDto.type || PaymentType.INCOME,
@@ -194,10 +196,10 @@ export class TreasuryService {
     return total;
   }
 
-  async voidPayment(id: string, userId?: string): Promise<PaymentResponseDto> {
+  async voidPayment(id: string, userId?: string, branchId?: string): Promise<PaymentResponseDto> {
     const [payment] = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
 
-    if (!payment) {
+    if (!payment || (branchId && payment.branchId !== branchId)) {
       throw new NotFoundException(`Payment with ID ${id} not found`);
     }
 
@@ -324,8 +326,8 @@ export class TreasuryService {
     return this.findOne(id);
   }
 
-  async getMethods(branchId?: string): Promise<PaymentMethodResponseDto[]> {
-    const conditions = branchId ? [eq(paymentMethods.branchId, branchId)] : [];
+  async getMethods(branchId: string): Promise<PaymentMethodResponseDto[]> {
+    const conditions = [eq(paymentMethods.branchId, branchId)];
     const methods =
       conditions.length > 0
         ? await db
@@ -352,8 +354,8 @@ export class TreasuryService {
     return newMethod;
   }
 
-  async getBankAccounts(branchId?: string): Promise<BankAccountResponseDto[]> {
-    const conditions = branchId ? [eq(bankAccounts.branchId, branchId)] : [];
+  async getBankAccounts(branchId: string): Promise<BankAccountResponseDto[]> {
+    const conditions = [eq(bankAccounts.branchId, branchId)];
     const accounts =
       conditions.length > 0
         ? await db
@@ -391,22 +393,32 @@ export class TreasuryService {
     };
   }
 
-  async getPartnerStatement(partnerId: string): Promise<PartnerStatementDto> {
+  async getPartnerStatement(partnerId: string, branchId?: string): Promise<PartnerStatementDto> {
     const [partner] = await db.select().from(partners).where(eq(partners.id, partnerId)).limit(1);
 
     if (!partner) {
       throw new NotFoundException(`Partner with ID ${partnerId} not found`);
     }
 
+    const paymentConditions = [
+      eq(payments.partnerId, partnerId),
+      eq(payments.status, PaymentStatus.POSTED),
+    ];
+    const invoiceConditions = [eq(invoices.partnerId, partnerId)];
+    if (branchId) {
+      paymentConditions.push(eq(payments.branchId, branchId));
+      invoiceConditions.push(eq(invoices.branchId, branchId));
+    }
+
     const partnerPayments = await db
       .select()
       .from(payments)
-      .where(and(eq(payments.partnerId, partnerId), eq(payments.status, PaymentStatus.POSTED)));
+      .where(and(...paymentConditions));
 
     const partnerInvoices = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.partnerId, partnerId));
+      .where(and(...invoiceConditions));
 
     let totalPaid = 0;
     for (const p of partnerPayments) {
@@ -448,7 +460,7 @@ export class TreasuryService {
     };
   }
 
-  async getDailyClose(date: string, branchId?: string): Promise<DailyCloseDto> {
+  async getDailyClose(date: string, branchId: string): Promise<DailyCloseDto> {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
 

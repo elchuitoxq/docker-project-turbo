@@ -57,7 +57,7 @@ describe('AuthService', () => {
       };
       const userRoles = [{ roleId: 'role-1', roleName: 'ADMIN' }];
       const perms = [{ code: 'dashboard:view' }];
-      const userBranches = [{ id: 'branch-1', name: 'Main', taxId: 'J-1' }];
+      const userBranches = [{ id: 'branch-1', name: 'Main', taxId: 'J-1', isDefault: true }];
 
       (db.select as any)
         .mockReturnValueOnce({
@@ -104,7 +104,8 @@ describe('AuthService', () => {
           email: 'admin@test.local',
           name: 'Admin',
           permissions: ['dashboard:view'],
-          branches: userBranches,
+          branches: [{ id: 'branch-1', name: 'Main', taxId: 'J-1' }],
+          defaultBranchId: 'branch-1',
         },
       });
       expect(mockJwtService.sign).toHaveBeenCalledWith(

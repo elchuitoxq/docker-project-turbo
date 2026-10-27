@@ -59,10 +59,12 @@ export class HrService {
     return this.mapEmployeesWithRelations(allEmployees);
   }
 
-  async findOneEmployee(id: string): Promise<EmployeeResponseDto> {
+  async findOneEmployee(id: string, branchId?: string): Promise<EmployeeResponseDto> {
     const [employee] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
 
-    if (!employee) {
+    // R2: empleado de otra sucursal -> 404. `employees.branch_id` es nullable, asi que
+    // los registros historicos sin sucursal siguen siendo legibles.
+    if (!employee || (branchId && employee.branchId && employee.branchId !== branchId)) {
       throw new NotFoundException(`Employee with ID ${id} not found`);
     }
 
@@ -460,10 +462,11 @@ export class HrService {
     }));
   }
 
-  async findOnePayrollRun(id: string): Promise<PayrollRunResponseDto> {
+  async findOnePayrollRun(id: string, branchId?: string): Promise<PayrollRunResponseDto> {
     const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, id)).limit(1);
 
-    if (!run) {
+    // R2: nomina de otra sucursal -> 404.
+    if (!run || (branchId && run.branchId !== branchId)) {
       throw new NotFoundException(`Payroll run with ID ${id} not found`);
     }
 

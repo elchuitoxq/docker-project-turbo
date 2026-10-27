@@ -118,8 +118,13 @@ export class AccountingService {
     dateFrom?: string;
     dateTo?: string;
     accountId?: string;
+    branchId?: string;
   }): Promise<EntryResponseDto[]> {
     const conditions = [];
+
+    if (filters.branchId) {
+      conditions.push(eq(accountingEntries.branchId, filters.branchId));
+    }
 
     if (filters.dateFrom) {
       conditions.push(gte(accountingEntries.date, new Date(filters.dateFrom)));
@@ -155,7 +160,19 @@ export class AccountingService {
     return result;
   }
 
-  async findOneEntry(id: string): Promise<EntryResponseDto> {
+  async findOneEntry(id: string, branchId?: string): Promise<EntryResponseDto> {
+    if (branchId) {
+      const [entry] = await db
+        .select({ branchId: accountingEntries.branchId })
+        .from(accountingEntries)
+        .where(eq(accountingEntries.id, id))
+        .limit(1);
+
+      if (!entry || (entry.branchId && entry.branchId !== branchId)) {
+        throw new NotFoundException(`Entry with ID ${id} not found`);
+      }
+    }
+
     const [entry] = await db
       .select()
       .from(accountingEntries)

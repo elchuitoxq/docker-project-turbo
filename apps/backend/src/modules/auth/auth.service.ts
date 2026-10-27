@@ -92,6 +92,7 @@ export class AuthService {
         name: branches.name,
         companyId: branches.companyId,
         taxId: companies.taxId,
+        isDefault: usersBranches.isDefault,
       })
       .from(usersBranches)
       .innerJoin(branches, eq(usersBranches.branchId, branches.id))
@@ -117,7 +118,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         permissions: userPermissions,
-        branches: userBranches,
+        branches: userBranches.map(({ isDefault: _isDefault, ...branch }) => branch),
+        defaultBranchId: this.pickDefaultBranch(userBranches),
       },
     };
   }
@@ -216,6 +218,7 @@ export class AuthService {
         name: branches.name,
         companyId: branches.companyId,
         taxId: companies.taxId,
+        isDefault: usersBranches.isDefault,
       })
       .from(usersBranches)
       .innerJoin(branches, eq(usersBranches.branchId, branches.id))
@@ -225,8 +228,20 @@ export class AuthService {
     return {
       ...user,
       permissions: [...new Set(perms.map(p => p.code))],
-      branches: userBranches,
+      branches: userBranches.map(({ isDefault: _isDefault, ...branch }) => branch),
+      defaultBranchId: this.pickDefaultBranch(userBranches),
     };
+  }
+
+  /**
+   * Sucursal con la que debe arrancar la UI: la marcada como predeterminada
+   * o, si no hay ninguna, la primera asignada.
+   */
+  private pickDefaultBranch(
+    userBranches: Array<{ id: string; isDefault: boolean }>
+  ): string | null {
+    const preferred = userBranches.find(({ isDefault }) => isDefault);
+    return preferred?.id ?? userBranches[0]?.id ?? null;
   }
 
   async validateUser(userId: string) {
