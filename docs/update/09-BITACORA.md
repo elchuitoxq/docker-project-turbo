@@ -841,3 +841,110 @@ existían: se agregaron al seed **y** a `lib/permissions.ts`. Los permisos de E0
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
   `tax_retentions`, `accounting_entry_lines`) y de `modules/cron/cron.service.ts`.
 - `pnpm format:check` verde · enlaces relativos validados · árbol limpio.
+
+### BT-039 · 2026-10-27 · T-02-00: reglas LOTTT redactadas con modelo SAP
+
+**Qué se hizo**
+
+Se creó [`docs/09-HR-NOMINA-VENEZUELA.md`](../09-HR-NOMINA-VENEZUELA.md) — el artefacto que el WBS
+marcaba como “(el doc referenciado **no existe**)” y que es la pieza que faltaba para poder codificar
+el motor. Se redactó con la arquitectura de un motor de nómina empresarial (SAP HCM), no como una
+lista de artículos de ley.
+
+> **Aclaratoria (corrección de una nota previa):** `audit-report/09-HR-NOMINA-VENEZUELA.md` **sí
+> existe**, pero es la **auditoría del esquema actual** (qué tablas y columnas hay), no el documento
+> de reglas de cálculo. Son dos cosas distintas con el mismo nombre en carpetas distintas. El nuevo
+> `docs/09-…` parte de ese inventario y define **cómo se calcula**.
+
+**Por qué SAP y no un cálculo ad-hoc**
+
+Un calculador escrito “a mano” falla en tres cosas que un ERP no puede permitirse: parámetros sin
+vigencia, orden de cálculo implícito y conceptos sin trazabilidad. El documento resuelve los tres:
+
+| Mecanismo SAP               | Aterrizaje en el ERP                                       |
+| --------------------------- | ---------------------------------------------------------- |
+| Wage types                  | `payroll_concept_types` + `payroll_item_lines.conceptCode` |
+| Cumulaciones (bases `/1xx`) | 6 bases de cálculo (§7), guardadas por línea con su `base` |
+| Constantes (`T511K`)        | `payroll_settings` con `effectiveFrom` (§10)               |
+| Schema de proceso (`R000`)  | Pipeline de **13 etapas** con orden explícito (§6)         |
+| Reglas de cálculo           | `expression` declarativa en el concepto (T-02-02)          |
+| Control record (`PA03`)     | `payroll_runs.status` con `VOID` en lugar de borrado       |
+| Retro (`P0015`)             | Diferencia retroactiva como concepto propio (§11)          |
+| Posting a FI                | `accounting_maps` por concepto (§12)                       |
+
+**Hallazgos que el documento destapa**
+
+- **H-55** — `payroll_settings` no tiene `effectiveFrom` ni `companyId`: sin vigencia, cambiar una
+  alícuota reescribe la historia. La inmutabilidad (§11) es requisito del motor, no un extra.
+- **H-56** — `payroll_concept_types` no tiene `kind` ni `expression`: hoy el cálculo de cada concepto
+  está en código, así que agregar un concepto exige un despliegue. Es la diferencia entre un ERP y
+  una planilla.
+- **H-57** — No existe ninguna tabla de bases/cumulaciones: `payroll_items.baseAmount` mezcla
+  conceptos y no dice **qué** base se usó. Sin ese dato no se puede auditar un recibo.
+- **H-58** — El cestaticket (Ley de Alimentación) **no** es salario. Si se trata como asignación
+  salarial infla el integral, las prestaciones y las vacaciones. Queda como regla **RN-02/RN-17**.
+- **H-59** — No hay mapeo contable por concepto: sin `accounting_maps[PAYROLL]` el asiento de nómina
+  no puede cuadrar concepto por concepto.
+
+**Auditoría del cálculo real (lo que apareció al escribir el documento)**
+
+No bastaba con leer el esquema: al abrir `calculatePayrollItem` para mapear conceptos aparecieron
+cinco hallazgos más, y ninguno es cosmético. Están en §5.2 del documento como defectos **D1–D10**.
+
+- **H-60** — **Los parámetros existen y el cálculo los ignora.** `payroll_settings` tiene sembrados
+  `SSO_EMP=4`, `SSO_PAT=10`, `FAOV_EMP=1`, `FAOV_PAT=2`, `PIE_EMP=0.5`, `PIE_PAT=2` y
+  `CESTATICKET_USD=40`, pero el servicio usa constantes del código (`SSO_EMP_RATE = 0.04`, …).
+  **Editar el parámetro en la UI no cambia el resultado.** Es el hallazgo más grave del lote porque
+  hace que la configuración sea decorativa: el usuario cree que ajustó la alícuota y no ajustó nada.
+- **H-61** — **Escala ambigua de porcentajes:** el seed guarda `4` con `type = 'PERCENTAGE'` y el
+  código usa `0.04`. Sin convención escrita, `4` puede leerse como 4 % o como 400 %. Se fija en §10
+  (porcentaje entero + validación `0 < value <= 100`).
+- **H-62** — 🔴 **Cestaticket en USD sumado a un salario en VES sin conversión:** `CESTATICKET_USD`
+  entra directo en `netTotal` aunque `employees.salaryCurrencyId` sea VES. Viola M4 (`MoneyService`).
+  Con la tasa en 40, el neto queda mal por un factor de 40.
+- **H-63** — **Aportes patronales declarados y nunca aplicados:** `SSO_PAT_RATE`, `FAOV_PAT_RATE` y
+  `PIE_PAT_RATE` se definen y no se usan en ningún cálculo: el costo del empleador no se registra.
+- **H-64** — **Factor mágico y sin prorrateo:** `const integralSalary = baseSalary * 1.17` no se usa
+  en ninguna parte, y `baseAmount` toma el salario mensual completo sin prorratear por días, así que
+  un ingreso a mitad de mes paga el mes entero.
+
+**Reglas redactadas:** 25 (`RN-01`…`RN-25`), cada una con criterio de aceptación verificable, más 8
+casos dorados con aritmética explícita (§9) que serán los tests de T-02-03.
+
+**Compatibilidad de códigos de concepto**
+
+El documento **no** inventa códigos nuevos para lo que ya existe: `SALARY`, `CESTATICKET`, `SSO_EMP`,
+`FAOV_EMP` y `PIE_EMP` se conservan porque están grabados en `payroll_item_lines` de runs históricos.
+Sólo se normaliza la categoría (`INCOME` → `ASSIGNMENT`) y se agregan los valores
+`EMPLOYER_CONTRIBUTION` e `INFORMATIVE`. Lo nuevo (primas, horas extra, vacaciones, utilidades,
+prestaciones, ISLR, retroactivo) usa códigos nuevos en inglés para mantener el estilo.
+
+**Lo que el documento NO decide (a propósito)**
+
+Los porcentajes y montos de IVSS, paro forzoso, FAOV, cestaticket, salario mínimo y unidad
+tributaria **cambian por decreto**. El documento los trata como parámetros con vigencia y los marca
+⚠️ con una lista de validación profesional en §15. Ninguna de esas dudas bloquea el diseño, pero sí
+deben cerrarse antes de conectar la UI de cálculo.
+
+> ⚠️ **Pendiente con el usuario:** este documento requiere revisión de un contador laboral o
+> abogado laboral antes de implementar T-02-03/T-02-04. Es el propio criterio de verificación de
+> T-02-00 en el WBS y no se puede sustituir con pruebas unitarias.
+
+**Estado**
+
+- Documento creado; **T-02-00 cerrada en redacción, abierta la revisión externa**.
+- Plan: **42 de 100 tareas** (E2 arranca con la primera).
+- Sin cambios de código: no hay nada que compilar ni testear en esta tarea.
+
+**Verificación**
+
+- Mapeo de cada sección contra el esquema real leído de `packages/database/src/schema.ts`
+  (`payroll_runs`, `payroll_items`, `payroll_item_lines`, `payroll_concept_types`,
+  `payroll_settings`, `employee_benefits`, `employee_profit_sharing`, `employee_vacations`,
+  `employee_salary_history`, `payroll_incidents`).
+- Lectura del cálculo real en `modules/hr/services/hr.service.ts` (`calculatePayrollItem`) y del
+  seed de parámetros (`seed-faker.ts`), que es de donde salen H-60…H-64.
+- Tabla de hallazgos actualizada: H-48…H-54 marcados ✅ resueltos (estaban abiertos aunque las
+  tareas ya se habían cerrado) y añadidos H-55…H-64.
+- Enlaces relativos de los cinco documentos tocados validados con un chequeo de rutas (0 roto) ·
+  `pnpm format:check` verde.

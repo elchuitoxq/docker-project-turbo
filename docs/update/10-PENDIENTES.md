@@ -24,6 +24,12 @@ Lo que queda abierto es **mejora incremental**, no deuda pendiente de la iteraci
 | `P-23` | Página de "solicitar reset"              | El enlace se envía por correo, pero no hay formulario público de "olvidé mi contraseña" en el login. |
 | `P-24` | `next-env.d.ts` en el repo               | Next lo reescribe en cada build; trackeado y excluido de `format:check`.                             |
 
+## ⏳ Requiere validación externa (bloqueante para E2)
+
+| ID     | Tema                                   | Detalle                                                                                                                                                                                                                                                                          |
+| ------ | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `P-28` | Reglas LOTTT a validar antes del motor | [`docs/09-HR-NOMINA-VENEZUELA.md`](../09-HR-NOMINA-VENEZUELA.md) §15: alícuotas y topes de IVSS/paro forzoso/FAOV, monto de cestaticket, tope de utilidades, tabla de ISLR. **Requiere contador o abogado laboral**; no se puede sustituir con tests. Bloquea T-02-03 y T-02-04. |
+
 ## 🗄️ Riesgos aceptados (sin acción prevista)
 
 | ID     | Tema                                              | Motivo                                                                                             |
