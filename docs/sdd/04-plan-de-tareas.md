@@ -124,12 +124,12 @@ cliente.
 
 | ID      | Tarea                                                     | Artefactos                                             | Depende | Verificación                                 | Talla | Estado |
 | ------- | --------------------------------------------------------- | ------------------------------------------------------ | ------- | -------------------------------------------- | ----- | ------ |
-| T-01-01 | `POST /v1/hr/employees/:id/terminate`                     | `modules/hr/hr.controller.ts`, `hr.service.ts`, `dto/` | E0      | integración: status `TERMINATED` + auditoría | S     | ⬜     |
-| T-01-02 | `PATCH /v1/hr/departments/:id`                            | ídem                                                   | E0      | unit + contrato                              | S     | ⬜     |
-| T-01-03 | `PATCH /v1/hr/positions/:id`                              | ídem                                                   | E0      | unit + contrato                              | S     | ⬜     |
-| T-01-04 | `POST /v1/hr/incidents/:id/{approve,reject}`              | ídem                                                   | E0      | `409` si no está `PENDING`                   | S     | ⬜     |
-| T-01-05 | Cliente HR usa `payroll/generate` y `payroll/:id/process` | `apps/frontend/modules/hr/api.ts:140-141`              | —       | sin 404 en las 5 pantallas de HR             | S     | ⬜     |
-| T-01-07 | `GET`/`PATCH /v1/hr/settings`                             | `modules/hr/*`, `payroll_settings`                     | T-02-01 | unit + contrato                              | S     | ⬜     |
+| T-01-01 | `POST /v1/hr/employees/:id/terminate`                     | `modules/hr/hr.controller.ts`, `hr.service.ts`, `dto/` | E0      | integración: status `TERMINATED` + auditoría | S     | ✅     |
+| T-01-02 | `PATCH /v1/hr/departments/:id`                            | ídem                                                   | E0      | unit + contrato                              | S     | ✅     |
+| T-01-03 | `PATCH /v1/hr/positions/:id`                              | ídem                                                   | E0      | unit + contrato                              | S     | ✅     |
+| T-01-04 | `POST /v1/hr/incidents/:id/{approve,reject}`              | ídem                                                   | E0      | `409` si no está `PENDING`                   | S     | ✅     |
+| T-01-05 | Cliente HR usa `payroll/generate` y `payroll/:id/process` | `apps/frontend/modules/hr/api.ts:140-141`              | —       | sin 404 en las 5 pantallas de HR             | S     | ✅     |
+| T-01-07 | `GET`/`PATCH /v1/hr/settings`                             | `modules/hr/*`, `payroll_settings`                     | T-02-01 | unit + contrato                              | S     | ✅     |
 
 > **Cambio de alcance (2026-10-26):** el pago de nómina (`POST /v1/hr/payroll/:id/pay`) **sale de E1**
 > y se implementa en E2 como parte de T-02-06, porque necesita el neto definitivo del motor de cálculo.
@@ -138,22 +138,22 @@ cliente.
 
 | ID      | Tarea                                                                | Artefactos                                                   | Depende | Verificación                            | Talla | Estado |
 | ------- | -------------------------------------------------------------------- | ------------------------------------------------------------ | ------- | --------------------------------------- | ----- | ------ |
-| T-01-08 | Cliente usa el prefijo `/inventory/warehouses`                       | `modules/inventory/api/warehouses.ts:13-18`                  | —       | listado carga en `inventory/warehouses` | S     | ⬜     |
-| T-01-09 | `GET /v1/inventory/warehouses/:id`                                   | `modules/inventory/*`                                        | E0      | contrato + test                         | S     | ⬜     |
-| T-01-10 | `DELETE /v1/inventory/warehouses/:id` (lógico; rechaza si hay stock) | ídem                                                         | T-01-09 | `409` con stock, `200` sin stock        | S     | ⬜     |
-| T-01-11 | Decidir `moves/:id/cancel`: alias o `reject`; documentar y alinear   | `modules/inventory/api/moves.ts:52`, `docs/API-CONTRACTS.md` | —       | una sola ruta vigente en el contrato    | S     | ⬜     |
-| T-01-12 | Cliente usa `/products/categories`                                   | `modules/inventory/api/products.ts:24`                       | —       | selector de categorías carga            | S     | ⬜     |
+| T-01-08 | Cliente usa el prefijo `/inventory/warehouses`                       | `modules/inventory/api/warehouses.ts:13-18`                  | —       | listado carga en `inventory/warehouses` | S     | ✅     |
+| T-01-09 | `GET /v1/inventory/warehouses/:id`                                   | `modules/inventory/*`                                        | E0      | contrato + test                         | S     | ✅     |
+| T-01-10 | `DELETE /v1/inventory/warehouses/:id` (lógico; rechaza si hay stock) | ídem                                                         | T-01-09 | `409` con stock, `200` sin stock        | S     | ✅     |
+| T-01-11 | Decidir `moves/:id/cancel`: alias o `reject`; documentar y alinear   | `modules/inventory/api/moves.ts:52`, `docs/API-CONTRACTS.md` | —       | una sola ruta vigente en el contrato    | S     | ✅     |
+| T-01-12 | Cliente usa `/products/categories`                                   | `modules/inventory/api/products.ts:24`                       | —       | selector de categorías carga            | S     | ✅     |
 
 ### 2.3 Frente C · Facturación, partners y reportes
 
 | ID      | Tarea                                                                                                                                                                   | Artefactos                                              | Depende | Verificación                                                                      | Talla | Estado |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------- | ----- | ------ |
-| T-01-13 | Cliente usa `PATCH` para actualizar factura                                                                                                                             | `modules/finance/api/invoices.ts:73`                    | —       | edición persiste                                                                  | S     | ⬜     |
-| T-01-14 | `GET /v1/billing/invoices` con `type` + paginación **aditiva** (`?paginated=true` devuelve `{ data, total, page, limit }`; sin el flag sigue el arreglo plano) + índice | `modules/billing/*`, migración de índice                | —       | paginación server-side sin romper consumidores; documentado en `API-CONTRACTS.md` | M     | ⬜     |
-| T-01-15 | `modules/orders/api.ts` deja de usar `/billing/invoices`                                                                                                                | `modules/orders/api.ts:33-36`                           | —       | órdenes cargan datos de órdenes                                                   | S     | ⬜     |
-| T-01-16 | Reportes muestran "no disponible" mientras no exista el endpoint                                                                                                        | `modules/finance/api/reports.ts:5-7`, `finance/reports` | —       | sin 404 en pantalla                                                               | S     | ⬜     |
-| T-01-17 | `DELETE /v1/partners/:id` real (lógico o bloqueo con `409` si tiene movimientos)                                                                                        | `modules/partners/*`                                    | —       | `409` con facturas; `204` sin movimientos                                         | S     | ⬜     |
-| T-01-18 | `GET /v1/partners` paginado en servidor                                                                                                                                 | `modules/partners/*` + índice                           | —       | tabla pagina sin cargar todo                                                      | S     | ⬜     |
+| T-01-13 | Cliente usa `PATCH` para actualizar factura                                                                                                                             | `modules/finance/api/invoices.ts:73`                    | —       | edición persiste                                                                  | S     | ✅     |
+| T-01-14 | `GET /v1/billing/invoices` con `type` + paginación **aditiva** (`?paginated=true` devuelve `{ data, total, page, limit }`; sin el flag sigue el arreglo plano) + índice | `modules/billing/*`, migración de índice                | —       | paginación server-side sin romper consumidores; documentado en `API-CONTRACTS.md` | M     | ✅     |
+| T-01-15 | `modules/orders/api.ts` deja de usar `/billing/invoices`                                                                                                                | `modules/orders/api.ts:33-36`                           | —       | órdenes cargan datos de órdenes                                                   | S     | ✅     |
+| T-01-16 | Reportes muestran "no disponible" mientras no exista el endpoint                                                                                                        | `modules/finance/api/reports.ts:5-7`, `finance/reports` | —       | sin 404 en pantalla                                                               | S     | ✅     |
+| T-01-17 | `DELETE /v1/partners/:id` real (lógico o bloqueo con `409` si tiene movimientos)                                                                                        | `modules/partners/*`                                    | —       | `409` con facturas; `204` sin movimientos                                         | S     | ✅     |
+| T-01-18 | `GET /v1/partners` paginado en servidor                                                                                                                                 | `modules/partners/*` + índice                           | —       | tabla pagina sin cargar todo                                                      | S     | ✅     |
 
 **Gate de salida E1:** `grep` de `apiClient` contra OpenAPI sin rutas inexistentes; 0 respuestas 404
 en las pantallas de HR, inventario y finanzas.
@@ -289,7 +289,7 @@ trazada.
 | --- | ------- | -------------------------------------- | ------- | ------ |
 | 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 11     |
 | 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 12     |
-| 3   | 5       | E1 frentes A, B y C                    | 17      | 0      |
+| 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
 | 4   | 6-7     | E2 nómina                              | 11      | 0      |
 | 5   | 8-9     | E4 contabilidad                        | 9       | 0      |
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 0      |
@@ -297,7 +297,7 @@ trazada.
 | 8   | 14-15   | E5 tesorería                           | 9       | 0      |
 | 9   | 16      | E7 frontend restante                   | 7       | 0      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **24** |
+| —   | —       | **Total**                              | **100** | **41** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

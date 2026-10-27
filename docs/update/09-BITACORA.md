@@ -781,6 +781,61 @@ en tres corridas consecutivas (~30 s).
   cambiaria. Requiere agregarla en S-04 antes de poder postear la línea.
 - El frontend (T-08-12) debe mostrar el monto dual y el aviso de tasa vencida.
 
+---
+
+### BT-038 · 2026-10-27 · Ola 3 (S-01) cerrada: 17 contratos reparados
+
+**Backend**
+
+| Frente      | Cambio                                                                                                                                                          |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HR          | `terminate` (409 si ya egresó), `PATCH` de departamentos y cargos, `approve`/`reject` de incidencias (409 si no está `PENDING`), `GET`/`PATCH` de `hr/settings` |
+| Inventario  | `GET /inventory/warehouses/:id` con validación de sucursal y `DELETE` con baja lógica: **409 si tiene stock o movimientos**                                     |
+| Facturación | `type` + paginación **aditiva** (`?paginated=true`) e índice `(branch_id, status, type, created_at)`; el arreglo plano sigue igual                              |
+| Partners    | `DELETE` ya no finge borrar: 409 con documentos, si no desactiva (`partners.is_active`, migración 0009); listado paginado                                       |
+
+**Frontend alineado al contrato real**
+
+`/inventory/warehouses`, `/products/categories`, `moves/:id/reject`, `PATCH` de facturas,
+`payroll/generate` y `payroll/:id/process`, envelopes reales de incidencias y nóminas, y mensaje
+claro cuando un reporte no existe todavía.
+
+**Permisos que faltaban**
+
+`hr:departments:manage`, `hr:positions:manage`, `hr:incidents:approve` y `hr:settings:manage` no
+existían: se agregaron al seed **y** a `lib/permissions.ts`. Los permisos de E0
+(`core:branch:all`, `core:catalog:manage`) tampoco estaban en la base; se sembraron.
+
+> ⚠️ **Recordatorio operativo:** agregar un permiso al seed **no** lo crea en la base. Hay que correr
+> `SEED_ENV=development pnpm --filter database db:seed:core`. Sin eso, los endpoints nuevos responden
+> `403` con un usuario que sí tiene el rol.
+
+**Verificación en vivo (stack real)**
+
+| Prueba                                                      | Resultado                                |
+| ----------------------------------------------------------- | ---------------------------------------- |
+| `GET /billing/invoices?paginated=true`                      | `data=2, total=5`; sin flag siguen las 5 |
+| `GET /partners?paginated=true`                              | `data=3, total=6`                        |
+| `GET /inventory/warehouses/:id`                             | detalle correcto                         |
+| `PATCH /hr/settings`                                        | persiste el parámetro                    |
+| `DELETE /partners/:id` con documentos                       | **409** con mensaje accionable           |
+| `terminate`/`approve`/`PATCH department` con id inexistente | **404** en los tres                      |
+
+**Dos desviaciones del plan, documentadas**
+
+1. **T-01-15 no era lo que parecía**: `modules/orders/api.ts` no llama a `/orders`; es un cliente de
+   **facturas** que usa la vista de facturas del módulo de pedidos. El defecto real era que esperaba
+   un envelope paginado que la API no devolvía. Se corrigió el contrato (`paginated=true`); mover el
+   archivo a `modules/finance` es cosmético y queda como mejora.
+2. **T-01-11 se resolvió con `reject`**: no se creó un alias `cancel`. El cliente ahora llama la ruta
+   real, y `docs/API-CONTRACTS.md` lo refleja.
+
+**Estado**
+
+- Backend **738/738** tests · frontend **75/75** · gate **16/16** · 0 vulnerabilidades.
+- Plan: **41 de 100 tareas**; E1 al 100 %.
+- Datos de prueba revertidos (el parámetro de nómina creado para la prueba fue eliminado).
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
