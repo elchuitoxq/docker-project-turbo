@@ -71,6 +71,13 @@ export const PERMISSIONS = {
     },
     RETENTIONS: { VIEW: 'finance:retentions:view' },
     REPORTS: { VIEW: 'finance:reports:view' },
+    ACCOUNTS: { VIEW: 'finance:accounts:view', MANAGE: 'finance:accounts:manage' },
+    ENTRIES: {
+      VIEW: 'finance:entries:view',
+      CREATE: 'finance:entries:create',
+      POST: 'finance:entries:post',
+    },
+    CLOSE: { VIEW: 'finance:close:view', MANAGE: 'finance:close:manage' },
   },
   HR: {
     VIEW: 'hr:view',

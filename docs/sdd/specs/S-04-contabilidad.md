@@ -2,10 +2,16 @@
 
 | Campo          | Valor                                                                          |
 | -------------- | ------------------------------------------------------------------------------ |
-| **Estado**     | ⬜ Especificada                                                                |
+| **Estado**     | ✅ Implementada (T-04-01 … T-04-09)                                            |
 | **Prioridad**  | 🟠 P1                                                                          |
 | **Depende de** | S-00, S-01                                                                     |
 | **Épica**      | E4 · **Fuente:** `audit-report/02-BACKEND` (módulo Accounting) y `04-DATABASE` |
+
+> **Nota de implementación (2026-10-27):** los permisos se crearon con prefijo `finance:` y no
+> `accounting:` (`finance:accounts:*`, `finance:entries:*`, `finance:close:*`) para no romper el
+> agrupamiento por módulo del RBAC; `finance:reports:view` ya existía. La naturaleza de cuenta usa
+> `ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE | COST | ORDER` (migración `0013` normalizó los
+> datos) y el plan base se siembra con `seed-chart-of-accounts.ts`.
 
 ---
 

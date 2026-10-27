@@ -1432,3 +1432,93 @@ ejemplo concreto en lugar de sobre una abstracción.
   45,73 % líneas y rompió el umbral de 50 %. Se resolvió **con pruebas, no bajando el umbral**:
   `modules/hr/api.test.ts` fija ruta y cuerpo de los 30 métodos del cliente de nómina (21 pruebas en
   el módulo). Queda en 49,22 / 51,45 / 47,65 / 50,66.
+
+---
+
+### BT-046 · 2026-10-27 · E4: la contabilidad deja de ser un módulo dormido (T-04-01 … T-04-09)
+
+**Punto de partida**
+
+Había plan de cuentas, asientos, líneas y mapeos en el backend, y **ninguna pantalla**. Al abrirlo
+aparecieron tres problemas que hacían la épica imposible tal cual:
+
+1. **El plan de cuentas no existía** (H-73): 2 cuentas de prueba y 0 asientos en desarrollo.
+2. **El vocabulario de tipos estaba partido**: el enum del API en español (`ACTIVO`, `COSTO = 'costo'`,
+   `ORDEN = 'orden'`) y los datos/documentación en inglés (`EXPENSE`). Cualquier reporte que agrupara
+   por naturaleza habría clasificado mal la mitad de las cuentas.
+3. **Los asientos no guardaban su origen** (H-74) ni existía cierre de período (H-75).
+
+**Qué se hizo, en orden**
+
+| Tarea   | Qué se entregó                                                                                                                                                                |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-04-01 | `PATCH`/`DELETE` de cuentas, `isPostable`, validación jerárquica: hija hereda naturaleza, la madre deja de ser imputable, `409` al borrar con movimientos o hijas, sin ciclos |
+| T-04-02 | `POST /entries/:id/post` (DRAFT → POSTED) y `PATCH /entries/:id` que **sólo** acepta borradores                                                                               |
+| T-04-03 | Filtros `?from&to&sourceType` con alias de `dateFrom`/`dateTo`, `sourceType`/`sourceId` en el asiento e índice único por documento                                            |
+| T-04-04 | `accounting_periods` + `GET /periods?year`, `close`, `reopen` con motivo obligatorio y registro en `audit_logs`                                                               |
+| T-04-05 | `GET /reports/trial-balance`                                                                                                                                                  |
+| T-04-06 | `GET /reports/balance-sheet` con resultado del ejercicio incluido en el patrimonio                                                                                            |
+| T-04-07 | `GET /reports/income-statement`                                                                                                                                               |
+| T-04-08 | UI `finance/accounting` (árbol) y `finance/accounting/entries` (grilla con debe/haber en vivo)                                                                                |
+| T-04-09 | UI `finance/accounting/periods`: cierre por mes, reapertura con motivo y los tres estados en tabs                                                                             |
+
+**Decisiones que conviene recordar**
+
+- **Vocabulario único de tipos**: `ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE | COST | ORDER`. Se
+  eligió inglés porque es lo que ya había en la base y en `docs/DATABASE.md`; la migración `0013`
+  normaliza cualquier valor en español (`ACTIVO`, `costo`, …) con un `CASE upper(type)`. El enum del
+  DTO se alineó al mismo vocabulario.
+- **Permisos**: el spec `S-04` proponía `accounting:*`, pero el RBAC del repo agrupa por módulo con
+  prefijo (`finance:`) y `finance:reports:view` ya existía y lo tenía el rol ACCOUNTANT. Se crearon
+  `finance:accounts:view|manage`, `finance:entries:view|create|post` y `finance:close:view|manage`,
+  y se asignaron al rol ACCOUNTANT (MANAGER queda en lectura). Cambiar de prefijo habría roto el
+  agrupamiento del sidebar y el mapa `MODULE_MAP` del seed.
+- **Períodos por empresa, asientos por sucursal**: cerrar octubre lo cierra para todas las sucursales
+  (libro único), pero los reportes siguen filtrando por la sucursal activa (R5 de `S-00`).
+- **El balance cuadra sin asiento de cierre**: `activo = pasivo + patrimonio + resultado del
+ejercicio`, calculado con las cuentas de ingreso/costo/gasto acumuladas a la fecha. Es lo que
+  permite verlo cuadrado cualquier día del año y no sólo después del cierre.
+- **`DELETE` desactiva, no borra**: si la cuenta está limpia se pone `isActive = false`; si tiene
+  movimientos o hijas responde `409`. Un asiento histórico nunca queda apuntando a una fila borrada.
+- **Plan de cuentas base** (`seed-chart-of-accounts.ts`): 37 cuentas jerárquicas (25 imputables) del
+  plan venezolano, idempotente y por sucursal. Sin esto la pantalla nace vacía y los reportes en cero.
+
+**Verificación en vivo (stack real)**
+
+| Prueba                                         | Resultado                                                             |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| `GET /accounting/accounts`                     | 8 raíces, **37 cuentas**, 25 imputables                               |
+| `POST /accounting/entries` (aporte de capital) | `POSTED`, `postedAt` seteado                                          |
+| `POST /accounting/entries` con `status: DRAFT` | `DRAFT`, `postedAt` nulo                                              |
+| `PATCH` sobre el borrador                      | descripción actualizada                                               |
+| `POST /entries/:id/post`                       | `POSTED`                                                              |
+| `PATCH` sobre el posteado                      | `409 Sólo se puede editar un asiento en borrador`                     |
+| `GET /reports/trial-balance`                   | debe = haber = 13.000, `balanced: true`                               |
+| `GET /reports/balance-sheet`                   | activo 13.000 = patrimonio 10.000 + resultado 3.000, `balanced: true` |
+| `GET /reports/income-statement`                | ingresos 3.000, resultado 3.000                                       |
+| `GET /accounting/periods?year=2026`            | 12 meses, octubre con 2 asientos y 13.000 de debe/haber               |
+| `POST /periods/:id/close`                      | `CLOSED`                                                              |
+| Asiento nuevo en octubre cerrado               | `409 El período 2026-10 está cerrado`                                 |
+| `POST /periods/:id/reopen` sin motivo          | `400 Reabrir un período exige un motivo`                              |
+| `POST /periods/:id/reopen` con motivo          | `OPEN`, motivo guardado y acción `REOPEN` en `audit_logs`             |
+
+Y en el navegador, con sesión real: el árbol muestra "37 cuentas · 25 imputables"; se creó un asiento
+desde la UI (Servicios públicos 500 / Caja 500) con el indicador pasando de _Diferencia 500,00_ a
+_Cuadrado_ y toast "Asiento registrado"; el período de octubre aparece con 3 asientos y 13.500 en debe
+y haber; el balance general cierra en 12.500 = 10.000 + 2.500.
+
+**Hallazgo colateral de la validación en vivo (H-76)**
+
+Las cuentas de prueba `4-001` y `4-002` del seed de tests seguían en la base de desarrollo, colgando
+de la raíz con códigos que empiezan por 4 pero naturaleza `EXPENSE`. Se eliminaron (no tenían
+movimientos) y queda anotado: **`seed-test` no debe correrse contra la base de desarrollo**.
+
+> **Nota de entorno (otra vez los bind mounts):** `next dev` no recompiló `app-header.tsx` ni detectó
+> las rutas nuevas hasta reiniciar el contenedor. Van tres veces en la sesión; el patrón está claro.
+
+**Estado**
+
+- Backend **877/877** (25 pruebas nuevas: 17 de contabilidad y 8 de estados financieros) · database
+  **39/39** · frontend **102/102** · turbo `lint typecheck build test:coverage` **16/16** ·
+  `format:check` verde · 0 vulnerabilidades.
+- Plan: **61 de 100 tareas**; **E4 cerrada, 9 de 9**.

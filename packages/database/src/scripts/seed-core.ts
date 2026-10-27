@@ -15,6 +15,7 @@ import { uuidv7 } from '../schema';
 import * as bcrypt from 'bcryptjs';
 import { and, eq, ne, sql } from 'drizzle-orm';
 import { seedPayrollCatalog } from './seed-payroll-catalog';
+import { seedChartOfAccounts } from './seed-chart-of-accounts';
 
 export async function seedCoreData() {
   console.log('Seeding core data...');
@@ -105,6 +106,9 @@ export async function seedCoreData() {
     })
     .returning();
   console.log(`Created branch: ${branch.name}`);
+
+  const createdAccounts = await seedChartOfAccounts(branch.id);
+  console.log(`Chart of accounts ready (${createdAccounts} cuentas nuevas)`);
 
   const bankData = [
     { name: 'Banco Provincial', code: '0108' },

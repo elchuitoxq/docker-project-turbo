@@ -972,29 +972,75 @@ export const accountingAccounts = pgTable(
       .$defaultFn(() => uuidv7()),
     code: text('code').notNull(),
     name: text('name').notNull(),
+    /** `ASSET` | `LIABILITY` | `EQUITY` | `REVENUE` | `EXPENSE` | `COST` | `ORDER` (H-73). */
     type: text('type').notNull(),
     branchId: uuid('branch_id'),
     parentId: uuid('parent_id'),
+    /** Una cuenta imputable acepta líneas de asiento; al tener hijas deja de serlo (T-04-01). */
+    isPostable: boolean('is_postable').default(true).notNull(),
     isActive: boolean('is_active').default(true),
   },
   table => [uniqueIndex('accounting_accounts_code_branch_idx').on(table.code, table.branchId)]
 );
 
-export const accountingEntries = pgTable('accounting_entries', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  date: timestamp('date').notNull(),
-  description: text('description').notNull(),
-  reference: text('reference'),
-  branchId: uuid('branch_id'),
-  status: text('status').default('POSTED'),
-  /** Moneda funcional del libro (VES) y tasa del documento origen (M1/M2 de `S-08`). */
-  baseCurrencyId: uuid('base_currency_id'),
-  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).default('1'),
-  createdAt: timestamp('created_at').defaultNow(),
-  userId: uuid('user_id'),
-});
+export const accountingEntries = pgTable(
+  'accounting_entries',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    date: timestamp('date').notNull(),
+    description: text('description').notNull(),
+    reference: text('reference'),
+    branchId: uuid('branch_id'),
+    status: text('status').default('POSTED'),
+    /** Documento que originó el asiento (`INVOICE`, `PAYMENT`, `PAYROLL`…) e idempotencia (T-04-03). */
+    sourceType: text('source_type'),
+    sourceId: uuid('source_id'),
+    /** Moneda funcional del libro (VES) y tasa del documento origen (M1/M2 de `S-08`). */
+    baseCurrencyId: uuid('base_currency_id'),
+    exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).default('1'),
+    postedAt: timestamp('posted_at'),
+    postedBy: uuid('posted_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    userId: uuid('user_id'),
+  },
+  table => [
+    uniqueIndex('accounting_entries_source_unq')
+      .on(table.sourceType, table.sourceId)
+      .where(sql`${table.sourceType} is not null and ${table.sourceId} is not null`),
+    index('accounting_entries_branch_date_idx').on(table.branchId, table.date),
+  ]
+);
+
+export const accountingPeriods = pgTable(
+  'accounting_periods',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id, { onDelete: 'restrict' }),
+    year: integer('year').notNull(),
+    month: integer('month').notNull(),
+    /** `OPEN` | `CLOSED`. Un asiento en un período cerrado se rechaza con `409` (T-04-04). */
+    status: text('status').default('OPEN').notNull(),
+    closedAt: timestamp('closed_at'),
+    closedBy: uuid('closed_by'),
+    reopenedAt: timestamp('reopened_at'),
+    reopenedBy: uuid('reopened_by'),
+    reopenReason: text('reopen_reason'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  table => [
+    uniqueIndex('accounting_periods_company_year_month_unq').on(
+      table.companyId,
+      table.year,
+      table.month
+    ),
+  ]
+);
 
 export const accountingEntryLines = pgTable('accounting_entry_lines', {
   id: uuid('id')

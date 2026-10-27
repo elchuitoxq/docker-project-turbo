@@ -203,15 +203,15 @@ en las pantallas de HR, inventario y finanzas.
 
 | ID      | Tarea                                                                 | Artefactos                            | Depende          | Verificación                           | Talla | Estado |
 | ------- | --------------------------------------------------------------------- | ------------------------------------- | ---------------- | -------------------------------------- | ----- | ------ |
-| T-04-01 | Validación jerárquica del plan de cuentas (no borrar con movimientos) | `modules/accounting/*`                | —                | `409` al borrar cuenta usada           | S     | ⬜     |
-| T-04-02 | `POST /v1/accounting/entries/:id/post` (DRAFT → POSTED)               | ídem                                  | —                | no se puede editar un POSTED           | S     | ⬜     |
-| T-04-03 | Filtros `?from&to&sourceType` en asientos                             | ídem + índice                         | —                | consulta por origen                    | S     | ⬜     |
-| T-04-04 | `accounting_periods` + `close` / `reopen` auditado                    | tabla nueva + `modules/accounting/*`  | T-04-02          | asiento en período cerrado → `409`     | M     | ⬜     |
-| T-04-05 | `GET /reports/trial-balance`                                          | `modules/reports/*`                   | T-04-03          | suma debe = haber                      | M     | ⬜     |
-| T-04-06 | `GET /reports/balance-sheet` (habilita T-01-16)                       | ídem                                  | T-04-04          | cuadra con el balance de comprobación  | M     | ⬜     |
-| T-04-07 | `GET /reports/income-statement`                                       | ídem                                  | T-04-04          | resultado = ingresos − costos − gastos | M     | ⬜     |
-| T-04-08 | UI árbol de cuentas y grilla de asientos (debe/haber en vivo)         | `app/(dashboard)/finance/accounting/` | T-04-01          | asiento descuadrado bloquea guardar    | L     | ⬜     |
-| T-04-09 | UI cierre de período y reportes                                       | ídem                                  | T-04-06, T-04-07 | reapertura pide motivo                 | M     | ⬜     |
+| T-04-01 | Validación jerárquica del plan de cuentas (no borrar con movimientos) | `modules/accounting/*`                | —                | `409` al borrar cuenta usada           | S     | ✅     |
+| T-04-02 | `POST /v1/accounting/entries/:id/post` (DRAFT → POSTED)               | ídem                                  | —                | no se puede editar un POSTED           | S     | ✅     |
+| T-04-03 | Filtros `?from&to&sourceType` en asientos                             | ídem + índice                         | —                | consulta por origen                    | S     | ✅     |
+| T-04-04 | `accounting_periods` + `close` / `reopen` auditado                    | tabla nueva + `modules/accounting/*`  | T-04-02          | asiento en período cerrado → `409`     | M     | ✅     |
+| T-04-05 | `GET /reports/trial-balance`                                          | `modules/reports/*`                   | T-04-03          | suma debe = haber                      | M     | ✅     |
+| T-04-06 | `GET /reports/balance-sheet` (habilita T-01-16)                       | ídem                                  | T-04-04          | cuadra con el balance de comprobación  | M     | ✅     |
+| T-04-07 | `GET /reports/income-statement`                                       | ídem                                  | T-04-04          | resultado = ingresos − costos − gastos | M     | ✅     |
+| T-04-08 | UI árbol de cuentas y grilla de asientos (debe/haber en vivo)         | `app/(dashboard)/finance/accounting/` | T-04-01          | asiento descuadrado bloquea guardar    | L     | ✅     |
+| T-04-09 | UI cierre de período y reportes                                       | ídem                                  | T-04-06, T-04-07 | reapertura pide motivo                 | M     | ✅     |
 
 **Gate de salida E4:** cierre de mes bloquea escrituras y los estados financieros cuadran con los
 asientos; E2E de cierre.
@@ -291,13 +291,13 @@ trazada.
 | 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 12     |
 | 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
 | 4   | 6-7     | E2 nómina                              | 11      | 11     |
-| 5   | 8-9     | E4 contabilidad                        | 9       | 0      |
+| 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 0      |
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 0      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 0      |
 | 9   | 16      | E7 frontend restante                   | 7       | 0      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **52** |
+| —   | —       | **Total**                              | **100** | **61** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

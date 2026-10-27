@@ -7,24 +7,45 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
+/**
+ * Tipo de cuenta del plan contable. Vocabulario único de almacenamiento y API (H-73): el seed y
+ * `docs/DATABASE.md` ya usaban inglés, el enum del DTO hablaba español. Reportes y validaciones
+ * dependen de estos valores, así que la migración `0013` normalizó los datos existentes.
+ */
 export enum AccountType {
-  ACTIVO = 'ACTIVO',
-  PASIVO = 'PASIVO',
-  PATRIMONIO = 'PATRIMONIO',
-  INGRESO = 'INGRESO',
-  EGRESO = 'EGRESO',
-  COSTO = 'costo',
-  ORDEN = 'orden',
+  ASSET = 'ASSET',
+  LIABILITY = 'LIABILITY',
+  EQUITY = 'EQUITY',
+  REVENUE = 'REVENUE',
+  EXPENSE = 'EXPENSE',
+  COST = 'COST',
+  ORDER = 'ORDER',
 }
 
 export enum EntryStatus {
   DRAFT = 'DRAFT',
   POSTED = 'POSTED',
   CANCELLED = 'CANCELLED',
+}
+
+export enum PeriodStatus {
+  OPEN = 'OPEN',
+  CLOSED = 'CLOSED',
+}
+
+/** Origen del asiento; la pareja `(sourceType, sourceId)` es única (idempotencia, regla 4 de S-04). */
+export enum EntrySourceType {
+  INVOICE = 'INVOICE',
+  PAYMENT = 'PAYMENT',
+  CREDIT_NOTE = 'CREDIT_NOTE',
+  PAYROLL = 'PAYROLL',
+  INVENTORY = 'INVENTORY',
+  MANUAL = 'MANUAL',
 }
 
 export class CreateAccountDto {
@@ -58,13 +79,46 @@ export class CreateAccountDto {
   @IsUUID()
   branchId?: string;
 
-  @ApiPropertyOptional({
-    description: 'Parent account ID for hierarchy',
-    example: '550e8400-e29b-41d4-a716-446655440002',
-  })
+  @ApiPropertyOptional({ description: 'Parent account ID for hierarchy' })
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si acepta líneas de asiento. Por defecto `true`; al crear una hija pasa a `false`',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isPostable?: boolean;
+}
+
+export class UpdateAccountDto {
+  @ApiPropertyOptional({ example: 'Caja General' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ enum: AccountType })
+  @IsOptional()
+  @IsEnum(AccountType)
+  type?: AccountType;
+
+  @ApiPropertyOptional({ description: 'Parent account ID' })
+  @IsOptional()
+  @IsUUID()
+  parentId?: string | null;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isPostable?: boolean;
+
+  @ApiPropertyOptional({ description: 'Desactivar la cuenta sin borrarla' })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class AccountResponseDto {
@@ -89,7 +143,7 @@ export class AccountResponseDto {
   @ApiProperty({
     description: 'Account type',
     enum: AccountType,
-    example: 'ACTIVO',
+    example: 'ASSET',
   })
   type: AccountType;
 
@@ -104,6 +158,9 @@ export class AccountResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
   parentId: string | null;
+
+  @ApiProperty({ description: 'Si acepta líneas de asiento', example: true })
+  isPostable: boolean;
 
   @ApiProperty({
     description: 'Whether the account is active',
@@ -134,7 +191,7 @@ export class AccountTreeDto {
   @ApiProperty({
     description: 'Account type',
     enum: AccountType,
-    example: 'ACTIVO',
+    example: 'ASSET',
   })
   type: AccountType;
 
@@ -149,6 +206,9 @@ export class AccountTreeDto {
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
   parentId: string | null;
+
+  @ApiProperty({ description: 'Si acepta líneas de asiento', example: true })
+  isPostable: boolean;
 
   @ApiProperty({
     description: 'Whether the account is active',
@@ -275,6 +335,90 @@ export class CreateEntryDto {
   @ValidateNested({ each: true })
   @Type(() => CreateEntryLineDto)
   lines: CreateEntryLineDto[];
+
+  @ApiPropertyOptional({
+    enum: [EntryStatus.DRAFT, EntryStatus.POSTED],
+    description: 'Por defecto `POSTED`. Un `DRAFT` se edita y se postea después (T-04-02)',
+  })
+  @IsOptional()
+  @IsEnum(EntryStatus)
+  status?: EntryStatus;
+
+  @ApiPropertyOptional({ enum: EntrySourceType, description: 'Documento que origina el asiento' })
+  @IsOptional()
+  @IsEnum(EntrySourceType)
+  sourceType?: EntrySourceType;
+
+  @ApiPropertyOptional({ description: 'ID del documento origen (idempotencia por par)' })
+  @IsOptional()
+  @IsUUID()
+  sourceId?: string;
+}
+
+/** Edición de un asiento en borrador: reemplaza cabecera y líneas por completo. */
+export class UpdateEntryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  date?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  reference?: string | null;
+
+  @ApiPropertyOptional({ type: [CreateEntryLineDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateEntryLineDto)
+  lines?: CreateEntryLineDto[];
+}
+
+export class PeriodResponseDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440010' })
+  id: string;
+
+  @ApiProperty({ example: 2026 })
+  year: number;
+
+  @ApiProperty({ example: 10 })
+  month: number;
+
+  @ApiProperty({ enum: PeriodStatus, example: 'OPEN' })
+  status: PeriodStatus;
+
+  @ApiPropertyOptional({ example: '2026-11-01T12:00:00.000Z' })
+  closedAt?: string | null;
+
+  @ApiPropertyOptional()
+  closedBy?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-11-02T09:00:00.000Z' })
+  reopenedAt?: string | null;
+
+  @ApiPropertyOptional({ example: 'Ajuste de retención omitida' })
+  reopenReason?: string | null;
+
+  @ApiPropertyOptional({ description: 'Asientos del período (incluye borradores)' })
+  entries?: number;
+
+  @ApiPropertyOptional({ description: 'Total debe de los asientos posteados' })
+  totalDebit?: number;
+
+  @ApiPropertyOptional({ description: 'Total haber de los asientos posteados' })
+  totalCredit?: number;
+}
+
+export class ReopenPeriodDto {
+  @ApiProperty({ description: 'Motivo de la reapertura; queda en la auditoría', example: 'Ajuste' })
+  @IsString()
+  reason: string;
 }
 
 export class EntryLineResponseDto {
@@ -395,6 +539,19 @@ export class EntryResponseDto {
     example: 'POSTED',
   })
   status: EntryStatus;
+
+  @ApiPropertyOptional({
+    description: 'Documento que originó el asiento',
+    enum: EntrySourceType,
+    example: 'INVOICE',
+  })
+  sourceType?: string | null;
+
+  @ApiPropertyOptional({ description: 'ID del documento origen' })
+  sourceId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Momento del posteo (DRAFT → POSTED)' })
+  postedAt?: Date | null;
 
   @ApiPropertyOptional({
     description: 'User ID',

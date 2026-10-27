@@ -368,6 +368,53 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
   (`normalDaily`, `integralDaily`) vienen en **moneda funcional**; el sueldo del contrato viene en la
   moneda del empleado.
 
+## Contabilidad: plan de cuentas, asientos y cierre (desde 2026-10-27)
+
+`T-04-01 … T-04-04`. Reglas en [`sdd/specs/S-04-contabilidad.md`](./sdd/specs/S-04-contabilidad.md).
+
+| Método   | Ruta                                        | Permiso                   |
+| -------- | ------------------------------------------- | ------------------------- |
+| `GET`    | `/v1/accounting/accounts`                   | `finance:accounts:view`   |
+| `POST`   | `/v1/accounting/accounts`                   | `finance:accounts:manage` |
+| `PATCH`  | `/v1/accounting/accounts/:id`               | `finance:accounts:manage` |
+| `DELETE` | `/v1/accounting/accounts/:id`               | `finance:accounts:manage` |
+| `GET`    | `/v1/accounting/entries?from&to&sourceType` | `finance:entries:view`    |
+| `POST`   | `/v1/accounting/entries`                    | `finance:entries:create`  |
+| `PATCH`  | `/v1/accounting/entries/:id`                | `finance:entries:create`  |
+| `POST`   | `/v1/accounting/entries/:id/post`           | `finance:entries:post`    |
+| `GET`    | `/v1/accounting/periods?year=`              | `finance:close:view`      |
+| `POST`   | `/v1/accounting/periods/:id/close`          | `finance:close:manage`    |
+| `POST`   | `/v1/accounting/periods/:id/reopen`         | `finance:close:manage`    |
+
+- **Vocabulario de naturaleza** (H-73): `ASSET`, `LIABILITY`, `EQUITY`, `REVENUE`, `EXPENSE`, `COST`,
+  `ORDER`. La migración `0013` normalizó los valores heredados. Los reportes agrupan por este campo.
+- La hija **hereda la naturaleza** de la madre y la madre pasa a `isPostable: false`. Postear contra
+  una cuenta no imputable responde `400`.
+- `DELETE` **desactiva** (`isActive: false`); responde `409` si la cuenta tiene movimientos o hijas.
+- `POST /entries` acepta `status: DRAFT`. Un borrador se edita con `PATCH` y se postea con
+  `/post`; un `POSTED` no se edita (`409`).
+- `sourceType`/`sourceId` identifican el documento de origen: índice único parcial, así que reintentar
+  el asiento de una factura o de un pago devuelve el existente en lugar de duplicarlo.
+- `?from&to` aceptan `YYYY-MM-DD` y se expanden al día completo; `dateFrom`/`dateTo` siguen vivos por
+  compatibilidad.
+- Un asiento con fecha en un período `CLOSED` responde `409`. `reopen` exige `reason` (400 si falta) y
+  deja la acción en `audit_logs`.
+
+## Contabilidad: estados financieros (desde 2026-10-27)
+
+`T-04-05 … T-04-07`. Todos bajo `finance:reports:view` y **sólo con asientos `POSTED`**.
+
+| Método | Ruta                                   | Respuesta                                                           |
+| ------ | -------------------------------------- | ------------------------------------------------------------------- |
+| `GET`  | `/v1/reports/trial-balance?from&to`    | `rows[]` por cuenta con debe/haber/saldo y `totals` + `balanced`    |
+| `GET`  | `/v1/reports/balance-sheet?date`       | `assets`, `liabilities`, `equity` y `totals` (incluye `result`)     |
+| `GET`  | `/v1/reports/income-statement?from&to` | `revenue`, `costs`, `expenses` y `totals` (`grossProfit`, `result`) |
+
+- El balance general cuadra **sin asiento de cierre**: `assets = liabilities + equity + result`, donde
+  `result` es el acumulado de ingresos − costos − gastos a la fecha de corte.
+- `income-statement` rechaza un rango invertido (`400`).
+- Todo va filtrado por la sucursal activa (`x-branch-id`).
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

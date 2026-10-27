@@ -109,6 +109,18 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'FileSpreadsheet',
       },
       {
+        title: 'Contabilidad',
+        url: '/dashboard/finance/accounting',
+        permission: PERMISSIONS.FINANCE.ACCOUNTS.VIEW,
+        icon: 'BookOpen',
+      },
+      {
+        title: 'Cierre contable',
+        url: '/dashboard/finance/accounting/periods',
+        permission: PERMISSIONS.FINANCE.CLOSE.VIEW,
+        icon: 'Scale',
+      },
+      {
         title: 'Reportes',
         url: '/dashboard/finance/reports',
         permission: PERMISSIONS.FINANCE.REPORTS.VIEW,
