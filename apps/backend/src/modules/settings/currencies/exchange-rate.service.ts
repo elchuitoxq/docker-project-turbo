@@ -73,7 +73,7 @@ export class ExchangeRateService {
   }
 
   /** Tasa vigente para una fecha concreta (la más reciente hasta esa fecha). */
-  async getRateAt(currencyCode: string, date: Date): Promise<RateWithFreshness | null> {
+  async getRateAt(currencyCode: string, date: Date): Promise<RateWithFreshness> {
     const currencyId = await this.requireCurrencyId(currencyCode);
 
     const [row] = await db
@@ -84,7 +84,11 @@ export class ExchangeRateService {
       .orderBy(desc(exchangeRates.date))
       .limit(1);
 
-    return row ? this.withFreshness(this.toStoredRate(row), date) : null;
+    if (!row) {
+      throw new NotFoundException(`No exchange rate registered for ${currencyCode}`);
+    }
+
+    return this.withFreshness(this.toStoredRate(row), date);
   }
 
   async history(currencyCode: string, from?: Date, to?: Date, limit = 50): Promise<StoredRate[]> {
