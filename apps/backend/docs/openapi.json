@@ -1987,6 +1987,287 @@
         ]
       }
     },
+    "/v1/settings/currencies": {
+      "get": {
+        "description": "Retrieves a list of all currencies",
+        "operationId": "CurrenciesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of currencies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CurrencyResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all currencies",
+        "tags": [
+          "settings-currencies"
+        ]
+      },
+      "post": {
+        "description": "Creates a new currency with the provided data",
+        "operationId": "CurrenciesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCurrencyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Currency created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrencyResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Currency with this code already exists"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new currency",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates/latest": {
+      "get": {
+        "description": "Retrieves the most recent exchange rate for each currency",
+        "operationId": "CurrenciesController_getLatestRates",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Latest exchange rates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LatestRatesResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get latest exchange rates",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates/{code}": {
+      "get": {
+        "description": "Returns the most recent rate up to the given date (or today) together with its age and staleness flag",
+        "operationId": "CurrenciesController_getRate",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "USD",
+              "type": "string"
+            }
+          },
+          {
+            "name": "date",
+            "required": false,
+            "in": "query",
+            "description": "ISO date to look up",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate with freshness",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateWithFreshnessDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Currency or rate not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate of a currency",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates/{code}/history": {
+      "get": {
+        "operationId": "CurrenciesController_getHistory",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "example": "USD",
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": 50,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rate history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RateHistoryDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate history of a currency",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/rates": {
+      "post": {
+        "description": "Override of the day rate. Requires a reason and leaves the previous days untouched (M9)",
+        "operationId": "CurrenciesController_addRate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExchangeRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rate stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRateResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid rate or missing reason"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Register a manual exchange rate",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
+    "/v1/settings/currencies/refresh": {
+      "post": {
+        "description": "Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST",
+        "operationId": "CurrenciesController_refresh",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Rate synchronised"
+          },
+          "400": {
+            "description": "BCV unavailable or rate failed the sanity check"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Synchronise the USD rate from BCV",
+        "tags": [
+          "settings-currencies"
+        ]
+      }
+    },
     "/v1/partners": {
       "get": {
         "description": "Retrieves a list of all partners with optional search filter",
@@ -4634,287 +4915,6 @@
         "summary": "Get recent activity",
         "tags": [
           "bi"
-        ]
-      }
-    },
-    "/v1/settings/currencies": {
-      "get": {
-        "description": "Retrieves a list of all currencies",
-        "operationId": "CurrenciesController_findAll",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "List of currencies",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CurrencyResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get all currencies",
-        "tags": [
-          "settings-currencies"
-        ]
-      },
-      "post": {
-        "description": "Creates a new currency with the provided data",
-        "operationId": "CurrenciesController_create",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateCurrencyDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Currency created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CurrencyResponseDto"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Currency with this code already exists"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Create a new currency",
-        "tags": [
-          "settings-currencies"
-        ]
-      }
-    },
-    "/v1/settings/currencies/rates/latest": {
-      "get": {
-        "description": "Retrieves the most recent exchange rate for each currency",
-        "operationId": "CurrenciesController_getLatestRates",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Latest exchange rates",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LatestRatesResponseDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get latest exchange rates",
-        "tags": [
-          "settings-currencies"
-        ]
-      }
-    },
-    "/v1/settings/currencies/rates/{code}": {
-      "get": {
-        "description": "Returns the most recent rate up to the given date (or today) together with its age and staleness flag",
-        "operationId": "CurrenciesController_getRate",
-        "parameters": [
-          {
-            "name": "code",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "example": "USD",
-              "type": "string"
-            }
-          },
-          {
-            "name": "date",
-            "required": false,
-            "in": "query",
-            "description": "ISO date to look up",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Rate with freshness",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RateWithFreshnessDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Currency or rate not found"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get the rate of a currency",
-        "tags": [
-          "settings-currencies"
-        ]
-      }
-    },
-    "/v1/settings/currencies/rates/{code}/history": {
-      "get": {
-        "operationId": "CurrenciesController_getHistory",
-        "parameters": [
-          {
-            "name": "code",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "example": "USD",
-              "type": "string"
-            }
-          },
-          {
-            "name": "from",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "to",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "example": 50,
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Rate history",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/RateHistoryDto"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Get the rate history of a currency",
-        "tags": [
-          "settings-currencies"
-        ]
-      }
-    },
-    "/v1/settings/currencies/rates": {
-      "post": {
-        "description": "Override of the day rate. Requires a reason and leaves the previous days untouched (M9)",
-        "operationId": "CurrenciesController_addRate",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateExchangeRateDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Rate stored",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExchangeRateResponseDto"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid rate or missing reason"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Register a manual exchange rate",
-        "tags": [
-          "settings-currencies"
-        ]
-      }
-    },
-    "/v1/settings/currencies/refresh": {
-      "post": {
-        "description": "Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST",
-        "operationId": "CurrenciesController_refresh",
-        "parameters": [],
-        "responses": {
-          "201": {
-            "description": "Rate synchronised"
-          },
-          "400": {
-            "description": "BCV unavailable or rate failed the sanity check"
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Synchronise the USD rate from BCV",
-        "tags": [
-          "settings-currencies"
         ]
       }
     },
@@ -7827,6 +7827,310 @@
           }
         }
       },
+      "CurrencyResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Currency ID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "code": {
+            "type": "string",
+            "description": "Currency code",
+            "example": "USD"
+          },
+          "name": {
+            "type": "string",
+            "description": "Currency name",
+            "example": "US Dollar"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Currency symbol",
+            "example": "$"
+          },
+          "isBase": {
+            "type": "boolean",
+            "description": "Is base currency",
+            "example": false
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "symbol",
+          "isBase"
+        ]
+      },
+      "CreateCurrencyDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Currency code (ISO 4217)",
+            "example": "USD"
+          },
+          "name": {
+            "type": "string",
+            "description": "Currency name",
+            "example": "US Dollar"
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Currency symbol",
+            "example": "$"
+          },
+          "isBase": {
+            "type": "boolean",
+            "description": "Is this the base currency",
+            "example": false
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "symbol"
+        ]
+      },
+      "LatestRatesResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Exchange rate ID",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyId": {
+            "type": "string",
+            "description": "Currency ID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "rate": {
+            "type": "number",
+            "description": "Exchange rate value",
+            "example": 1.2345
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Rate date",
+            "example": "2026-06-01T12:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "description": "Rate source",
+            "example": "MANUAL"
+          },
+          "currencyCode": {
+            "type": "string",
+            "description": "Currency code",
+            "example": "EUR"
+          },
+          "currencyName": {
+            "type": "string",
+            "description": "Currency name",
+            "example": "Euro"
+          },
+          "currencySymbol": {
+            "type": "string",
+            "description": "Currency symbol",
+            "example": "€"
+          }
+        },
+        "required": [
+          "id",
+          "currencyId",
+          "rate",
+          "date",
+          "source",
+          "currencyCode",
+          "currencyName",
+          "currencySymbol"
+        ]
+      },
+      "RateWithFreshnessDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyCode": {
+            "type": "string",
+            "example": "USD"
+          },
+          "rate": {
+            "type": "number",
+            "example": 36.5
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-26T00:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "example": "BCV"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "example": "BCV no publicó tasa"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "ageHours": {
+            "type": "number",
+            "description": "Horas desde la publicación de la tasa",
+            "example": 2.5
+          },
+          "isStale": {
+            "type": "boolean",
+            "description": "true si supera el umbral de antigüedad",
+            "example": false
+          }
+        },
+        "required": [
+          "id",
+          "currencyCode",
+          "rate",
+          "date",
+          "source",
+          "reason",
+          "createdBy",
+          "ageHours",
+          "isStale"
+        ]
+      },
+      "RateHistoryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyCode": {
+            "type": "string",
+            "example": "USD"
+          },
+          "rate": {
+            "type": "number",
+            "example": 36.5
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-26T00:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "example": "BCV"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true,
+            "example": "BCV no publicó tasa"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        },
+        "required": [
+          "id",
+          "currencyCode",
+          "rate",
+          "date",
+          "source",
+          "reason",
+          "createdBy"
+        ]
+      },
+      "CreateExchangeRateDto": {
+        "type": "object",
+        "properties": {
+          "currencyId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Currency ID (alternativa a currencyCode)",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "currencyCode": {
+            "type": "string",
+            "description": "Currency code (preferido sobre currencyId)",
+            "example": "USD"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Motivo del override manual (obligatorio si source=MANUAL)",
+            "example": "BCV no publicó tasa por feriado bancario"
+          },
+          "date": {
+            "type": "string",
+            "description": "Fecha de vigencia (ISO). Por defecto, hoy",
+            "example": "2026-10-26"
+          },
+          "rate": {
+            "type": "number",
+            "description": "Exchange rate value",
+            "example": 1.2345
+          },
+          "source": {
+            "type": "string",
+            "description": "Rate source",
+            "example": "MANUAL"
+          }
+        },
+        "required": [
+          "rate"
+        ]
+      },
+      "ExchangeRateResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Exchange rate ID",
+            "example": "550e8400-e29b-41d4-a716-446655440001"
+          },
+          "currencyId": {
+            "type": "string",
+            "description": "Currency ID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "rate": {
+            "type": "number",
+            "description": "Exchange rate value",
+            "example": 1.2345
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string",
+            "nullable": true,
+            "description": "Rate date",
+            "example": "2026-06-01T12:00:00.000Z"
+          },
+          "source": {
+            "type": "string",
+            "description": "Rate source",
+            "example": "MANUAL"
+          }
+        },
+        "required": [
+          "id",
+          "currencyId",
+          "rate",
+          "date",
+          "source"
+        ]
+      },
       "PartnerResponseDto": {
         "type": "object",
         "properties": {
@@ -10605,310 +10909,6 @@
             "example": "newbranch@company.com"
           }
         }
-      },
-      "CurrencyResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Currency ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "code": {
-            "type": "string",
-            "description": "Currency code",
-            "example": "USD"
-          },
-          "name": {
-            "type": "string",
-            "description": "Currency name",
-            "example": "US Dollar"
-          },
-          "symbol": {
-            "type": "string",
-            "description": "Currency symbol",
-            "example": "$"
-          },
-          "isBase": {
-            "type": "boolean",
-            "description": "Is base currency",
-            "example": false
-          }
-        },
-        "required": [
-          "id",
-          "code",
-          "name",
-          "symbol",
-          "isBase"
-        ]
-      },
-      "CreateCurrencyDto": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string",
-            "description": "Currency code (ISO 4217)",
-            "example": "USD"
-          },
-          "name": {
-            "type": "string",
-            "description": "Currency name",
-            "example": "US Dollar"
-          },
-          "symbol": {
-            "type": "string",
-            "description": "Currency symbol",
-            "example": "$"
-          },
-          "isBase": {
-            "type": "boolean",
-            "description": "Is this the base currency",
-            "example": false
-          }
-        },
-        "required": [
-          "code",
-          "name",
-          "symbol"
-        ]
-      },
-      "LatestRatesResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Exchange rate ID",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
-          },
-          "currencyId": {
-            "type": "string",
-            "description": "Currency ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "rate": {
-            "type": "number",
-            "description": "Exchange rate value",
-            "example": 1.2345
-          },
-          "date": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true,
-            "description": "Rate date",
-            "example": "2026-06-01T12:00:00.000Z"
-          },
-          "source": {
-            "type": "string",
-            "description": "Rate source",
-            "example": "MANUAL"
-          },
-          "currencyCode": {
-            "type": "string",
-            "description": "Currency code",
-            "example": "EUR"
-          },
-          "currencyName": {
-            "type": "string",
-            "description": "Currency name",
-            "example": "Euro"
-          },
-          "currencySymbol": {
-            "type": "string",
-            "description": "Currency symbol",
-            "example": "€"
-          }
-        },
-        "required": [
-          "id",
-          "currencyId",
-          "rate",
-          "date",
-          "source",
-          "currencyCode",
-          "currencyName",
-          "currencySymbol"
-        ]
-      },
-      "RateWithFreshnessDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
-          },
-          "currencyCode": {
-            "type": "string",
-            "example": "USD"
-          },
-          "rate": {
-            "type": "number",
-            "example": 36.5
-          },
-          "date": {
-            "format": "date-time",
-            "type": "string",
-            "example": "2026-10-26T00:00:00.000Z"
-          },
-          "source": {
-            "type": "string",
-            "example": "BCV"
-          },
-          "reason": {
-            "type": "string",
-            "nullable": true,
-            "example": "BCV no publicó tasa"
-          },
-          "createdBy": {
-            "type": "string",
-            "nullable": true,
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "ageHours": {
-            "type": "number",
-            "description": "Horas desde la publicación de la tasa",
-            "example": 2.5
-          },
-          "isStale": {
-            "type": "boolean",
-            "description": "true si supera el umbral de antigüedad",
-            "example": false
-          }
-        },
-        "required": [
-          "id",
-          "currencyCode",
-          "rate",
-          "date",
-          "source",
-          "reason",
-          "createdBy",
-          "ageHours",
-          "isStale"
-        ]
-      },
-      "RateHistoryDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
-          },
-          "currencyCode": {
-            "type": "string",
-            "example": "USD"
-          },
-          "rate": {
-            "type": "number",
-            "example": 36.5
-          },
-          "date": {
-            "format": "date-time",
-            "type": "string",
-            "example": "2026-10-26T00:00:00.000Z"
-          },
-          "source": {
-            "type": "string",
-            "example": "BCV"
-          },
-          "reason": {
-            "type": "string",
-            "nullable": true,
-            "example": "BCV no publicó tasa"
-          },
-          "createdBy": {
-            "type": "string",
-            "nullable": true,
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          }
-        },
-        "required": [
-          "id",
-          "currencyCode",
-          "rate",
-          "date",
-          "source",
-          "reason",
-          "createdBy"
-        ]
-      },
-      "CreateExchangeRateDto": {
-        "type": "object",
-        "properties": {
-          "currencyId": {
-            "type": "string",
-            "format": "uuid",
-            "description": "Currency ID (alternativa a currencyCode)",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "currencyCode": {
-            "type": "string",
-            "description": "Currency code (preferido sobre currencyId)",
-            "example": "USD"
-          },
-          "reason": {
-            "type": "string",
-            "description": "Motivo del override manual (obligatorio si source=MANUAL)",
-            "example": "BCV no publicó tasa por feriado bancario"
-          },
-          "date": {
-            "type": "string",
-            "description": "Fecha de vigencia (ISO). Por defecto, hoy",
-            "example": "2026-10-26"
-          },
-          "rate": {
-            "type": "number",
-            "description": "Exchange rate value",
-            "example": 1.2345
-          },
-          "source": {
-            "type": "string",
-            "description": "Rate source",
-            "example": "MANUAL"
-          }
-        },
-        "required": [
-          "rate"
-        ]
-      },
-      "ExchangeRateResponseDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "Exchange rate ID",
-            "example": "550e8400-e29b-41d4-a716-446655440001"
-          },
-          "currencyId": {
-            "type": "string",
-            "description": "Currency ID",
-            "example": "550e8400-e29b-41d4-a716-446655440000"
-          },
-          "rate": {
-            "type": "number",
-            "description": "Exchange rate value",
-            "example": 1.2345
-          },
-          "date": {
-            "format": "date-time",
-            "type": "string",
-            "nullable": true,
-            "description": "Rate date",
-            "example": "2026-06-01T12:00:00.000Z"
-          },
-          "source": {
-            "type": "string",
-            "description": "Rate source",
-            "example": "MANUAL"
-          }
-        },
-        "required": [
-          "id",
-          "currencyId",
-          "rate",
-          "date",
-          "source"
-        ]
       },
       "LoanItemResponseDto": {
         "type": "object",

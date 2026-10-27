@@ -1035,3 +1035,82 @@ El último punto es el que importa: la vigencia de noviembre **no** entró en el
   y `db:migrate` sobre la base de desarrollo; backfill comprobado con consultas directas.
 - `pnpm --filter backend openapi:export` para mantener `apps/backend/docs/openapi.json` en sincronía.
 - Suite completa del backend, cobertura y auditoría de dependencias.
+
+### BT-041 · 2026-10-27 · E2: el motor de cálculo sustituye al cálculo hardcodeado (T-02-03)
+
+**Qué se hizo**
+
+`calculatePayrollItem` —el cálculo con constantes en el código, factor mágico `* 1.17` y cestaticket en
+dólares sumado a un sueldo en bolívares— **ya no existe**. En su lugar hay un motor que ejecuta el
+catálogo de conceptos de la empresa con los parámetros congelados del run.
+
+| Pieza                             | Archivo                                      |
+| --------------------------------- | -------------------------------------------- |
+| Evaluador de fórmulas             | `modules/hr/payroll/expression-evaluator.ts` |
+| Motor (3 pasadas + naturaleza)    | `modules/hr/payroll/payroll.calculator.ts`   |
+| Contratos del motor               | `modules/hr/payroll/payroll.types.ts`        |
+| Cableado (parámetros, moneda, BD) | `modules/hr/services/hr.service.ts`          |
+
+**Cómo resuelve el orden de cálculo**
+
+No hay un orden escrito a mano por concepto: cada concepto declara su fórmula y el motor deduce en qué
+pasada va según las variables que usa.
+
+1. **Datos del empleado y parámetros** → conceptos que no leen bases derivadas (`SALARY`, `PRIMA`,
+   `OVERTIME`, `CESTATICKET`). De ahí sale `SALARY_NORMAL` como suma de asignaciones salariales.
+2. **Salario normal** → deducciones y alícuotas (`BASE_IVSS`, `BASE_PARO`, `BASE_FAOV` con sus topes).
+   De ahí sale `SALARY_INTEGRAL` **en valor diario** (LOTTT Art. 105).
+3. **Salario integral** → prestaciones e indemnizaciones.
+
+Añadir un concepto nuevo no exige tocar el motor: se declara con su fórmula y él encuentra su lugar.
+
+**Tres decisiones que cambian resultados y conviene tener presentes**
+
+1. **Las alícuotas son diarias.** `UTIL_ALLOWANCE` y `BONUS_ALLOWANCE` valen 27,78 y 6,48; el integral
+   diario es 367,59. Sumarlas a un `SALARY_NORMAL` mensual habría sido un error de unidades de 30×.
+2. **No se redondea a mitad del cálculo** (regla M7). La garantía trimestral sale 5.513,89 y no
+   5.513,85; el documento §9 se corrigió para reflejarlo, y los importes por concepto sí se redondean
+   a 2 decimales al persistirse.
+3. **Un parámetro en divisa se convierte antes de usarse.** `CESTATICKET_USD` es `MONEY_USD`: el motor
+   pide la tasa del período y lo lleva a la moneda del run. Si el valor es 0 no pide tasa, para no
+   bloquear nóminas que no usan el beneficio.
+
+**Dos defectos que sólo aparecieron al probar en vivo**
+
+- **H-66** — Un run a medio calcular quedaba en el historial: la creación del run y el cálculo no eran
+  una sola operación, así que un fallo (por ejemplo, falta de tasa) dejaba un `DRAFT` vacío. Ahora el
+  run se descarta si el cálculo falla.
+- **H-67** 🔴 — **`VACATION_PAY` pagaba vacaciones todos los meses.** La fórmula de relleno que sembré
+  en T-02-02 (`SALARY_NORMAL * PERIOD_DAYS / MONTH_DAYS`) duplicaba el sueldo: el neto salía 20.910 en
+  vez de 9.450. Los unitarios no lo vieron porque usaban un catálogo más pequeño que el real.
+  Corregido (`UNITS * (SALARY_NORMAL / MONTH_DAYS)`) y **blindado con una invariante**: ninguna
+  asignación con fórmula puede depender sólo del sueldo, tiene que depender de un hecho del período
+  (`PERIOD_DAYS`, `HOURS`, `UNITS`, `BASE_AMOUNT`).
+
+> **Lección:** los casos dorados prueban la aritmética, pero no prueban el catálogo real. Hizo falta
+> ejecutar la nómina contra la base sembrada para ver que un concepto de relleno duplicaba el sueldo.
+
+**Verificación en vivo (stack real)**
+
+| Prueba                                   | Resultado                                                                  |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `POST /payroll/generate` sin tasa de USD | **400** con el parámetro que la necesita (antes: 404 seco)                 |
+| `POST /payroll/generate` con tasa 36,5   | `NOM-000001`, total **10.910**                                             |
+| Recibo del empleado                      | sueldo 10.000 + cestaticket 1.460 − deducciones 550 = **10.910**           |
+| Líneas del recibo                        | 18 líneas con las 4 naturalezas; alícuotas 27,78 / 6,48; garantía 5.513,89 |
+| Aportes patronales                       | 1.400 registrados como `EMPLOYER_CONTRIBUTION`, fuera del neto             |
+| Run fallido                              | no queda en `payroll_runs` (H-66)                                          |
+
+**Estado**
+
+- Backend **795/795** · database **39/39** (10 invariantes nuevas del catálogo) · turbo
+  `lint typecheck build` **12/12** · `test:coverage` **4/4** · `format:check` verde · 0 vulnerabilidades.
+- Plan: **45 de 100 tareas**; E2 con 4 de 11.
+- Datos de prueba de la verificación eliminados (empleado, run). Se conserva la tasa USD manual del
+  entorno de desarrollo porque sin ella la nómina no puede convertir el cestaticket.
+
+**Verificación**
+
+- Casos dorados de §9 en `payroll.calculator.test.ts` (19 pruebas) y cableado completo en
+  `src/test/payroll-engine.test.ts` (6 pruebas, incluida la conversión de moneda y el run huérfano).
+- `pnpm --filter backend openapi:export` para mantener el contrato en sincronía.

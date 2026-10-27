@@ -123,22 +123,22 @@ Auditado en [`hr.service.ts`](../apps/backend/src/modules/hr/services/hr.service
 cálculo. Se deja constancia antes de tocar nada, porque cada punto es una decisión que hay que tomar
 conscientemente al escribir el motor (T-02-03).
 
-| #   | Defecto actual                                                                               | Por qué importa                                                                                                                                                                                                                                                                                                                      |
-| --- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D1  | Las alícuotas son **constantes en el código** (`SSO_EMP_RATE = 0.04`, …)                     | `payroll_settings` **ya tiene** esos valores sembrados (`SSO_EMP = 4`, `FAOV_PAT = 2`…), pero el cálculo **no lee la tabla**. Editar el parámetro en la UI no cambia nada: el usuario cree que configuró y no configuró. Desde T-02-01 el parámetro tiene vigencia y el run lo congela; **falta que el motor lo consuma** (T-02-03). |
-| D2  | `payroll_settings.key` es **único global** y el seed usa `onConflictDoUpdate`                | **Resuelto en T-02-01**: la clave ahora es única por empresa, sucursal y vigencia (`effectiveFrom`)                                                                                                                                                                                                                                  |
-| D3  | Los porcentajes se guardan como `4` con `type = 'PERCENTAGE'`, mientras el código usa `0.04` | **Resuelto en T-02-01**: se fija la convención (**porcentaje entero**, `4 = 4 %`) y se valida al guardar (`0 < value <= 100`)                                                                                                                                                                                                        |
-| D4  | `CESTATICKET_USD = 40.0` se **suma** al neto de un salario que puede estar en **VES**        | Mezcla de monedas: viola la regla M4 (`MoneyService`). Con tasa distinta de 1 el resultado es inválido                                                                                                                                                                                                                               |
-| D5  | `bonuses = CESTATICKET_USD`                                                                  | El cestaticket queda clasificado como bonificación salarial, justo lo que la Ley de Alimentación prohíbe (RN-02)                                                                                                                                                                                                                     |
-| D6  | `const integralSalary = baseSalary * 1.17` **no se usa**                                     | Factor mágico muerto: sugiere que el integral se calculó “a ojo” alguna vez. Debe salir de las alícuotas (RN-03…RN-05)                                                                                                                                                                                                               |
-| D7  | `SSO_PAT_RATE`, `FAOV_PAT_RATE`, `PIE_PAT_RATE` están declaradas pero **nunca se aplican**   | El costo patronal no se registra: no hay aporte patronal en el asiento ni en el recibo                                                                                                                                                                                                                                               |
-| D8  | `baseAmount = emp.baseSalary` sin prorrateo por días del período                             | Un ingreso o egreso a mitad de mes paga el mes completo (RN-01)                                                                                                                                                                                                                                                                      |
-| D9  | No hay ISLR, ni utilidades, ni prestaciones, ni vacaciones en el cálculo                     | Se resuelve en T-02-04                                                                                                                                                                                                                                                                                                               |
-| D10 | `category` de las líneas es `INCOME` / `DEDUCTION`                                           | No distingue aporte patronal (`EMPLOYER_CONTRIBUTION`) ni informativo; el recibo no puede separar costo del trabajador de costo del empleador                                                                                                                                                                                        |
+| #   | Defecto actual                                                                               | Por qué importa                                                                                                                                                |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D1  | Las alícuotas son **constantes en el código** (`SSO_EMP_RATE = 0.04`, …)                     | **Resuelto en T-02-03**: las constantes se eliminaron y el motor resuelve los parámetros del snapshot del run. Editar el parámetro ahora sí cambia el cálculo. |
+| D2  | `payroll_settings.key` es **único global** y el seed usa `onConflictDoUpdate`                | **Resuelto en T-02-01**: la clave ahora es única por empresa, sucursal y vigencia (`effectiveFrom`)                                                            |
+| D3  | Los porcentajes se guardan como `4` con `type = 'PERCENTAGE'`, mientras el código usa `0.04` | **Resuelto en T-02-01**: se fija la convención (**porcentaje entero**, `4 = 4 %`) y se valida al guardar (`0 < value <= 100`)                                  |
+| D4  | `CESTATICKET_USD = 40.0` se **suma** al neto de un salario que puede estar en **VES**        | **Resuelto en T-02-03**: el parámetro es `MONEY_USD` y el motor lo convierte a la moneda del run con la tasa del período (regla M4)                            |
+| D5  | `bonuses = CESTATICKET_USD`                                                                  | **Resuelto en T-02-03**: el cestaticket es `isSalarial = false` y se excluye de `SALARY_NORMAL` (RN-02)                                                        |
+| D6  | `const integralSalary = baseSalary * 1.17` **no se usa**                                     | **Resuelto en T-02-03**: el integral sale de las alícuotas del catálogo (RN-03…RN-05), sin factores mágicos                                                    |
+| D7  | `SSO_PAT_RATE`, `FAOV_PAT_RATE`, `PIE_PAT_RATE` están declaradas pero **nunca se aplican**   | **Resuelto en T-02-03**: los aportes patronales se calculan y se registran con categoría `EMPLOYER_CONTRIBUTION`                                               |
+| D8  | `baseAmount = emp.baseSalary` sin prorrateo por días del período                             | **Resuelto en T-02-03**: el período se prorratea por días, con tope de un mes (RN-01)                                                                          |
+| D9  | No hay ISLR, ni utilidades, ni prestaciones, ni vacaciones en el cálculo                     | **Parcial en T-02-03**: ya se calculan la garantía trimestral y las alícuotas; utilidades, vacaciones e ISLR llegan en T-02-04                                 |
+| D10 | `category` de las líneas es `INCOME` / `DEDUCTION`                                           | **Resuelto en T-02-03**: las líneas usan `ASSIGNMENT` / `DEDUCTION` / `EMPLOYER_CONTRIBUTION` / `INFORMATIVE`                                                  |
 
-> **Consecuencia para el plan:** T-02-03 no es “extender” `calculatePayrollItem`, es **sustituirlo**
-> por el pipeline de §6. El código actual se conserva sólo como referencia de los códigos de concepto
-> ya usados (`SALARY`, `CESTATICKET`, `SSO_EMP`, `FAOV_EMP`, `PIE_EMP`).
+> **Consecuencia para el plan:** T-02-03 **sustituyó** `calculatePayrollItem` por el pipeline de §6.
+> Del cálculo anterior no queda nada salvo los códigos de concepto, que se conservaron para no
+> invalidar los runs históricos (`SALARY`, `CESTATICKET`, `SSO_EMP`, `FAOV_EMP`, `PIE_EMP`).
 
 ## 6. Esquema de procesamiento (pipeline del motor)
 
@@ -263,8 +263,16 @@ Salario mensual **Bs. 10.000,00**, 30 días, sin primas ni horas extra, 1 año d
 | Alícuota utilidades        | 10.000 / 360          | **27,78**        |
 | Alícuota bono vacacional   | 2.333,33 / 360        | **6,48**         |
 | Salario integral diario    | 333,33 + 27,78 + 6,48 | **367,59**       |
-| Garantía trimestral        | 15 × 367,59           | **5.513,85**     |
+| Garantía trimestral        | 15 × 367,592593       | **5.513,89**     |
 | Cestaticket (mes completo) | parámetro             | ⚠️ según decreto |
+
+> **Dos precisiones que la implementación dejó claras (T-02-03):**
+>
+> 1. Las alícuotas de utilidades y bono vacacional, y por lo tanto el salario integral, se expresan en
+>    **valor diario** (LOTTT Art. 105). El integral mensual sería `SALARY_NORMAL + 30 × alícuotas`.
+> 2. El motor **no redondea resultados intermedios** (regla M7): la garantía se calcula sobre
+>    367,592593 y da 5.513,89; redondear el integral a 367,59 antes de multiplicar daría 5.513,85.
+>    Los importes por concepto sí se redondean a 2 decimales al persistirse.
 
 **Caso de vacaciones con 3 años de servicio:** 15 + 3 = **18 días** de vacaciones y 7 + 3 = **10 días**
 de bono (con topes configurados).
@@ -279,32 +287,37 @@ Cada parámetro lleva `key`, `label`, `value`, `type`, `effectiveFrom` y `branch
 **Los siete primeros `key` ya existen en el seed** (`seed-faker.ts`), así que se conservan tal cual.
 Las claves legales nuevas se agregan con el mismo formato.
 
-| Clave                        | Descripción                           | Tipo      | Vigencia       | Ya existe |
-| ---------------------------- | ------------------------------------- | --------- | -------------- | --------- |
-| `CESTATICKET_USD`            | Monto mensual del beneficio           | `MONEY`   | ⚠️ por decreto | Sí        |
-| `SSO_EMP`                    | % seguro social trabajador            | `PERCENT` | ⚠️             | Sí        |
-| `SSO_PAT`                    | % seguro social patronal              | `PERCENT` | ⚠️             | Sí        |
-| `FAOV_EMP`                   | % FAOV trabajador                     | `PERCENT` | ⚠️             | Sí        |
-| `FAOV_PAT`                   | % FAOV patronal                       | `PERCENT` | ⚠️             | Sí        |
-| `PIE_EMP`                    | % paro forzoso trabajador             | `PERCENT` | ⚠️             | Sí        |
-| `PIE_PAT`                    | % paro forzoso patronal               | `PERCENT` | ⚠️             | Sí        |
-| `SALARIO_MINIMO`             | Salario mínimo mensual                | `MONEY`   | ⚠️ por decreto | No        |
-| `UNIDAD_TRIBUTARIA`          | Valor de la unidad tributaria         | `MONEY`   | ⚠️ anual       | No        |
-| `DIAS_UTILIDADES`            | Días mínimos de utilidades            | `NUMBER`  | Legal          | No        |
-| `TOPE_UTILIDADES_MESES`      | Tope en meses según tamaño de empresa | `NUMBER`  | Legal          | No        |
-| `DIAS_VACACIONES_BASE`       | 15                                    | `NUMBER`  | Art. 190       | No        |
-| `TOPE_DIAS_VACACIONES_EXTRA` | Tope de días adicionales              | `NUMBER`  | Legal          | No        |
-| `DIAS_BONO_VACACIONAL`       | 7                                     | `NUMBER`  | Art. 192       | No        |
-| `TOPE_DIAS_BONO_EXTRA`       | Tope de días adicionales del bono     | `NUMBER`  | Legal          | No        |
-| `DIAS_GARANTIA_TRIMESTRE`    | 15                                    | `NUMBER`  | Art. 142       | No        |
-| `DIAS_ADICIONALES_ANIO`      | 2                                     | `NUMBER`  | Art. 142       | No        |
-| `TOPE_DIAS_ADICIONALES`      | Tope acumulable                       | `NUMBER`  | Legal          | No        |
-| `TOPE_SSO`                   | Salario máximo cotizable del SSO      | `MONEY`   | ⚠️             | No        |
-| `POLITICA_REDONDEO`          | `HALF_UP` por defecto                 | `TEXT`    | Decisión D-01  | No        |
+| Clave                        | Descripción                           | Tipo        | Vigencia       | Ya existe |
+| ---------------------------- | ------------------------------------- | ----------- | -------------- | --------- |
+| `CESTATICKET_USD`            | Monto mensual del beneficio           | `MONEY_USD` | ⚠️ por decreto | Sí        |
+| `SSO_EMP`                    | % seguro social trabajador            | `PERCENT`   | ⚠️             | Sí        |
+| `SSO_PAT`                    | % seguro social patronal              | `PERCENT`   | ⚠️             | Sí        |
+| `FAOV_EMP`                   | % FAOV trabajador                     | `PERCENT`   | ⚠️             | Sí        |
+| `FAOV_PAT`                   | % FAOV patronal                       | `PERCENT`   | ⚠️             | Sí        |
+| `PIE_EMP`                    | % paro forzoso trabajador             | `PERCENT`   | ⚠️             | Sí        |
+| `PIE_PAT`                    | % paro forzoso patronal               | `PERCENT`   | ⚠️             | Sí        |
+| `SALARIO_MINIMO`             | Salario mínimo mensual                | `MONEY`     | ⚠️ por decreto | No        |
+| `UNIDAD_TRIBUTARIA`          | Valor de la unidad tributaria         | `MONEY`     | ⚠️ anual       | No        |
+| `DIAS_UTILIDADES`            | Días mínimos de utilidades            | `NUMBER`    | Legal          | No        |
+| `TOPE_UTILIDADES_MESES`      | Tope en meses según tamaño de empresa | `NUMBER`    | Legal          | No        |
+| `DIAS_VACACIONES_BASE`       | 15                                    | `NUMBER`    | Art. 190       | No        |
+| `TOPE_DIAS_VACACIONES_EXTRA` | Tope de días adicionales              | `NUMBER`    | Legal          | No        |
+| `DIAS_BONO_VACACIONAL`       | 7                                     | `NUMBER`    | Art. 192       | No        |
+| `TOPE_DIAS_BONO_EXTRA`       | Tope de días adicionales del bono     | `NUMBER`    | Legal          | No        |
+| `DIAS_GARANTIA_TRIMESTRE`    | 15                                    | `NUMBER`    | Art. 142       | No        |
+| `DIAS_ADICIONALES_ANIO`      | 2                                     | `NUMBER`    | Art. 142       | No        |
+| `TOPE_DIAS_ADICIONALES`      | Tope acumulable                       | `NUMBER`    | Legal          | No        |
+| `TOPE_SSO`                   | Salario máximo cotizable del SSO      | `MONEY`     | ⚠️             | No        |
+| `POLITICA_REDONDEO`          | `HALF_UP` por defecto                 | `TEXT`      | Decisión D-01  | No        |
 
 > **Convención de escala (resuelve D3):** `type = 'PERCENT'` guarda **el porcentaje como número
 > entero**, es decir `4` significa 4 %. El motor divide entre 100 al aplicar. La convención debe
 > validarse al guardar (`0 < value <= 100`) para que un `0.04` cargado por error no pase inadvertido.
+
+> **Parámetros en divisa (resuelve D4/H-62):** un parámetro con `type = 'MONEY_XXX'` está expresado en
+> esa moneda. El motor lo convierte a la moneda del run con la tasa del período **antes** de usarlo; si
+> el valor es 0 no se pide tasa. Es lo que impide que un cestaticket en dólares se sume a un sueldo en
+> bolívares sin convertir.
 
 > **Inmutabilidad:** al iniciar un run, todos los valores vigentes se copian a
 > `payroll_period_settings`. Cambiar el parámetro mañana **no** reescribe la nómina de ayer.
@@ -358,7 +371,7 @@ a un libro descuadrado.
 | Parámetros con vigencia              | `payroll_settings` (`effectiveFrom`, `companyId`) + `payroll_period_settings`      | ✅ T-02-01       |
 | Catálogo de conceptos                | `payroll_concept_types` (`code`, `kind`, `expression`) + CRUD `/hr/concept-types`  | ✅ T-02-02       |
 | Resolución de vigencia y validación  | `modules/hr/payroll/settings-resolver.ts`, `concept-expression.ts`                 | ✅ T-02-01/02    |
-| Pipeline de 13 etapas                | `modules/hr/payroll/payroll.calculator.ts` (pendiente)                             | T-02-03          |
+| Pipeline de cálculo por concepto     | `modules/hr/payroll/payroll.calculator.ts` + `expression-evaluator.ts`             | ✅ T-02-03       |
 | Prestaciones, utilidades, vacaciones | Mismo motor + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | T-02-04          |
 | Liquidación                          | `employee_settlements`                                                             | T-02-05          |
 | Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments` (RN-24)                                    | T-02-06          |
@@ -366,18 +379,15 @@ a un libro descuadrado.
 | UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                             | T-02-09          |
 | Casos dorados y pruebas              | Este documento §9                                                                  | T-02-10          |
 
-**Lo que ya está construido (T-02-01 / T-02-02):** los parámetros tienen vigencia, empresa y
+**Lo que ya está construido (T-02-01 … T-02-03):** los parámetros tienen vigencia, empresa y
 sucursal, y el run guarda su copia congelada (`GET /hr/payroll/:id/parameters`); los conceptos
 declaran `kind`, `expression` y `affectsIntegralSalary`, y la fórmula se valida al guardar contra una
-gramática mínima. Es decir, **la configuración ya es honesta**: lo que se edita tiene efecto sobre lo
-que el motor leerá.
+gramática mínima; y el motor **ejecuta** esas fórmulas en tres pasadas (datos del empleado → salario
+normal → salario integral), convierte los parámetros en divisa a la moneda del run, registra el costo
+patronal aparte y falla con un mensaje claro si el neto queda negativo.
 
-**Lo que falta (T-02-03):** que el motor **lea** esos valores en lugar de las constantes del código y
-ejecute el pipeline de §6. `calculatePayrollItem` en
-[`hr.service.ts`](../apps/backend/src/modules/hr/services/hr.service.ts) queda reemplazado; los
-defectos D1–D10 de §5.2 son su criterio de aceptación. D1 (parámetros que existen pero no se leen) y
-D4 (moneda mezclada) son los dos que no admiten prórroga: el primero hace que la configuración sea
-decorativa y el segundo produce montos inválidos en cuanto la tasa no sea 1.
+**Lo que falta:** utilidades del ejercicio, vacaciones y liquidación de egreso como procesos guiados
+(T-02-04 y T-02-05) y la retención de ISLR (requiere la tabla progresiva, decisión P-28).
 
 ## 15. Decisiones abiertas (requieren validación profesional)
 

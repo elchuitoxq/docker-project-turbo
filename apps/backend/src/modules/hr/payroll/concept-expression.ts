@@ -12,12 +12,25 @@ export const CONCEPT_BASES = [
   'SALARY_BASE',
   'SALARY_NORMAL',
   'SALARY_INTEGRAL',
+  'BASE_IVSS',
+  'BASE_PARO',
+  'BASE_FAOV',
+  'BASE_ISLR',
   'PERIOD_DAYS',
   'MONTH_DAYS',
   'HOURS',
   'HOUR_RATE',
   'UNITS',
   'BASE_AMOUNT',
+] as const;
+
+/** Bases que dependen del salario normal; una fórmula que las usa se resuelve después (§6). */
+export const DERIVED_FROM_NORMAL = [
+  'SALARY_NORMAL',
+  'BASE_IVSS',
+  'BASE_PARO',
+  'BASE_FAOV',
+  'BASE_ISLR',
 ] as const;
 
 const MAX_EXPRESSION_LENGTH = 200;
@@ -126,6 +139,23 @@ class ExpressionParser {
 
     return `Símbolo inválido "${token}"`;
   }
+}
+
+/**
+ * Identificadores que usa una expresión. Es lo que permite decidir en qué pasada del motor se
+ * resuelve cada concepto (los que leen `SALARY_NORMAL` van después de calcularlo).
+ * Devuelve `[]` si la expresión no se puede tokenizar.
+ */
+export function extractIdentifiers(expression: string): string[] {
+  const tokens = tokenizeExpression(expression.trim());
+  if (!tokens) return [];
+
+  const identifiers = new Set<string>();
+  for (const token of tokens) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(token)) identifiers.add(token);
+  }
+
+  return [...identifiers];
 }
 
 /**

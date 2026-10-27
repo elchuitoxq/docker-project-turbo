@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
 import { HrController } from './hr.controller';
 import { HrService } from './services/hr.service';
+import { PayrollCalculator } from './payroll/payroll.calculator';
+import { CurrenciesModule } from '../settings/currencies/currencies.module';
 
 @Module({
+  imports: [CurrenciesModule],
   controllers: [HrController],
-  providers: [HrService],
+  providers: [HrService, PayrollCalculator],
   exports: [HrService],
 })
 export class HrModule {}

@@ -24,7 +24,7 @@ interface ConceptSeed {
   isSalarial?: boolean;
 }
 
-const CONCEPT_SEED: ConceptSeed[] = [
+export const CONCEPT_SEED: ConceptSeed[] = [
   {
     code: 'SALARY',
     name: 'Sueldo del período',
@@ -62,7 +62,8 @@ const CONCEPT_SEED: ConceptSeed[] = [
     name: 'Pago de vacaciones',
     category: 'ASSIGNMENT',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * (PERIOD_DAYS / MONTH_DAYS)',
+    // Se paga sobre los días efectivamente tomados (`UNITS`): en un mes normal vale 0.
+    expression: 'UNITS * (SALARY_NORMAL / MONTH_DAYS)',
     affectsIntegralSalary: false,
   },
   {
@@ -91,21 +92,21 @@ const CONCEPT_SEED: ConceptSeed[] = [
     name: 'Seguro social trabajador',
     category: 'DEDUCTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * SSO_EMP / 100',
+    expression: 'BASE_IVSS * SSO_EMP / 100',
   },
   {
     code: 'PIE_EMP',
     name: 'Paro forzoso trabajador',
     category: 'DEDUCTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * PIE_EMP / 100',
+    expression: 'BASE_PARO * PIE_EMP / 100',
   },
   {
     code: 'FAOV_EMP',
     name: 'FAOV trabajador',
     category: 'DEDUCTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * FAOV_EMP / 100',
+    expression: 'BASE_FAOV * FAOV_EMP / 100',
   },
   { code: 'ISLR', name: 'Retención de ISLR', category: 'DEDUCTION', kind: 'FIXED' },
   {
@@ -113,21 +114,21 @@ const CONCEPT_SEED: ConceptSeed[] = [
     name: 'Seguro social patronal',
     category: 'EMPLOYER_CONTRIBUTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * SSO_PAT / 100',
+    expression: 'BASE_IVSS * SSO_PAT / 100',
   },
   {
     code: 'PIE_PAT',
     name: 'Paro forzoso patronal',
     category: 'EMPLOYER_CONTRIBUTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * PIE_PAT / 100',
+    expression: 'BASE_PARO * PIE_PAT / 100',
   },
   {
     code: 'FAOV_PAT',
     name: 'FAOV patronal',
     category: 'EMPLOYER_CONTRIBUTION',
     kind: 'FORMULA',
-    expression: 'SALARY_NORMAL * FAOV_PAT / 100',
+    expression: 'BASE_FAOV * FAOV_PAT / 100',
   },
   {
     code: 'BENEFIT_GUARANTEE',
@@ -138,39 +139,40 @@ const CONCEPT_SEED: ConceptSeed[] = [
   },
   {
     code: 'UTIL_ALLOWANCE',
-    name: 'Alícuota de utilidades',
+    name: 'Alícuota diaria de utilidades',
     category: 'INFORMATIVE',
     kind: 'FORMULA',
-    expression: '(DIAS_UTILIDADES * SALARY_NORMAL) / 360',
+    expression: '(DIAS_UTILIDADES * (SALARY_NORMAL / MONTH_DAYS)) / 360',
+    affectsIntegralSalary: true,
   },
   {
     code: 'BONUS_ALLOWANCE',
-    name: 'Alícuota de bono vacacional',
+    name: 'Alícuota diaria de bono vacacional',
     category: 'INFORMATIVE',
     kind: 'FORMULA',
-    expression: '(DIAS_BONO_VACACIONAL * SALARY_NORMAL) / 360',
+    expression: '(DIAS_BONO_VACACIONAL * (SALARY_NORMAL / MONTH_DAYS)) / 360',
+    affectsIntegralSalary: true,
   },
 ];
 
 interface SettingSeed {
   key: string;
   label: string;
-  type: 'PERCENT' | 'MONEY' | 'NUMBER';
+  type: 'PERCENT' | 'MONEY' | 'MONEY_USD' | 'NUMBER';
   value: string;
-}
-
-/**
+} /**
  * Parámetros estructurales. Las alícuotas y los montos siguen siendo **a validar** antes de
  * producción (P-28): se siembran con el valor histórico conocido, no como verdad legal.
+ * `MONEY_USD` marca los montos expresados en divisa: el motor los convierte a la moneda del run (M4).
  */
-const SETTING_SEED: SettingSeed[] = [
+export const SETTING_SEED: SettingSeed[] = [
   { key: 'SSO_EMP', label: 'Seguro social trabajador (%)', type: 'PERCENT', value: '4' },
   { key: 'SSO_PAT', label: 'Seguro social patronal (%)', type: 'PERCENT', value: '10' },
   { key: 'FAOV_EMP', label: 'FAOV trabajador (%)', type: 'PERCENT', value: '1' },
   { key: 'FAOV_PAT', label: 'FAOV patronal (%)', type: 'PERCENT', value: '2' },
   { key: 'PIE_EMP', label: 'Paro forzoso trabajador (%)', type: 'PERCENT', value: '0.5' },
   { key: 'PIE_PAT', label: 'Paro forzoso patronal (%)', type: 'PERCENT', value: '2' },
-  { key: 'CESTATICKET_USD', label: 'Cestaticket mensual', type: 'MONEY', value: '40' },
+  { key: 'CESTATICKET_USD', label: 'Cestaticket mensual (USD)', type: 'MONEY_USD', value: '40' },
   { key: 'DIAS_UTILIDADES', label: 'Días mínimos de utilidades', type: 'NUMBER', value: '30' },
   {
     key: 'TOPE_UTILIDADES_MESES',
@@ -236,11 +238,13 @@ export async function seedPayrollCatalog(companyId: string): Promise<void> {
       })
       .onConflictDoUpdate({
         target: [payrollConceptTypes.companyId, payrollConceptTypes.code],
-        // La fórmula no se sobrescribe: si la empresa la ajustó, el seed no debe revertirla.
+        // Los conceptos del sistema los define el ERP: su fórmula se sincroniza. Si la empresa
+        // necesita otra fórmula, el camino es crear un concepto propio, no editar el del sistema.
         set: {
           name: concept.name,
           category: concept.category,
           kind: concept.kind,
+          expression: concept.expression ?? null,
           affectsIntegralSalary: concept.affectsIntegralSalary ?? false,
           isSalarial: concept.isSalarial ?? true,
           isSystem: true,
@@ -264,7 +268,14 @@ export async function seedPayrollCatalog(companyId: string): Promise<void> {
       )
       .limit(1);
 
-    if (existing) continue;
+    if (existing) {
+      // Se sincroniza la etiqueta y el tipo (estructura), nunca el valor: el valor es del negocio.
+      await db
+        .update(payrollSettings)
+        .set({ label: setting.label, type: setting.type })
+        .where(eq(payrollSettings.id, existing.id));
+      continue;
+    }
 
     await db.insert(payrollSettings).values({
       id: uuidv7(),

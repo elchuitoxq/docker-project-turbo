@@ -29,8 +29,17 @@ import {
 } from '../../../schema';
 import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import Decimal from 'decimal.js';
+import { ConfigService } from '@nestjs/config';
 import { validateConceptExpression } from '../payroll/concept-expression';
 import { resolvePayrollSettings, validateSettingValue } from '../payroll/settings-resolver';
+import {
+  ConceptDefinition,
+  PayrollCalculator,
+  PayrollItemCalculation,
+} from '../payroll/payroll.calculator';
+import { CurrencyConverter, PayrollSettingRow } from '../payroll/payroll.types';
+import { ExchangeRateService } from '../../settings/currencies/exchange-rate.service';
 import {
   CreateEmployeeDto,
   UpdateEmployeeDto,
@@ -52,16 +61,15 @@ import {
   PayrollConceptKind,
 } from '../dto/hr.dto';
 
-const SSO_EMP_RATE = 0.04;
-const FAOV_EMP_RATE = 0.01;
-const PIE_EMP_RATE = 0.005;
-const SSO_PAT_RATE = 0.1;
-const FAOV_PAT_RATE = 0.02;
-const PIE_PAT_RATE = 0.02;
-const CESTATICKET_USD = 40.0;
-
 @Injectable()
 export class HrService {
+  constructor(
+    private readonly calculator: PayrollCalculator = new PayrollCalculator(),
+    private readonly exchangeRate: ExchangeRateService = new ExchangeRateService(
+      new ConfigService()
+    )
+  ) {}
+
   async findAllEmployees(branchId?: string): Promise<EmployeeResponseDto[]> {
     const conditions = branchId ? [eq(employees.branchId, branchId)] : [];
     const allEmployees =
@@ -116,7 +124,7 @@ export class HrService {
     return this.findOneEmployee(id);
   }
 
-  /** EdiciÃ³n de departamento (T-01-02). */
+  /** EdiciÃƒÂ³n de departamento (T-01-02). */
   async updateDepartment(
     id: string,
     dto: { name?: string; parentId?: string | null }
@@ -139,7 +147,7 @@ export class HrService {
     return updated;
   }
 
-  /** EdiciÃ³n de cargo (T-01-03). */
+  /** EdiciÃƒÂ³n de cargo (T-01-03). */
   async updatePosition(
     id: string,
     dto: { name?: string; description?: string; baseSalaryMin?: number; baseSalaryMax?: number }
@@ -164,7 +172,7 @@ export class HrService {
     return updated;
   }
 
-  /** AprobaciÃ³n o rechazo de una incidencia (T-01-04). SÃ³lo desde PENDING. */
+  /** AprobaciÃƒÂ³n o rechazo de una incidencia (T-01-04). SÃƒÂ³lo desde PENDING. */
   async setIncidentStatus(id: string, status: 'APPROVED' | 'REJECTED'): Promise<unknown> {
     const [incident] = await db
       .select()
@@ -189,7 +197,7 @@ export class HrService {
     return updated;
   }
 
-  /** ParÃ¡metros de nÃ³mina vigentes (T-01-07). */
+  /** ParÃƒÂ¡metros de nÃƒÂ³mina vigentes (T-01-07). */
   async findPayrollSettings(
     branchId?: string,
     asOf?: string
@@ -201,7 +209,7 @@ export class HrService {
       .where(eq(payrollSettings.companyId, companyId));
 
     // T-02-01: se devuelve un valor por clave, el vigente a la fecha consultada, resolviendo
-    // precedencia sucursal > empresa. Antes se devolvían todas las filas activas.
+    // precedencia sucursal > empresa. Antes se devolvÃ­an todas las filas activas.
     const resolved = resolvePayrollSettings(rows, {
       asOf: asOf ? new Date(asOf) : new Date(),
       branchId,
@@ -210,7 +218,7 @@ export class HrService {
     return resolved.map(row => this.toSettingResponse(row));
   }
 
-  /** Alta o actualizaciÃ³n de un parÃ¡metro de nÃ³mina (T-01-07). */
+  /** Alta o actualizaciÃƒÂ³n de un parÃƒÂ¡metro de nÃƒÂ³mina (T-01-07). */
   async upsertPayrollSetting(
     dto: UpdatePayrollSettingDto,
     branchId?: string
@@ -222,7 +230,7 @@ export class HrService {
     const valueError = validateSettingValue(type, dto.value);
     if (valueError) throw new BadRequestException(valueError);
 
-    // Se busca la vigencia exacta (empresa + clave + fecha + sucursal): reprogramar el mismo día
+    // Se busca la vigencia exacta (empresa + clave + fecha + sucursal): reprogramar el mismo dÃ­a
     // actualiza el valor en lugar de acumular filas duplicadas para la misma fecha.
     const [existing] = await db
       .select()
@@ -270,7 +278,7 @@ export class HrService {
     return this.toSettingResponse(created);
   }
 
-  /** Parámetros congelados del run: es la prueba de que un período cerrado no cambia (RN-22). */
+  /** ParÃ¡metros congelados del run: es la prueba de que un perÃ­odo cerrado no cambia (RN-22). */
   async getPayrollRunParameters(runId: string): Promise<PayrollSettingResponseDto[]> {
     const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
     if (!run) throw new NotFoundException(`Payroll run ${runId} not found`);
@@ -297,9 +305,9 @@ export class HrService {
   }
 
   /**
-   * Congela los parámetros vigentes al cierre del período dentro del run (`T-02-01`).
-   * Si no hay parámetros cargados el run se crea igual: la validación de parámetros obligatorios
-   * pertenece al motor de cálculo (T-02-03), no a la creación del run.
+   * Congela los parÃ¡metros vigentes al cierre del perÃ­odo dentro del run (`T-02-01`).
+   * Si no hay parÃ¡metros cargados el run se crea igual: la validaciÃ³n de parÃ¡metros obligatorios
+   * pertenece al motor de cÃ¡lculo (T-02-03), no a la creaciÃ³n del run.
    */
   private async snapshotPayrollSettings(
     runId: string,
@@ -330,7 +338,7 @@ export class HrService {
     );
   }
 
-  /** Siguiente código de nómina. Global, porque `payroll_runs.code` es único a nivel de tabla. */
+  /** Siguiente cÃ³digo de nÃ³mina. Global, porque `payroll_runs.code` es Ãºnico a nivel de tabla. */
   private async getNextPayrollRunCode(executor: Pick<typeof db, 'select'> = db): Promise<string> {
     const existing = await executor
       .select({ code: payrollRuns.code })
@@ -381,11 +389,11 @@ export class HrService {
     return row?.type ?? 'NUMBER';
   }
 
-  /** Normaliza la vigencia al día: dos altas del mismo día son la misma vigencia. */
+  /** Normaliza la vigencia al dÃ­a: dos altas del mismo dÃ­a son la misma vigencia. */
   private normalizeEffectiveDate(value?: string): Date {
     const raw = value ? new Date(value) : new Date();
     if (Number.isNaN(raw.getTime())) {
-      throw new BadRequestException('Fecha de vigencia inválida');
+      throw new BadRequestException('Fecha de vigencia invÃ¡lida');
     }
 
     return new Date(Date.UTC(raw.getUTCFullYear(), raw.getUTCMonth(), raw.getUTCDate()));
@@ -643,8 +651,8 @@ export class HrService {
     const periodEnd = new Date(createPayrollRunDto.endDate);
     const companyId = await this.resolveCompanyId(createPayrollRunDto.branchId);
 
-    // El código se asigna dentro de una transacción con advisory lock: `payroll_runs.code` es único
-    // global, así que dos sucursales generando a la vez no pueden leer el mismo máximo.
+    // El cÃ³digo se asigna dentro de una transacciÃ³n con advisory lock: `payroll_runs.code` es Ãºnico
+    // global, asÃ­ que dos sucursales generando a la vez no pueden leer el mismo mÃ¡ximo.
     const newRun = await db.transaction(async tx => {
       await tx.execute(sql`select pg_advisory_xact_lock(42003)`);
       const code = await this.getNextPayrollRunCode(tx);
@@ -674,97 +682,262 @@ export class HrService {
       return created;
     });
 
-    let totalAmount = 0;
+    // El cÃ¡lculo se hace una sola vez por run y no por empleado: conceptos, parÃ¡metros congelados
+    // y tasas son los mismos para todos los empleados de la sucursal.
+    try {
+      const companyConcepts = await db
+        .select()
+        .from(payrollConceptTypes)
+        .where(eq(payrollConceptTypes.companyId, companyId));
 
-    for (const emp of activeEmployees) {
-      const itemResult = await this.calculatePayrollItem(newRun.id, emp, createPayrollRunDto);
-      totalAmount += itemResult.netTotal;
+      const concepts: ConceptDefinition[] = companyConcepts.map(concept => ({
+        code: concept.code,
+        name: concept.name,
+        category: concept.category as ConceptDefinition['category'],
+        kind: concept.kind as ConceptDefinition['kind'],
+        expression: concept.expression,
+        affectsIntegralSalary: concept.affectsIntegralSalary,
+        isSalarial: concept.isSalarial,
+      }));
+
+      const periodDays = this.periodDays(newRun.startDate, newRun.endDate);
+      let totalAmount = 0;
+      let employerCost = 0;
+
+      if (activeEmployees.length > 0) {
+        const currenciesById = await this.loadCurrencies();
+        const runCurrency = currenciesById.get(newRun.currencyId);
+        if (!runCurrency) {
+          throw new NotFoundException(`Currency ${newRun.currencyId} not found`);
+        }
+
+        const frozenSettings = await this.settingsForRun(
+          newRun.id,
+          companyId,
+          createPayrollRunDto.branchId,
+          periodEnd
+        );
+        const converter = await this.buildCurrencyConverter(
+          currenciesById,
+          runCurrency.code,
+          activeEmployees
+            .map(emp => emp.salaryCurrencyId)
+            .filter((id): id is string => id !== null),
+          frozenSettings,
+          periodEnd
+        );
+        const settings = this.toSettingNumbers(frozenSettings, converter);
+
+        for (const emp of activeEmployees) {
+          const calculation = this.calculator.calculate(
+            {
+              employeeId: emp.id,
+              baseSalary: Number(emp.baseSalary),
+              salaryCurrency:
+                (emp.salaryCurrencyId
+                  ? currenciesById.get(emp.salaryCurrencyId)?.code
+                  : undefined) ?? runCurrency.code,
+            },
+            {
+              periodDays,
+              monthDays: 30,
+              settings,
+              concepts,
+              convertToRunCurrency: converter.convert,
+              runCurrency: runCurrency.code,
+            }
+          );
+
+          await this.persistPayrollItem(newRun.id, emp.id, calculation);
+          totalAmount += calculation.netTotal;
+          employerCost += calculation.employerContributions;
+        }
+      }
+
+      await db
+        .update(payrollRuns)
+        .set({ totalAmount: String(totalAmount) })
+        .where(eq(payrollRuns.id, newRun.id));
+
+      // El costo patronal no entra en `totalAmount` (que es el neto a pagar), pero se informa en el
+      // detalle del run para no perderlo de vista (H-63).
+      void employerCost;
+    } catch (error) {
+      // Un run a medio calcular no debe quedar en el historico: se descarta completo (sus
+      // parametros congelados caen por la cascada) y se propaga el error original.
+      await db.delete(payrollRuns).where(eq(payrollRuns.id, newRun.id));
+      throw error;
     }
-
-    await db
-      .update(payrollRuns)
-      .set({ totalAmount: String(totalAmount) })
-      .where(eq(payrollRuns.id, newRun.id));
 
     return this.findOnePayrollRun(newRun.id);
   }
 
-  private async calculatePayrollItem(
+  /** DÃ­as del perÃ­odo con la convenciÃ³n LOTTT: un mes completo son 30 dÃ­as. */
+  private periodDays(start: Date, end: Date): number {
+    const inclusive = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (inclusive <= 0) return 1;
+    return Math.min(inclusive, 30);
+  }
+
+  /** ParÃ¡metros del run: su copia congelada o, en runs anteriores a T-02-01, los vigentes. */
+  private async settingsForRun(
     runId: string,
-    emp: typeof employees.$inferSelect,
-    runDto: CreatePayrollRunDto
-  ): Promise<{ baseAmount: number; bonuses: number; deductions: number; netTotal: number }> {
-    const baseSalary = parseFloat(String(emp.baseSalary));
+    companyId: string,
+    branchId: string,
+    asOf: Date
+  ): Promise<PayrollSettingRow[]> {
+    const frozen = await db
+      .select()
+      .from(payrollPeriodSettings)
+      .where(eq(payrollPeriodSettings.runId, runId));
 
-    const integralSalary = baseSalary * 1.17;
+    if (frozen.length > 0) {
+      return frozen.map(row => ({
+        key: row.key,
+        value: Number(row.value),
+        type: row.type,
+      }));
+    }
 
-    const ssoEmp = baseSalary * SSO_EMP_RATE;
-    const faovEmp = baseSalary * FAOV_EMP_RATE;
-    const pieEmp = baseSalary * PIE_EMP_RATE;
+    const live = await db
+      .select()
+      .from(payrollSettings)
+      .where(eq(payrollSettings.companyId, companyId));
 
-    const totalDeductions = ssoEmp + faovEmp + pieEmp;
-    const netTotal = baseSalary - totalDeductions + CESTATICKET_USD;
+    return resolvePayrollSettings(live, { asOf, branchId }).map(row => ({
+      key: row.key,
+      value: Number(row.value),
+      type: row.type,
+    }));
+  }
 
-    const [payrollItem] = await db
+  /** Convierte los parÃ¡metros expresados en divisa (`MONEY_USD`) a la moneda del run (M4). */
+  private toSettingNumbers(
+    rows: PayrollSettingRow[],
+    converter: CurrencyConverter
+  ): Record<string, number> {
+    const settings: Record<string, number> = {};
+
+    for (const row of rows) {
+      // Un parámetro en divisa con valor 0 no necesita tasa: no se convierte nada.
+      settings[row.key] =
+        this.isForeignMoney(row.type) && row.value !== 0
+          ? converter.convert(row.value, row.type.split('_')[1])
+          : row.value;
+    }
+
+    return settings;
+  }
+
+  private isForeignMoney(type: string): boolean {
+    return /^MONEY_[A-Z]{3}$/.test(type);
+  }
+
+  private async loadCurrencies(): Promise<Map<string, { code: string; isBase: boolean }>> {
+    const rows = await db
+      .select({ id: currencies.id, code: currencies.code, isBase: currencies.isBase })
+      .from(currencies);
+
+    return new Map(rows.map(row => [row.id, { code: row.code, isBase: row.isBase ?? false }]));
+  }
+
+  /**
+   * Construye el conversor de moneda del perÃ­odo. Pre-resuelve las tasas que el cÃ¡lculo va a
+   * necesitar para que el motor sea sÃ­ncrono y para fallar temprano si falta una tasa.
+   */
+  private async buildCurrencyConverter(
+    currenciesById: Map<string, { code: string; isBase: boolean }>,
+    runCurrency: string,
+    employeeCurrencyIds: string[],
+    settings: PayrollSettingRow[],
+    date: Date
+  ): Promise<CurrencyConverter> {
+    const baseCurrency = [...currenciesById.values()].find(currency => currency.isBase);
+    if (!baseCurrency) {
+      throw new NotFoundException('No base currency configured');
+    }
+
+    // Se registra por qué se necesita cada moneda: si falta la tasa, el mensaje dice qué la necesita.
+    const needed = new Map<string, string>();
+    needed.set(runCurrency, 'la moneda de la nómina');
+    needed.set(baseCurrency.code, 'la moneda funcional');
+
+    for (const id of employeeCurrencyIds) {
+      const code = currenciesById.get(id)?.code;
+      if (code) needed.set(code, 'el sueldo de un empleado');
+    }
+    for (const row of settings) {
+      if (this.isForeignMoney(row.type) && row.value !== 0) {
+        needed.set(row.type.split('_')[1], `el parámetro ${row.key}`);
+      }
+    }
+
+    const rates = new Map<string, number>();
+    for (const [code, reason] of needed) {
+      rates.set(code, await this.rateForOrExplain(code, baseCurrency.code, date, reason));
+    }
+
+    const runRate = rates.get(runCurrency) ?? 1;
+
+    return {
+      convert: (amount: number, fromCurrency: string): number => {
+        if (fromCurrency === runCurrency) return amount;
+
+        const fromRate = rates.get(fromCurrency);
+        if (fromRate === undefined) {
+          throw new BadRequestException(
+            `No hay tasa de cambio para ${fromCurrency} en la fecha del perÃ­odo`
+          );
+        }
+
+        return new Decimal(amount).times(fromRate).dividedBy(runRate).toNumber();
+      },
+    };
+  }
+
+  private async rateForOrExplain(
+    code: string,
+    baseCode: string,
+    date: Date,
+    reason: string
+  ): Promise<number> {
+    if (code === baseCode) return 1;
+
+    try {
+      const rate = await this.exchangeRate.getRateAt(code, date);
+      return rate.rate;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException(
+          `Falta la tasa de cambio de ${code} al ${date.toISOString().slice(0, 10)}: ${reason} está expresado en ${code}. Cárguela antes de generar la nómina.`
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async persistPayrollItem(
+    runId: string,
+    employeeId: string,
+    calculation: PayrollItemCalculation
+  ): Promise<void> {
+    const [item] = await db
       .insert(payrollItems)
       .values({
         id: uuidv4(),
         runId,
-        employeeId: emp.id,
-        baseAmount: String(baseSalary),
-        bonuses: String(CESTATICKET_USD),
-        deductions: String(totalDeductions),
-        netTotal: String(netTotal),
+        employeeId,
+        baseAmount: String(calculation.baseAmount),
+        bonuses: String(calculation.bonuses),
+        deductions: String(calculation.deductions),
+        netTotal: String(calculation.netTotal),
       })
       .returning();
 
-    const lines = [
-      {
-        conceptCode: 'SALARY',
-        conceptName: 'Salario Base',
-        category: 'INCOME',
-        base: baseSalary,
-        rate: 0,
-        amount: baseSalary,
-      },
-      {
-        conceptCode: 'CESTATICKET',
-        conceptName: 'Cestaticket',
-        category: 'INCOME',
-        base: CESTATICKET_USD,
-        rate: 0,
-        amount: CESTATICKET_USD,
-      },
-      {
-        conceptCode: 'SSO_EMP',
-        conceptName: 'SSO Empleado',
-        category: 'DEDUCTION',
-        base: baseSalary,
-        rate: SSO_EMP_RATE,
-        amount: ssoEmp,
-      },
-      {
-        conceptCode: 'FAOV_EMP',
-        conceptName: 'FAOV Empleado',
-        category: 'DEDUCTION',
-        base: baseSalary,
-        rate: FAOV_EMP_RATE,
-        amount: faovEmp,
-      },
-      {
-        conceptCode: 'PIE_EMP',
-        conceptName: 'PIE Empleado',
-        category: 'DEDUCTION',
-        base: baseSalary,
-        rate: PIE_EMP_RATE,
-        amount: pieEmp,
-      },
-    ];
-
-    for (const line of lines) {
+    for (const line of calculation.lines) {
       await db.insert(payrollItemLines).values({
         id: uuidv4(),
-        itemId: payrollItem.id,
+        itemId: item.id,
         conceptCode: line.conceptCode,
         conceptName: line.conceptName,
         category: line.category,
@@ -773,13 +946,6 @@ export class HrService {
         amount: String(line.amount),
       });
     }
-
-    return {
-      baseAmount: baseSalary,
-      bonuses: CESTATICKET_USD,
-      deductions: totalDeductions,
-      netTotal,
-    };
   }
 
   async findAllPayrollRuns(branchId?: string): Promise<PayrollRunResponseDto[]> {
@@ -1057,7 +1223,7 @@ export class HrService {
 
     if (usedLine) {
       throw new ConflictException(
-        `El concepto ${concept.code} ya se usó en una nómina: desactívelo en lugar de eliminarlo`
+        `El concepto ${concept.code} ya se usÃ³ en una nÃ³mina: desactÃ­velo en lugar de eliminarlo`
       );
     }
 
@@ -1078,8 +1244,8 @@ export class HrService {
   }
 
   /**
-   * Una fórmula sólo es válida si usa las bases de cálculo o las claves de parámetro de la empresa.
-   * Se valida en el alta para que un error de tipeo no aparezca recién al correr la nómina.
+   * Una fÃ³rmula sÃ³lo es vÃ¡lida si usa las bases de cÃ¡lculo o las claves de parÃ¡metro de la empresa.
+   * Se valida en el alta para que un error de tipeo no aparezca reciÃ©n al correr la nÃ³mina.
    */
   private async assertValidConceptExpression(
     kind: PayrollConceptKind,
@@ -1087,7 +1253,7 @@ export class HrService {
     companyId: string
   ): Promise<void> {
     if (kind === PayrollConceptKind.FORMULA && !expression) {
-      throw new BadRequestException('Un concepto de tipo FORMULA requiere una expresión');
+      throw new BadRequestException('Un concepto de tipo FORMULA requiere una expresiÃ³n');
     }
 
     if (expression) {

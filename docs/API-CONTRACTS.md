@@ -252,6 +252,26 @@ no existe.
 - `DELETE` responde `409` si el concepto es `isSystem` o si ya se usó en una nómina o en una
   incidencia. En ese caso se desactiva o se crea otro concepto.
 
+## Nómina: motor de cálculo (desde 2026-10-27)
+
+`T-02-03`. Las reglas que implementa están en
+[`09-HR-NOMINA-VENEZUELA.md`](./09-HR-NOMINA-VENEZUELA.md) §6 y §8.
+
+`POST /v1/hr/payroll/generate` calcula el run con el catálogo de conceptos de la empresa y los
+parámetros congelados, no con constantes del código.
+
+- **Naturaleza de las líneas** del recibo: `ASSIGNMENT`, `DEDUCTION`, `EMPLOYER_CONTRIBUTION`,
+  `INFORMATIVE`. El neto es `asignaciones − deducciones`; el aporte patronal **no** lo reduce.
+- `base` y `rate` de cada línea explican el cálculo: `rate` es la relación efectiva
+  `monto / base` (por ejemplo `0,04` para el 4 % del seguro social).
+- **Prórroga del período:** se paga por días y un período nunca paga más de un mes
+  (31 días se tratan como 30).
+- **Errores accionables:** si falta la tasa de cambio de una moneda, la respuesta es `400` con el
+  parámetro que la necesita, por ejemplo:
+  `Falta la tasa de cambio de USD al 2026-10-31: el parámetro CESTATICKET_USD está expresado en USD.`
+- **Un run fallido no queda en el historial:** si el cálculo falla, el run se descarta completo.
+- Si la sucursal no tiene empleados activos, el run se crea vacío (no es un error).
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
