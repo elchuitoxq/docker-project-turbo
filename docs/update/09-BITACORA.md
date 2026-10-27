@@ -650,6 +650,37 @@ que reconstruir el paquete antes de correr los tests del backend**.
 | —       | Aplicar `@RequirePermissions('core:catalog:manage')` en las escrituras de partners y productos    |
 | —       | `payroll_incidents`, `payroll_items` y `employee_*` filtran por join; falta el reporte que lo use |
 
+---
+
+### BT-035 · 2026-10-26 · Verificación end-to-end de la ola 1 contra el stack real
+
+**Incidente de entorno (resuelto)**
+
+Al reiniciar `mono-backend`, el contenedor recompiló y falló con
+`Cannot find module 'nodemailer'`: la imagen se construyó **antes** de que esa dependencia entrara
+al proyecto, y `apps/backend/package.json` no está montado como volumen. Se corrigió con
+`docker compose build backend` + `docker compose up -d backend`. Queda la lección: **al agregar una
+dependencia hay que reconstruir la imagen**, no basta con reiniciar.
+
+**Evidencia con `curl` sobre `localhost:4000` (usuario `test-admin@test.local`, 2 sucursales)**
+
+| Caso                                            | Resultado                                                                        |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `POST /v1/auth/login`                           | `defaultBranchId = 00000000-…-…0010`, `branches = 2`                             |
+| `GET /v1/billing/invoices` sin cabecera         | **400** `The x-branch-id header is required`                                     |
+| Con `x-branch-id` válida                        | **200**, 5 facturas                                                              |
+| Con UUID no asignado                            | **403** `You do not have access to this branch`                                  |
+| Con `x-branch-id: abc`                          | **400** `x-branch-id must be a valid UUID`                                       |
+| `GET /v1/billing/invoices/:id` de otra sucursal | **404** `Invoice with ID … not found`                                            |
+| El mismo `:id` desde su sucursal                | **200**                                                                          |
+| `POST /v1/billing/invoices/:id/post`            | `status=POSTED` y fila en `audit_logs` (`invoices`/`POST`/`branch_id`/`user_id`) |
+
+**Datos de prueba revertidos:** la factura volvió a `DRAFT` y la fila de auditoría de la prueba se
+eliminó; la base de desarrollo queda como estaba.
+
+**Estado del stack tras la verificación:** `mono-backend`, `mono-frontend`, `mono-postgres` y
+`mono-postgres-test` en `healthy`.
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
