@@ -681,6 +681,52 @@ eliminó; la base de desarrollo queda como estaba.
 **Estado del stack tras la verificación:** `mono-backend`, `mono-frontend`, `mono-postgres` y
 `mono-postgres-test` en `healthy`.
 
+---
+
+### BT-036 · 2026-10-26 · Ola 2 (S-08) primer bloque: moneda funcional y tasa confiable
+
+**Qué se implementó**
+
+| Tarea   | Resultado                                                                                                       |
+| ------- | --------------------------------------------------------------------------------------------------------------- |
+| T-08-09 | `MoneyService` con `decimal.js`: `toBase`, `fromBase`, `round`, `sum`, `equals`; 9 tests                        |
+| T-08-02 | VES es la moneda funcional; índice único parcial `currencies_one_base_idx`; seed que limpia la base anterior    |
+| T-08-03 | `exchange_rates`: único `(currency_id, date)`, `source`, `created_by`, `reason`; historial y consulta por fecha |
+| T-08-04 | Job `@nestjs/schedule` a las 08:00 America/Caracas                                                              |
+| T-08-05 | Se retira el `FALLBACK_API_URL` corrupto y el `GET /v1/cron/trigger-bcv`; validación de cordura por desvío      |
+| T-08-06 | `payments.amount_base` (con backfill) y `tax_retentions` con moneda, tasa y monto base                          |
+| T-08-08 | IGTF por `currencyId != baseCurrencyId`, no por `rate > 1`                                                      |
+| T-08-10 | La emisión rechaza tasa vencida o inexistente para la moneda                                                    |
+
+**Incidentes**
+
+1. **`decimal.js` no estaba instalado** pese a que la arquitectura lo exigía: se agregó a `backend`.
+2. **El seed tenía USD como base**, contradiciendo la decisión D-01. Se invirtió y la migración
+   normaliza los datos existentes (limpiar la base anterior y luego marcar VES, para no violar el
+   índice parcial).
+3. **Reescribí mal `settings.test.ts`** con un reemplazo por índices: borré ~1200 líneas (suites de
+   Banks y TaxConcepts). Detectado al ver que el total de tests cayó de 711 a 680; restaurado con
+   `git checkout` y rehecho con `edit` acotado. Lección: **no usar reemplazos por índice en archivos
+   largos; usar `edit` con anclas exactas**.
+4. La migración `0007` falló en el primer intento por un `statement-breakpoint` truncado al recortar
+   el archivo; se reescribió completa y aplicó limpia (rollback automático confirmado).
+
+**Verificación**
+
+- Backend: **728/728** tests, 29 archivos · 0 errores de lint.
+- `pnpm turbo run lint typecheck build test:coverage` → **16/16**.
+- Migraciones `0006` y `0007` aplicadas; `payments` con 3/3 filas con `amount_base` calculado.
+- `currencies`: VES `is_base = true`, USD y EUR en `false`.
+
+**Pendiente de la ola 2**
+
+| Tarea   | Qué falta                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------- |
+| T-08-07 | Libro en moneda funcional: `accounting_entries.baseCurrencyId` y monto original en la línea |
+| T-08-11 | Diferencia cambiaria al cobrar en moneda distinta a la factura                              |
+| T-08-12 | Frontend: formato por moneda, monto dual y aviso de tasa vencida                            |
+| T-08-13 | Reporte dual obligatorio (columnas VES + USD a tasa de corte)                               |
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,
