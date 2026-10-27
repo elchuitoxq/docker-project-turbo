@@ -1191,3 +1191,72 @@ corridas seguidas verdes confirman que el problema era ese.
 - 18 pruebas unitarias de las reglas (`labor-benefits.test.ts`) con los importes de §9 y 15 de
   integración (`hr-benefits.test.ts`) que cubren persistencia, idempotencia y aislamiento por sucursal.
 - `pnpm --filter backend openapi:export` para mantener el contrato en sincronía.
+
+### BT-043 · 2026-10-27 · E2: liquidación de egreso (T-02-05)
+
+**Qué se hizo**
+
+`employee_settlements` (migración `0011`) y `POST /hr/employees/:id/settle`. Un solo documento que
+junta lo que el empleado se lleva al irse, con el desglose completo por concepto:
+
+| Componente      | De dónde sale                                                        |
+| --------------- | -------------------------------------------------------------------- |
+| Prestaciones    | La modalidad mayor entre garantía acumulada y retroactivo (RN-11)    |
+| Vacaciones      | Días pendientes del derecho por antigüedad, al salario normal diario |
+| Bono vacacional | Días completos del bono por antigüedad                               |
+| Utilidades      | Proporcional a los meses trabajados del ejercicio fiscal             |
+| Indemnización   | Sólo despido injustificado, por tramos del Art. 92                   |
+
+**La causa del egreso es lo que más cambia el número**
+
+Sólo `DESPIDO_INJUSTIFICADO` indemniza. Renuncia, despido justificado, mutuo acuerdo, jubilación,
+muerte o incapacidad pagan prestaciones, vacaciones y utilidades, pero no indemnización. Por eso la
+causa es un enum cerrado y no texto libre: una causa desconocida responde `400` en lugar de producir
+una liquidación silenciosamente barata (o cara).
+
+Los tramos del Art. 92 quedan como parámetros (30 días hasta un año, 30 por año con tope 150 hasta
+los diez, 60 por año con tope 300 después), marcados ⚠️ en §10 del documento para la validación
+legal (P-28). La fracción mayor a seis meses cuenta como año completo, que es lo que dice la norma.
+
+**Dos garantías de integridad**
+
+1. **Índice único por empleado** en la base, no sólo una comprobación en el servicio: aunque la
+   aplicación fallara entre el cálculo y el registro, la segunda liquidación no puede entrar (RN-20).
+2. **Transacción**: la liquidación y el cambio de estado del empleado a `TERMINATED` se confirman
+   juntos o no se confirman.
+
+**Verificación en vivo (stack real)**
+
+Empleado con ingreso 2023-01-15 y egreso 2026-10-31 (3 años, fracción de 9 meses), sueldo 10.000:
+
+| Concepto        | Resultado                                                     |
+| --------------- | ------------------------------------------------------------- |
+| Salarios        | integral **367,59** / normal **333,33** (diarios)             |
+| Prestaciones    | **33.083,33** (`RETROACTIVE`, no había depósitos de garantía) |
+| Vacaciones      | 17 días → **5.666,67**                                        |
+| Bono vacacional | 9 días → **3.000,00**                                         |
+| Utilidades      | 25 días (10 meses del ejercicio) → **8.333,33**               |
+| Indemnización   | **120 días** (4 años × 30) → **44.111,11**                    |
+| **Total**       | **94.194,44**                                                 |
+
+`POST` repetido → **409**. `GET /settlement` devuelve el mismo documento. Con `RENUNCIA` el total
+baja a **50.083,33** porque no hay indemnización.
+
+**Estado**
+
+- Backend **842/842** · database **39/39** · turbo `lint typecheck build` **12/12** ·
+  `test:coverage` **4/4** · `format:check` verde · 0 vulnerabilidades.
+- Plan: **47 de 100 tareas**; E2 con 6 de 11.
+- Datos de prueba eliminados (liquidación y empleado).
+
+> Nota: los salarios de la liquidación se guardan con dos decimales (`numeric(20,2)`), así que la API
+> devuelve 367,59 y no 367,592592. La prueba lo comprueba a propósito para que nadie "arregle" la
+> precisión donde no debe.
+
+**Verificación**
+
+- 6 pruebas unitarias nuevas de tramos de indemnización y meses entre fechas (24 en total en
+  `labor-benefits.test.ts`).
+- 8 pruebas de integración en `hr-settlement.test.ts`: desglose completo, despido injustificado,
+  empleado marcado como egresado, idempotencia (409), causa inválida (400), consulta sin liquidación
+  (404), descuento de vacaciones tomadas y aislamiento por sucursal.

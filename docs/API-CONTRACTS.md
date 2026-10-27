@@ -299,6 +299,28 @@ parámetros congelados, no con constantes del código.
 - Ninguna de estas operaciones exige la tasa de cambio: sólo se convierten los parámetros que las
   fórmulas involucradas realmente usan.
 
+## Nómina: liquidación de egreso (desde 2026-10-27)
+
+`T-02-05`. Reglas en [`09-HR-NOMINA-VENEZUELA.md`](./09-HR-NOMINA-VENEZUELA.md) §8.5.
+
+| Método | Ruta                              | Permiso              |
+| ------ | --------------------------------- | -------------------- |
+| `GET`  | `/v1/hr/employees/:id/settlement` | `hr:payroll:view`    |
+| `POST` | `/v1/hr/employees/:id/settle`     | `hr:payroll:process` |
+
+Cuerpo del `POST`: `{ terminationDate, cause, notes? }`.
+
+- `cause` admite `RENUNCIA`, `DESPIDO_JUSTIFICADO`, `DESPIDO_INJUSTIFICADO`, `MUTUO_ACUERDO`,
+  `JUBILACION`, `MUERTE`, `INCAPACIDAD`. Una causa desconocida responde `400`.
+- **Sólo `DESPIDO_INJUSTIFICADO` indemniza** (Art. 92). Las demás causas liquidan prestaciones,
+  vacaciones, bono y utilidades, pero sin indemnización.
+- La respuesta trae el desglose completo: `guaranteeAccumulated`, `retroactive`, `benefitsAmount`
+  (la modalidad mayor), `vacationDays/Amount`, `bonusDays/Amount`, `profitDays/Amount`,
+  `indemnificationDays/Amount` y `totalAmount`.
+- El documento es **inmutable**: un segundo `POST` responde `409`. El empleado queda `TERMINATED`
+  con la fecha y la causa.
+- `GET` responde `404` mientras no exista liquidación.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards

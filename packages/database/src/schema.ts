@@ -737,6 +737,48 @@ export const employeeVacations = pgTable('employee_vacations', {
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
+export const employeeSettlements = pgTable(
+  'employee_settlements',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    employeeId: uuid('employee_id').notNull(),
+    branchId: uuid('branch_id'),
+    terminationDate: timestamp('termination_date').notNull(),
+    cause: text('cause').notNull(),
+    years: integer('years').notNull(),
+    integralSalary: numeric('integral_salary', { precision: 20, scale: 2 }).notNull(),
+    normalSalary: numeric('normal_salary', { precision: 20, scale: 2 }).notNull(),
+    guaranteeAccumulated: numeric('guarantee_accumulated', { precision: 20, scale: 2 })
+      .default('0')
+      .notNull(),
+    retroactive: numeric('retroactive', { precision: 20, scale: 2 }).default('0').notNull(),
+    benefitsAmount: numeric('benefits_amount', { precision: 20, scale: 2 }).notNull(),
+    benefitsModality: text('benefits_modality').notNull(),
+    vacationDays: integer('vacation_days').default(0).notNull(),
+    vacationAmount: numeric('vacation_amount', { precision: 20, scale: 2 }).default('0').notNull(),
+    bonusDays: integer('bonus_days').default(0).notNull(),
+    bonusAmount: numeric('bonus_amount', { precision: 20, scale: 2 }).default('0').notNull(),
+    profitDays: integer('profit_days').default(0).notNull(),
+    profitAmount: numeric('profit_amount', { precision: 20, scale: 2 }).default('0').notNull(),
+    indemnificationDays: integer('indemnification_days').default(0).notNull(),
+    indemnificationAmount: numeric('indemnification_amount', { precision: 20, scale: 2 })
+      .default('0')
+      .notNull(),
+    totalAmount: numeric('total_amount', { precision: 20, scale: 2 }).notNull(),
+    status: text('status').default('CALCULATED'),
+    notes: text('notes'),
+    createdBy: uuid('created_by'),
+    createdAt: timestamp('created_at').defaultNow(),
+    paidAt: timestamp('paid_at'),
+  },
+  // Un egreso se liquida una sola vez: la base garantiza el 409 aunque la aplicación falle (RN-20).
+  t => ({
+    employeeUnq: uniqueIndex('employee_settlements_employee_unq').on(t.employeeId),
+  })
+);
+
 export const employeeProfitSharing = pgTable('employee_profit_sharing', {
   id: uuid('id')
     .primaryKey()

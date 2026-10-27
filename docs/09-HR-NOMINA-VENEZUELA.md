@@ -289,29 +289,34 @@ Cada parámetro lleva `key`, `label`, `value`, `type`, `effectiveFrom` y `branch
 **Los siete primeros `key` ya existen en el seed** (`seed-faker.ts`), así que se conservan tal cual.
 Las claves legales nuevas se agregan con el mismo formato.
 
-| Clave                        | Descripción                              | Tipo        | Vigencia       | Ya existe |
-| ---------------------------- | ---------------------------------------- | ----------- | -------------- | --------- |
-| `CESTATICKET_USD`            | Monto mensual del beneficio              | `MONEY_USD` | ⚠️ por decreto | Sí        |
-| `SSO_EMP`                    | % seguro social trabajador               | `PERCENT`   | ⚠️             | Sí        |
-| `SSO_PAT`                    | % seguro social patronal                 | `PERCENT`   | ⚠️             | Sí        |
-| `FAOV_EMP`                   | % FAOV trabajador                        | `PERCENT`   | ⚠️             | Sí        |
-| `FAOV_PAT`                   | % FAOV patronal                          | `PERCENT`   | ⚠️             | Sí        |
-| `PIE_EMP`                    | % paro forzoso trabajador                | `PERCENT`   | ⚠️             | Sí        |
-| `PIE_PAT`                    | % paro forzoso patronal                  | `PERCENT`   | ⚠️             | Sí        |
-| `SALARIO_MINIMO`             | Salario mínimo mensual                   | `MONEY`     | ⚠️ por decreto | No        |
-| `UNIDAD_TRIBUTARIA`          | Valor de la unidad tributaria            | `MONEY`     | ⚠️ anual       | No        |
-| `DIAS_UTILIDADES`            | Días mínimos de utilidades               | `NUMBER`    | Legal          | No        |
-| `TOPE_UTILIDADES_MESES`      | Tope en meses según tamaño de empresa    | `NUMBER`    | Legal          | No        |
-| `DIAS_VACACIONES_BASE`       | 15                                       | `NUMBER`    | Art. 190       | No        |
-| `TOPE_DIAS_VACACIONES_EXTRA` | Tope de días adicionales                 | `NUMBER`    | Legal          | No        |
-| `DIAS_BONO_VACACIONAL`       | 7                                        | `NUMBER`    | Art. 192       | No        |
-| `TOPE_DIAS_BONO_EXTRA`       | Tope de días adicionales del bono        | `NUMBER`    | Legal          | No        |
-| `DIAS_GARANTIA_TRIMESTRE`    | 15                                       | `NUMBER`    | Art. 142       | No        |
-| `DIAS_ADICIONALES_ANIO`      | 2                                        | `NUMBER`    | Art. 142       | No        |
-| `TOPE_DIAS_ADICIONALES`      | Tope acumulable                          | `NUMBER`    | Legal          | No        |
-| `DIAS_RETROACTIVO_ANIO`      | Días por año de la modalidad retroactiva | `NUMBER`    | ⚠️             | No        |
-| `TOPE_SSO`                   | Salario máximo cotizable del SSO         | `MONEY`     | ⚠️             | No        |
-| `POLITICA_REDONDEO`          | `HALF_UP` por defecto                    | `TEXT`      | Decisión D-01  | No        |
+| Clave                              | Descripción                              | Tipo        | Vigencia       | Ya existe |
+| ---------------------------------- | ---------------------------------------- | ----------- | -------------- | --------- |
+| `CESTATICKET_USD`                  | Monto mensual del beneficio              | `MONEY_USD` | ⚠️ por decreto | Sí        |
+| `SSO_EMP`                          | % seguro social trabajador               | `PERCENT`   | ⚠️             | Sí        |
+| `SSO_PAT`                          | % seguro social patronal                 | `PERCENT`   | ⚠️             | Sí        |
+| `FAOV_EMP`                         | % FAOV trabajador                        | `PERCENT`   | ⚠️             | Sí        |
+| `FAOV_PAT`                         | % FAOV patronal                          | `PERCENT`   | ⚠️             | Sí        |
+| `PIE_EMP`                          | % paro forzoso trabajador                | `PERCENT`   | ⚠️             | Sí        |
+| `PIE_PAT`                          | % paro forzoso patronal                  | `PERCENT`   | ⚠️             | Sí        |
+| `SALARIO_MINIMO`                   | Salario mínimo mensual                   | `MONEY`     | ⚠️ por decreto | No        |
+| `UNIDAD_TRIBUTARIA`                | Valor de la unidad tributaria            | `MONEY`     | ⚠️ anual       | No        |
+| `DIAS_UTILIDADES`                  | Días mínimos de utilidades               | `NUMBER`    | Legal          | No        |
+| `TOPE_UTILIDADES_MESES`            | Tope en meses según tamaño de empresa    | `NUMBER`    | Legal          | No        |
+| `DIAS_VACACIONES_BASE`             | 15                                       | `NUMBER`    | Art. 190       | No        |
+| `TOPE_DIAS_VACACIONES_EXTRA`       | Tope de días adicionales                 | `NUMBER`    | Legal          | No        |
+| `DIAS_BONO_VACACIONAL`             | 7                                        | `NUMBER`    | Art. 192       | No        |
+| `TOPE_DIAS_BONO_EXTRA`             | Tope de días adicionales del bono        | `NUMBER`    | Legal          | No        |
+| `DIAS_GARANTIA_TRIMESTRE`          | 15                                       | `NUMBER`    | Art. 142       | No        |
+| `DIAS_ADICIONALES_ANIO`            | 2                                        | `NUMBER`    | Art. 142       | No        |
+| `TOPE_DIAS_ADICIONALES`            | Tope acumulable                          | `NUMBER`    | Legal          | No        |
+| `DIAS_RETROACTIVO_ANIO`            | Días por año de la modalidad retroactiva | `NUMBER`    | ⚠️             | No        |
+| `INDEMNIZACION_DIAS_HASTA_UN_ANIO` | Días si la antigüedad no excede un año   | `NUMBER`    | ⚠️             | No        |
+| `INDEMNIZACION_DIAS_BASE`          | Días por año hasta diez años             | `NUMBER`    | ⚠️             | No        |
+| `INDEMNIZACION_TOPE_1`             | Tope de días hasta diez años             | `NUMBER`    | ⚠️             | No        |
+| `INDEMNIZACION_DIAS_MAYOR_10`      | Días por año después de diez años        | `NUMBER`    | ⚠️             | No        |
+| `INDEMNIZACION_TOPE_2`             | Tope de días después de diez años        | `NUMBER`    | ⚠️             | No        |
+| `TOPE_SSO`                         | Salario máximo cotizable del SSO         | `MONEY`     | ⚠️             | No        |
+| `POLITICA_REDONDEO`                | `HALF_UP` por defecto                    | `TEXT`      | Decisión D-01  | No        |
 
 > **Convención de escala (resuelve D3):** `type = 'PERCENT'` guarda **el porcentaje como número
 > entero**, es decir `4` significa 4 %. El motor divide entre 100 al aplicar. La convención debe
@@ -376,7 +381,7 @@ a un libro descuadrado.
 | Resolución de vigencia y validación  | `modules/hr/payroll/settings-resolver.ts`, `concept-expression.ts`                                            | ✅ T-02-01/02    |
 | Pipeline de cálculo por concepto     | `modules/hr/payroll/payroll.calculator.ts` + `expression-evaluator.ts`                                        | ✅ T-02-03       |
 | Prestaciones, utilidades, vacaciones | `modules/hr/payroll/labor-benefits.ts` + `employee_benefits`, `employee_profit_sharing`, `employee_vacations` | ✅ T-02-04       |
-| Liquidación                          | `employee_settlements`                                                                                        | T-02-05          |
+| Liquidación                          | `employee_settlements` + `POST /hr/employees/:id/settle`                                                      | ✅ T-02-05       |
 | Pago idempotente                     | `POST /hr/payroll/:id/pay` + `payments` (RN-24)                                                               | T-02-06          |
 | UI parámetros y conceptos            | `settings/payroll-settings`, `settings/payroll-concepts`                                                      | T-02-07, T-02-08 |
 | UI ficha y recibo                    | `hr/employees/[id]`, `hr/payroll/[id]`                                                                        | T-02-09          |
@@ -391,8 +396,9 @@ patronal aparte y falla con un mensaje claro si el neto queda negativo; y las pr
 vacaciones, bono vacacional y utilidades se calculan con sus topes y se registran con idempotencia
 por trimestre y por ejercicio.
 
-**Lo que falta:** la liquidación de egreso como proceso guiado (T-02-05), el pago de la nómina
-integrado a tesorería (T-02-06) y la retención de ISLR (requiere la tabla progresiva, decisión P-28).
+**Lo que falta:** el pago de la nómina integrado a tesorería (T-02-06), la UI de parámetros,
+conceptos, ficha y recibo (T-02-07/08/09) y la retención de ISLR (requiere la tabla progresiva,
+decisión P-28).
 
 ## 15. Decisiones abiertas (requieren validación profesional)
 

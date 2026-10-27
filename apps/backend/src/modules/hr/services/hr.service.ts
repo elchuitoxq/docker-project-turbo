@@ -20,6 +20,7 @@ import {
   employeeBenefits,
   employeeVacations,
   employeeProfitSharing,
+  employeeSettlements,
   employeeSalaryHistory,
   employeeBankAccounts,
   banks,
@@ -42,6 +43,7 @@ import {
   BenefitSettings,
   DEFAULT_BENEFIT_SETTINGS,
   LaborBenefits,
+  SettlementCause,
 } from '../payroll/labor-benefits';
 import { CurrencyConverter, PayrollSettingRow } from '../payroll/payroll.types';
 import { ExchangeRateService } from '../../settings/currencies/exchange-rate.service';
@@ -70,6 +72,8 @@ import {
   RegisterVacationDto,
   DepositBenefitDto,
   RegisterProfitSharingDto,
+  SettleEmployeeDto,
+  SettlementResponseDto,
 } from '../dto/hr.dto';
 
 @Injectable()
@@ -1551,6 +1555,181 @@ export class HrService {
     return { employeeId, year: dto.year, days: sharing.days, amount: sharing.amount };
   }
 
+  /**
+   * Liquidación de egreso (RN-18, RN-19, RN-20).
+   *
+   * Calcula prestaciones (la modalidad mayor), vacaciones pendientes con su bono, utilidades
+   * proporcionales del ejercicio e indemnización según la causa; registra el documento inmutable y
+   * marca al empleado como egresado. Un segundo intento responde `409`.
+   */
+  async settleEmployee(
+    employeeId: string,
+    dto: SettleEmployeeDto,
+    branchId?: string,
+    userId?: string
+  ): Promise<SettlementResponseDto> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+
+    const cause = dto.cause as SettlementCause;
+    if (!Object.values(SettlementCause).includes(cause)) {
+      throw new BadRequestException(
+        `Causa de egreso inválida: ${dto.cause}. Use ${Object.values(SettlementCause).join(', ')}`
+      );
+    }
+
+    const [existing] = await db
+      .select({ id: employeeSettlements.id })
+      .from(employeeSettlements)
+      .where(eq(employeeSettlements.employeeId, employeeId))
+      .limit(1);
+
+    if (existing) {
+      throw new ConflictException('El empleado ya tiene una liquidación registrada');
+    }
+
+    const terminationDate = new Date(dto.terminationDate);
+    const hireDate = employee.hireDate ?? terminationDate;
+    const years = this.benefits.serviceYears(hireDate, terminationDate);
+
+    // Fracción desde el último aniversario: decide si el año incompleto cuenta para la indemnización.
+    const anniversary = new Date(hireDate);
+    anniversary.setUTCFullYear(hireDate.getUTCFullYear() + years);
+    const fractionMonths = this.benefits.monthsBetween(anniversary, terminationDate);
+
+    const setup = await this.buildBenefitsSetup(employee, branchId, terminationDate);
+
+    const deposits = await db
+      .select({ amount: employeeBenefits.amount })
+      .from(employeeBenefits)
+      .where(eq(employeeBenefits.employeeId, employeeId));
+    const guaranteeAccumulated = Number(this.moneySum(deposits.map(row => row.amount)));
+    const retroactive = this.benefits.retroactiveAmount(setup.integralDaily, years, setup.settings);
+    const modality = this.benefits.compareModalities(guaranteeAccumulated, retroactive);
+
+    const entitlement = this.benefits.vacationEntitlement(years, setup.settings);
+    const vacationRows = await db
+      .select()
+      .from(employeeVacations)
+      .where(eq(employeeVacations.employeeId, employeeId));
+    const daysTaken = vacationRows.reduce((acc, row) => acc + (row.daysTaken ?? 0), 0);
+    const pendingDays = Math.max(0, entitlement.vacationDays - daysTaken);
+
+    const vacationAmount = Number(this.moneySum([setup.normalDaily * pendingDays]));
+    const bonusAmount = Number(this.moneySum([setup.normalDaily * entitlement.bonusDays]));
+
+    const profitMonths = this.profitSharingMonths(hireDate, terminationDate);
+    const profit = this.benefits.profitSharing(setup.normalDaily, profitMonths, setup.settings);
+
+    const indemnificationDays = this.benefits.indemnificationDays(
+      years,
+      fractionMonths,
+      cause,
+      setup.settings
+    );
+    const indemnificationAmount = Number(
+      this.moneySum([setup.integralDaily * indemnificationDays])
+    );
+
+    const totalAmount = Number(
+      this.moneySum([
+        modality.payable,
+        vacationAmount,
+        bonusAmount,
+        profit.amount,
+        indemnificationAmount,
+      ])
+    );
+
+    await db.transaction(async tx => {
+      await tx.insert(employeeSettlements).values({
+        id: uuidv4(),
+        employeeId,
+        branchId: employee.branchId,
+        terminationDate,
+        cause,
+        years,
+        integralSalary: String(setup.integralDaily),
+        normalSalary: String(setup.normalDaily),
+        guaranteeAccumulated: String(guaranteeAccumulated),
+        retroactive: String(retroactive),
+        benefitsAmount: String(modality.payable),
+        benefitsModality: modality.modality,
+        vacationDays: pendingDays,
+        vacationAmount: String(vacationAmount),
+        bonusDays: entitlement.bonusDays,
+        bonusAmount: String(bonusAmount),
+        profitDays: profit.days,
+        profitAmount: String(profit.amount),
+        indemnificationDays,
+        indemnificationAmount: String(indemnificationAmount),
+        totalAmount: String(totalAmount),
+        status: 'CALCULATED',
+        notes: dto.notes,
+        createdBy: userId ?? null,
+      });
+
+      await tx
+        .update(employees)
+        .set({
+          status: 'TERMINATED',
+          terminationDate,
+          terminationReason: cause,
+          updatedAt: new Date(),
+        })
+        .where(eq(employees.id, employeeId));
+    });
+
+    return this.getSettlement(employeeId, branchId);
+  }
+
+  /** Liquidación registrada del empleado, o `404` si todavía no se liquidó. */
+  async getSettlement(employeeId: string, branchId?: string): Promise<SettlementResponseDto> {
+    const employee = await this.findEmployeeOrFail(employeeId, branchId);
+
+    const [row] = await db
+      .select()
+      .from(employeeSettlements)
+      .where(eq(employeeSettlements.employeeId, employee.id))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundException(`El empleado ${employeeId} no tiene liquidación registrada`);
+    }
+
+    return {
+      id: row.id,
+      employeeId: row.employeeId,
+      terminationDate: row.terminationDate.toISOString(),
+      cause: row.cause,
+      years: row.years,
+      integralSalary: Number(row.integralSalary),
+      normalSalary: Number(row.normalSalary),
+      guaranteeAccumulated: Number(row.guaranteeAccumulated),
+      retroactive: Number(row.retroactive),
+      benefitsAmount: Number(row.benefitsAmount),
+      benefitsModality: row.benefitsModality,
+      vacationDays: row.vacationDays,
+      vacationAmount: Number(row.vacationAmount),
+      bonusDays: row.bonusDays,
+      bonusAmount: Number(row.bonusAmount),
+      profitDays: row.profitDays,
+      profitAmount: Number(row.profitAmount),
+      indemnificationDays: row.indemnificationDays,
+      indemnificationAmount: Number(row.indemnificationAmount),
+      totalAmount: Number(row.totalAmount),
+      status: row.status ?? 'CALCULATED',
+    };
+  }
+
+  /** Meses del ejercicio fiscal en que el empleado trabajó (1-12) para las utilidades. */
+  private profitSharingMonths(hireDate: Date, terminationDate: Date): number {
+    const fiscalStart = new Date(Date.UTC(terminationDate.getUTCFullYear(), 0, 1));
+    const start = hireDate.getTime() > fiscalStart.getTime() ? hireDate : fiscalStart;
+    const months = this.benefits.monthsBetween(start, terminationDate);
+
+    return Math.min(12, Math.max(0, months) + 1);
+  }
+
   private async findEmployeeOrFail(employeeId: string, branchId?: string) {
     const [employee] = await db
       .select()
@@ -1607,6 +1786,18 @@ export class HrService {
         settingValues.TOPE_UTILIDADES_MESES ?? DEFAULT_BENEFIT_SETTINGS.TOPE_UTILIDADES_MESES,
       DIAS_RETROACTIVO_ANIO:
         settingValues.DIAS_RETROACTIVO_ANIO ?? DEFAULT_BENEFIT_SETTINGS.DIAS_RETROACTIVO_ANIO,
+      INDEMNIZACION_DIAS_HASTA_UN_ANIO:
+        settingValues.INDEMNIZACION_DIAS_HASTA_UN_ANIO ??
+        DEFAULT_BENEFIT_SETTINGS.INDEMNIZACION_DIAS_HASTA_UN_ANIO,
+      INDEMNIZACION_DIAS_BASE:
+        settingValues.INDEMNIZACION_DIAS_BASE ?? DEFAULT_BENEFIT_SETTINGS.INDEMNIZACION_DIAS_BASE,
+      INDEMNIZACION_TOPE_1:
+        settingValues.INDEMNIZACION_TOPE_1 ?? DEFAULT_BENEFIT_SETTINGS.INDEMNIZACION_TOPE_1,
+      INDEMNIZACION_DIAS_MAYOR_10:
+        settingValues.INDEMNIZACION_DIAS_MAYOR_10 ??
+        DEFAULT_BENEFIT_SETTINGS.INDEMNIZACION_DIAS_MAYOR_10,
+      INDEMNIZACION_TOPE_2:
+        settingValues.INDEMNIZACION_TOPE_2 ?? DEFAULT_BENEFIT_SETTINGS.INDEMNIZACION_TOPE_2,
     };
 
     const companyConcepts = await db

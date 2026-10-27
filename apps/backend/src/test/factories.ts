@@ -9,6 +9,7 @@ import {
   products,
   warehouses,
   users,
+  employees,
   invoices,
   invoiceItems,
   orders,
@@ -127,6 +128,20 @@ export async function createTestWarehouse(
     ...data,
   };
   const [result] = await testDb.insert(warehouses).values(warehouse).returning();
+  return result;
+}
+
+export async function createTestEmployee(data: Partial<typeof employees.$inferInsert>) {
+  const employee = {
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    identityCard: `V-${faker.string.numeric(8)}`,
+    baseSalary: '10000.00',
+    payFrequency: 'MONTHLY',
+    status: 'ACTIVE',
+    ...data,
+  };
+  const [result] = await testDb.insert(employees).values(employee).returning();
   return result;
 }
 

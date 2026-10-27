@@ -43,6 +43,8 @@ import {
   RegisterVacationDto,
   DepositBenefitDto,
   RegisterProfitSharingDto,
+  SettleEmployeeDto,
+  SettlementResponseDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
@@ -410,5 +412,35 @@ export class HrController {
     @CurrentBranch() branchId: string
   ): Promise<{ employeeId: string; year: number; days: number; amount: number }> {
     return this.hrService.registerProfitSharing(id, dto, branchId);
+  }
+
+  @Get('employees/:id/settlement')
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({ summary: 'Get the registered settlement of an employee' })
+  @ApiResponse({ status: 200, description: 'Settlement', type: SettlementResponseDto })
+  @ApiResponse({ status: 404, description: 'Employee not found or not settled' })
+  async getSettlement(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<SettlementResponseDto> {
+    return this.hrService.getSettlement(id, branchId);
+  }
+
+  @Post('employees/:id/settle')
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({
+    summary: 'Settle the employee termination: benefits, vacations, profit sharing and indemnity',
+  })
+  @ApiBody({ type: SettleEmployeeDto })
+  @ApiResponse({ status: 201, description: 'Settlement registered', type: SettlementResponseDto })
+  @ApiResponse({ status: 400, description: 'Invalid termination cause' })
+  @ApiResponse({ status: 409, description: 'Employee already settled' })
+  async settleEmployee(
+    @Param('id') id: string,
+    @Body() dto: SettleEmployeeDto,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
+  ): Promise<SettlementResponseDto> {
+    return this.hrService.settleEmployee(id, dto, branchId, user.id);
   }
 }

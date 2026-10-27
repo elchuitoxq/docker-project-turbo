@@ -806,6 +806,98 @@ export class DepositBenefitDto {
   notes?: string;
 }
 
+export class SettleEmployeeDto {
+  @ApiProperty({ description: 'Fecha de egreso (ISO)', example: '2026-10-31' })
+  @IsISO8601()
+  terminationDate: string;
+
+  @ApiProperty({
+    description: 'Causa legal del egreso. Sólo el despido injustificado indemniza (Art. 92)',
+    enum: [
+      'RENUNCIA',
+      'DESPIDO_JUSTIFICADO',
+      'DESPIDO_INJUSTIFICADO',
+      'MUTUO_ACUERDO',
+      'JUBILACION',
+      'MUERTE',
+      'INCAPACIDAD',
+    ],
+    example: 'RENUNCIA',
+  })
+  @IsString()
+  cause: string;
+
+  @ApiPropertyOptional({ description: 'Observaciones de la liquidación' })
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class SettlementResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  employeeId: string;
+
+  @ApiProperty({ example: '2026-10-31T00:00:00.000Z' })
+  terminationDate: string;
+
+  @ApiProperty({ example: 'RENUNCIA' })
+  cause: string;
+
+  @ApiProperty({ example: 3 })
+  years: number;
+
+  @ApiProperty({ description: 'Salario integral diario', example: 367.59 })
+  integralSalary: number;
+
+  @ApiProperty({ description: 'Salario normal diario', example: 333.33 })
+  normalSalary: number;
+
+  @ApiProperty({ example: 5513.89 })
+  guaranteeAccumulated: number;
+
+  @ApiProperty({ example: 33083.33 })
+  retroactive: number;
+
+  @ApiProperty({ description: 'Prestaciones que se pagan: la modalidad mayor', example: 33083.33 })
+  benefitsAmount: number;
+
+  @ApiProperty({ enum: ['GUARANTEE', 'RETROACTIVE'] })
+  benefitsModality: string;
+
+  @ApiProperty({ example: 2 })
+  vacationDays: number;
+
+  @ApiProperty({ example: 666.67 })
+  vacationAmount: number;
+
+  @ApiProperty({ example: 9 })
+  bonusDays: number;
+
+  @ApiProperty({ example: 3000 })
+  bonusAmount: number;
+
+  @ApiProperty({ example: 10 })
+  profitDays: number;
+
+  @ApiProperty({ example: 3333.33 })
+  profitAmount: number;
+
+  @ApiProperty({ example: 0 })
+  indemnificationDays: number;
+
+  @ApiProperty({ example: 0 })
+  indemnificationAmount: number;
+
+  @ApiProperty({ example: 40083.33 })
+  totalAmount: number;
+
+  @ApiProperty({ example: 'CALCULATED' })
+  status: string;
+}
+
 export class RegisterProfitSharingDto {
   @ApiProperty({ description: 'Ejercicio fiscal', example: 2025 })
   @IsInt()

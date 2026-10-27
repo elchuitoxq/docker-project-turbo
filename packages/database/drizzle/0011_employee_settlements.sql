@@ -1,0 +1,30 @@
+CREATE TABLE "employee_settlements" (
+	"id" uuid PRIMARY KEY NOT NULL,
+	"employee_id" uuid NOT NULL,
+	"branch_id" uuid,
+	"termination_date" timestamp NOT NULL,
+	"cause" text NOT NULL,
+	"years" integer NOT NULL,
+	"integral_salary" numeric(20, 2) NOT NULL,
+	"normal_salary" numeric(20, 2) NOT NULL,
+	"guarantee_accumulated" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"retroactive" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"benefits_amount" numeric(20, 2) NOT NULL,
+	"benefits_modality" text NOT NULL,
+	"vacation_days" integer DEFAULT 0 NOT NULL,
+	"vacation_amount" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"bonus_days" integer DEFAULT 0 NOT NULL,
+	"bonus_amount" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"profit_days" integer DEFAULT 0 NOT NULL,
+	"profit_amount" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"indemnification_days" integer DEFAULT 0 NOT NULL,
+	"indemnification_amount" numeric(20, 2) DEFAULT '0' NOT NULL,
+	"total_amount" numeric(20, 2) NOT NULL,
+	"status" text DEFAULT 'CALCULATED',
+	"notes" text,
+	"created_by" uuid,
+	"created_at" timestamp DEFAULT now(),
+	"paid_at" timestamp
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX "employee_settlements_employee_unq" ON "employee_settlements" USING btree ("employee_id");

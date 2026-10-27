@@ -2190,6 +2190,87 @@
         ]
       }
     },
+    "/v1/hr/employees/{id}/settlement": {
+      "get": {
+        "operationId": "HrController_getSettlement",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Settlement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Employee not found or not settled"
+          }
+        },
+        "summary": "Get the registered settlement of an employee",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
+    "/v1/hr/employees/{id}/settle": {
+      "post": {
+        "operationId": "HrController_settleEmployee",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettleEmployeeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Settlement registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettlementResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid termination cause"
+          },
+          "409": {
+            "description": "Employee already settled"
+          }
+        },
+        "summary": "Settle the employee termination: benefits, vacations, profit sharing and indemnity",
+        "tags": [
+          "hr"
+        ]
+      }
+    },
     "/v1/settings/currencies": {
       "get": {
         "description": "Retrieves a list of all currencies",
@@ -8215,6 +8296,154 @@
         "required": [
           "year",
           "monthsWorked"
+        ]
+      },
+      "SettlementResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "employeeId": {
+            "type": "string"
+          },
+          "terminationDate": {
+            "type": "string",
+            "example": "2026-10-31T00:00:00.000Z"
+          },
+          "cause": {
+            "type": "string",
+            "example": "RENUNCIA"
+          },
+          "years": {
+            "type": "number",
+            "example": 3
+          },
+          "integralSalary": {
+            "type": "number",
+            "description": "Salario integral diario",
+            "example": 367.59
+          },
+          "normalSalary": {
+            "type": "number",
+            "description": "Salario normal diario",
+            "example": 333.33
+          },
+          "guaranteeAccumulated": {
+            "type": "number",
+            "example": 5513.89
+          },
+          "retroactive": {
+            "type": "number",
+            "example": 33083.33
+          },
+          "benefitsAmount": {
+            "type": "number",
+            "description": "Prestaciones que se pagan: la modalidad mayor",
+            "example": 33083.33
+          },
+          "benefitsModality": {
+            "type": "string",
+            "enum": [
+              "GUARANTEE",
+              "RETROACTIVE"
+            ]
+          },
+          "vacationDays": {
+            "type": "number",
+            "example": 2
+          },
+          "vacationAmount": {
+            "type": "number",
+            "example": 666.67
+          },
+          "bonusDays": {
+            "type": "number",
+            "example": 9
+          },
+          "bonusAmount": {
+            "type": "number",
+            "example": 3000
+          },
+          "profitDays": {
+            "type": "number",
+            "example": 10
+          },
+          "profitAmount": {
+            "type": "number",
+            "example": 3333.33
+          },
+          "indemnificationDays": {
+            "type": "number",
+            "example": 0
+          },
+          "indemnificationAmount": {
+            "type": "number",
+            "example": 0
+          },
+          "totalAmount": {
+            "type": "number",
+            "example": 40083.33
+          },
+          "status": {
+            "type": "string",
+            "example": "CALCULATED"
+          }
+        },
+        "required": [
+          "id",
+          "employeeId",
+          "terminationDate",
+          "cause",
+          "years",
+          "integralSalary",
+          "normalSalary",
+          "guaranteeAccumulated",
+          "retroactive",
+          "benefitsAmount",
+          "benefitsModality",
+          "vacationDays",
+          "vacationAmount",
+          "bonusDays",
+          "bonusAmount",
+          "profitDays",
+          "profitAmount",
+          "indemnificationDays",
+          "indemnificationAmount",
+          "totalAmount",
+          "status"
+        ]
+      },
+      "SettleEmployeeDto": {
+        "type": "object",
+        "properties": {
+          "terminationDate": {
+            "type": "string",
+            "description": "Fecha de egreso (ISO)",
+            "example": "2026-10-31"
+          },
+          "cause": {
+            "type": "string",
+            "description": "Causa legal del egreso. Sólo el despido injustificado indemniza (Art. 92)",
+            "enum": [
+              "RENUNCIA",
+              "DESPIDO_JUSTIFICADO",
+              "DESPIDO_INJUSTIFICADO",
+              "MUTUO_ACUERDO",
+              "JUBILACION",
+              "MUERTE",
+              "INCAPACIDAD"
+            ],
+            "example": "RENUNCIA"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Observaciones de la liquidación"
+          }
+        },
+        "required": [
+          "terminationDate",
+          "cause"
         ]
       },
       "CurrencyResponseDto": {

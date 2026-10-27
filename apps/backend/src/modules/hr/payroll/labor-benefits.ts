@@ -22,6 +22,23 @@ export interface BenefitSettings {
   TOPE_UTILIDADES_MESES: number;
   /** ⚠️ Días por año de la modalidad retroactiva del Art. 142 literal “b”. Validar (P-28). */
   DIAS_RETROACTIVO_ANIO: number;
+  /** ⚠️ Indemnización del Art. 92 por despido injustificado. Validar (P-28). */
+  INDEMNIZACION_DIAS_HASTA_UN_ANIO: number;
+  INDEMNIZACION_DIAS_BASE: number;
+  INDEMNIZACION_TOPE_1: number;
+  INDEMNIZACION_DIAS_MAYOR_10: number;
+  INDEMNIZACION_TOPE_2: number;
+}
+
+/** Causas de egreso que el cálculo distingue. Sólo el despido injustificado indemniza (Art. 92). */
+export enum SettlementCause {
+  RENUNCIA = 'RENUNCIA',
+  DESPIDO_JUSTIFICADO = 'DESPIDO_JUSTIFICADO',
+  DESPIDO_INJUSTIFICADO = 'DESPIDO_INJUSTIFICADO',
+  MUTUO_ACUERDO = 'MUTUO_ACUERDO',
+  JUBILACION = 'JUBILACION',
+  MUERTE = 'MUERTE',
+  INCAPACIDAD = 'INCAPACIDAD',
 }
 
 /** Valores legales por defecto; el servicio los sobreescribe con los parámetros vigentes. */
@@ -36,6 +53,11 @@ export const DEFAULT_BENEFIT_SETTINGS: BenefitSettings = {
   DIAS_UTILIDADES: 30,
   TOPE_UTILIDADES_MESES: 4,
   DIAS_RETROACTIVO_ANIO: 30,
+  INDEMNIZACION_DIAS_HASTA_UN_ANIO: 30,
+  INDEMNIZACION_DIAS_BASE: 30,
+  INDEMNIZACION_TOPE_1: 150,
+  INDEMNIZACION_DIAS_MAYOR_10: 60,
+  INDEMNIZACION_TOPE_2: 300,
 };
 
 export interface VacationEntitlement {
@@ -215,6 +237,43 @@ export class LaborBenefits {
       monthsWorked: capped,
       amount: Number(this.money.round(salaryDaily * days)),
     };
+  }
+
+  /** Meses completos entre dos fechas (para la fracción del Art. 92 y las utilidades). */
+  monthsBetween(from: Date, to: Date): number {
+    if (to.getTime() <= from.getTime()) return 0;
+
+    const months =
+      (to.getUTCFullYear() - from.getUTCFullYear()) * 12 + (to.getUTCMonth() - from.getUTCMonth());
+    const remainder = to.getUTCDate() - from.getUTCDate();
+
+    return Math.max(0, remainder < 0 ? months - 1 : months);
+  }
+
+  /**
+   * Días de indemnización por egreso (Art. 92).
+   *
+   * Sólo el despido injustificado indemniza; renuncia, despido justificado, mutuo acuerdo,
+   * jubilación, muerte o incapacidad no generan indemnización, pero **sí** prestaciones y
+   * vacaciones, que se liquidan igual (RN-18).
+   */
+  indemnificationDays(
+    completedYears: number,
+    fractionMonths: number,
+    cause: SettlementCause,
+    settings: BenefitSettings = DEFAULT_BENEFIT_SETTINGS
+  ): number {
+    if (cause !== SettlementCause.DESPIDO_INJUSTIFICADO) return 0;
+
+    // "año de servicio o fracción superior a seis meses" cuenta como año completo.
+    const seniority = completedYears + (fractionMonths > 6 ? 1 : 0);
+    if (seniority <= 1) return settings.INDEMNIZACION_DIAS_HASTA_UN_ANIO;
+
+    const perYear =
+      seniority <= 10 ? settings.INDEMNIZACION_DIAS_BASE : settings.INDEMNIZACION_DIAS_MAYOR_10;
+    const ceiling = seniority <= 10 ? settings.INDEMNIZACION_TOPE_1 : settings.INDEMNIZACION_TOPE_2;
+
+    return Math.min(seniority * perYear, ceiling);
   }
 
   /** Pago de vacaciones y bono vacacional sobre el salario normal diario (RN-14, RN-15). */

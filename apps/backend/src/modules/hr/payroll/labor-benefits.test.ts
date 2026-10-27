@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BenefitCalculationError, DEFAULT_BENEFIT_SETTINGS, LaborBenefits } from './labor-benefits';
+import {
+  BenefitCalculationError,
+  DEFAULT_BENEFIT_SETTINGS,
+  LaborBenefits,
+  SettlementCause,
+} from './labor-benefits';
 
 /**
  * Prestaciones, vacaciones y utilidades (`T-02-04`).
@@ -106,6 +111,64 @@ describe('LaborBenefits · prestaciones (RN-11, RN-12, RN-13)', () => {
     expect(() => BENEFITS.quarterlyDeposit(-1, 1, false, SETTINGS)).toThrow(
       BenefitCalculationError
     );
+  });
+});
+
+describe('LaborBenefits · indemnización por egreso (Art. 92)', () => {
+  it('cuenta meses completos entre dos fechas', () => {
+    expect(BENEFITS.monthsBetween(new Date('2026-01-15'), new Date('2026-10-31'))).toBe(9);
+    expect(BENEFITS.monthsBetween(new Date('2026-01-15'), new Date('2026-10-14'))).toBe(8);
+    expect(BENEFITS.monthsBetween(new Date('2026-01-15'), new Date('2026-01-15'))).toBe(0);
+    expect(BENEFITS.monthsBetween(new Date('2026-05-01'), new Date('2026-01-01'))).toBe(0);
+  });
+
+  it('sólo indemniza el despido injustificado', () => {
+    for (const cause of [
+      SettlementCause.RENUNCIA,
+      SettlementCause.DESPIDO_JUSTIFICADO,
+      SettlementCause.MUTUO_ACUERDO,
+      SettlementCause.JUBILACION,
+      SettlementCause.MUERTE,
+      SettlementCause.INCAPACIDAD,
+    ]) {
+      expect(BENEFITS.indemnificationDays(5, 3, cause, SETTINGS)).toBe(0);
+    }
+  });
+
+  it('paga 30 días hasta el primer año', () => {
+    expect(
+      BENEFITS.indemnificationDays(0, 6, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(30);
+    expect(
+      BENEFITS.indemnificationDays(1, 0, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(30);
+  });
+
+  it('cuenta la fracción mayor a seis meses como año completo', () => {
+    expect(
+      BENEFITS.indemnificationDays(2, 6, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(60);
+    expect(
+      BENEFITS.indemnificationDays(2, 7, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(90);
+  });
+
+  it('respeta el tope de 150 días hasta los diez años', () => {
+    expect(
+      BENEFITS.indemnificationDays(4, 9, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(150);
+    expect(
+      BENEFITS.indemnificationDays(10, 0, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(150);
+  });
+
+  it('pasa a 60 días por año y tope de 300 después de diez años', () => {
+    expect(
+      BENEFITS.indemnificationDays(11, 0, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(300);
+    expect(
+      BENEFITS.indemnificationDays(20, 0, SettlementCause.DESPIDO_INJUSTIFICADO, SETTINGS)
+    ).toBe(300);
   });
 });
 
