@@ -247,6 +247,12 @@ export const NAV_ITEMS: NavGroup[] = [
         permission: PERMISSIONS.SETTINGS.TAXES.VIEW,
         icon: 'Percent',
       },
+      {
+        title: 'Auditoría',
+        url: '/dashboard/settings/audit',
+        permission: PERMISSIONS.SETTINGS.USERS.VIEW,
+        icon: 'History',
+      },
     ],
   },
 ];

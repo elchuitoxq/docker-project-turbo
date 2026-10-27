@@ -41,6 +41,13 @@ export const auditLogs = pgTable(
   },
   t => ({
     branchCreatedIdx: index('audit_logs_branch_created_idx').on(t.branchId, t.createdAt),
+    entityCreatedIdx: index('audit_logs_entity_created_idx').on(
+      t.entityTable,
+      t.entityId,
+      t.createdAt
+    ),
+    userCreatedIdx: index('audit_logs_user_created_idx').on(t.userId, t.createdAt),
+    createdIdx: index('audit_logs_created_idx').on(t.createdAt),
   })
 );
 export const permissions = pgTable('permissions', {

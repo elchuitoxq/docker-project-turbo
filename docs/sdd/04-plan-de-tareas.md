@@ -256,13 +256,13 @@ trazada.
 
 | ID      | Tarea                                                   | Artefactos                                       | Depende | Verificación                         | Talla | Estado |
 | ------- | ------------------------------------------------------- | ------------------------------------------------ | ------- | ------------------------------------ | ----- | ------ |
-| T-07-01 | `GET /v1/audit` paginado con filtros + índice           | `modules/audit/*` + índice                       | E0      | filtros por entidad, usuario y fecha | M     | ⬜     |
+| T-07-01 | `GET /v1/audit` paginado con filtros + índice           | `modules/audit/*` + índice                       | E0      | filtros por entidad, usuario y fecha | M     | ✅     |
 | T-07-02 | Módulo y pantalla de notas de crédito                   | `modules/credit-notes/*`, `finance/credit-notes` | E4      | NC aplicada descuenta saldo          | L     | ⬜     |
 | T-07-03 | Módulo y pantalla de préstamos                          | `modules/loans/*`, `finance/loans`               | E5      | approve → pay genera movimiento      | L     | ⬜     |
-| T-07-04 | Visor de auditoría con diff legible                     | `settings/audit`                                 | T-07-01 | "campo: antes → después"             | M     | ⬜     |
-| T-07-05 | Home del dashboard con KPIs, gráfico y actividad reales | `app/(dashboard)/dashboard/page.tsx`             | E0, BI  | 4 KPIs por sucursal                  | M     | ⬜     |
+| T-07-04 | Visor de auditoría con diff legible                     | `settings/audit`                                 | T-07-01 | "campo: antes → después"             | M     | ✅     |
+| T-07-05 | Home del dashboard con KPIs, gráfico y actividad reales | `app/(dashboard)/dashboard/page.tsx`             | E0, BI  | 4 KPIs por sucursal                  | M     | ✅     |
 | T-07-06 | Pantalla de stock por almacén con alertas de mínimo     | `inventory/stock`                                | E1      | lista bajo mínimo                    | M     | ⬜     |
-| T-07-07 | Navegación y permisos de UI sincronizados               | `lib/navigation.ts`, `lib/permissions.ts`        | todas   | cada módulo visible solo con permiso | S     | ⬜     |
+| T-07-07 | Navegación y permisos de UI sincronizados               | `lib/navigation.ts`, `lib/permissions.ts`        | todas   | cada módulo visible solo con permiso | S     | ✅     |
 
 ---
 
@@ -295,9 +295,9 @@ trazada.
 | 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
 | 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
 | 8   | 14-15   | E5 tesorería                           | 9       | 9      |
-| 9   | 16      | E7 frontend restante                   | 7       | 0      |
+| 9   | 16      | E7 frontend restante                   | 7       | 4      |
 | —   | —       | Transversales                          | 6       | 0      |
-| —   | —       | **Total**                              | **100** | **85** |
+| —   | —       | **Total**                              | **100** | **89** |
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

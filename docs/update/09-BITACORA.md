@@ -1716,3 +1716,47 @@ de **cierre diario llamaba a `GET /treasury/daily-close` sin fecha** (endpoint q
 - Frontend **108/108** · database **39/39** · turbo `lint typecheck build test:coverage` **16/16** ·
   `format:check` verde · `pnpm audit --prod` sin vulnerabilidades.
 - Plan: **85 de 100 tareas**; **E5 cerrada, 9 de 9**.
+
+---
+
+### BT-050 · 2026-10-27 · E7 (parte 1): auditoría consultable, panel real y navegación (T-07-01, T-07-04, T-07-05, T-07-07)
+
+**Lo que había**
+
+El registro de auditoría se escribía desde el interceptor (`R3` de `S-00`) pero **no se podía
+consultar**: `GET /v1/audit` devolvía todo sin paginar y sin filtros por entidad concreta. El home del
+dashboard era literalmente un stub con cuatro tarjetas que decían "Stub — conectar a /bi/kpis".
+
+**Qué se entregó, en orden**
+
+| Tarea   | Contenido                                                                                                                                    |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| T-07-01 | `GET /v1/audit` con `entityId`, `action`, `documentCode`, `page`, `limit` y `paginated=true` (aditivo); índices por entidad, usuario y fecha |
+| T-07-04 | UI `settings/audit`: filtros, paginación y diff desplegable campo por campo (`campo: antes → después`)                                       |
+| T-07-05 | Panel real: cuatro KPIs de `/bi/kpis`, evolución mensual de ventas/cobros de `/bi/chart` y actividad reciente                                |
+| T-07-07 | Navegación con los módulos nuevos (cuentas, conciliación, caja chica, métodos de pago, auditoría) y `PAYABLES` en el mapa de permisos        |
+
+**Decisiones**
+
+- **El contrato viejo sigue funcionando**: sin `paginated=true` el endpoint devuelve el arreglo plano,
+  así que nada de lo que ya consumía auditoría se rompe.
+- **El `total` se cuenta con el mismo `where`** que la página; si no, el paginador miente en cuanto hay
+  un filtro.
+- **El diff se arma desde `{ before, after }`** y se ocultan los campos que no cambiaron: el registro
+  guardado incluye el documento completo en algunos casos y mostrar todo sería ruido.
+- **BI pasa a moneda funcional** (H-96): el KPI de "cobros y pagos" sumaba `payments.amount` mezclando
+  divisa y bolívares, y daba "USD 351.865,00".
+
+**Verificación en vivo**
+
+- `settings/audit`: 16 registros reales del interceptor, filtro por tabla y acción, paginación.
+- `/dashboard`: facturación emitida, cobros y pagos, empleados activos, nóminas pendientes; gráfico de
+  barras con los meses del año y tabla de actividad con las últimas facturas y pagos.
+
+**Pruebas**
+
+- Backend **931/931** (6 nuevas de auditoría paginada contra Postgres: total por filtro, acción,
+  entidad, orden descendente, tope de 200 y compatibilidad del arreglo plano).
+- Frontend **115/115** (7 nuevas: contrato del cliente de auditoría y `diffRows`).
+- database **39/39** · turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
+- Plan: **89 de 100 tareas**; E7 **4 de 7** (faltan notas de crédito, préstamos y stock por almacén).

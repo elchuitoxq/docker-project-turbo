@@ -7,7 +7,7 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-import { AuditService, AuditLogResponseDto, AuditLogFilters } from './audit.service';
+import { AuditService, AuditLogResponseDto, AuditLogFilters, AuditLogPage } from './audit.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @ApiTags('audit')
@@ -15,10 +15,21 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
+  @Get('entities')
+  @ApiOperation({
+    summary: 'Tablas auditadas',
+    description: 'Lista de `entityTable` presentes en el registro, para el filtro del visor',
+  })
+  @ApiResponse({ status: 200, description: 'Tablas auditadas' })
+  async listEntityTables(): Promise<string[]> {
+    return this.auditService.listEntityTables();
+  }
+
   @Get()
   @ApiOperation({
     summary: 'Get all audit logs',
-    description: 'Retrieves a list of all audit logs with optional filters',
+    description:
+      'Con `paginated=true` devuelve `{ data, total, page, limit }`; sin el flag mantiene el arreglo plano',
   })
   @ApiQuery({
     name: 'userId',
@@ -32,6 +43,21 @@ export class AuditController {
     description: 'Filter by entity table name',
     example: 'invoices',
   })
+  @ApiQuery({
+    name: 'entityId',
+    required: false,
+    description: 'Filter by entity ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiQuery({ name: 'action', required: false, description: 'CREATE, UPDATE, DELETE, VOID…' })
+  @ApiQuery({
+    name: 'documentCode',
+    required: false,
+    description: 'Búsqueda parcial por documento',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 50 })
+  @ApiQuery({ name: 'paginated', required: false, description: '`true` para respuesta paginada' })
   @ApiQuery({
     name: 'from',
     required: false,
@@ -51,15 +77,32 @@ export class AuditController {
   async findAll(
     @Query('userId') userId?: string,
     @Query('entityTable') entityTable?: string,
+    @Query('entityId') entityId?: string,
+    @Query('action') action?: string,
+    @Query('documentCode') documentCode?: string,
     @Query('from') from?: string,
-    @Query('to') to?: string
-  ): Promise<AuditLogResponseDto[]> {
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('paginated') paginated?: string
+  ): Promise<AuditLogResponseDto[] | AuditLogPage> {
     const filters: AuditLogFilters = {};
 
     if (userId) filters.userId = userId;
     if (entityTable) filters.entityTable = entityTable;
+    if (entityId) filters.entityId = entityId;
+    if (action) filters.action = action;
+    if (documentCode) filters.documentCode = documentCode;
     if (from) filters.from = new Date(from);
     if (to) filters.to = new Date(to);
+
+    if (paginated === 'true') {
+      return this.auditService.findPaginated(
+        filters,
+        page ? Number(page) : 1,
+        limit ? Number(limit) : 50
+      );
+    }
 
     return this.auditService.findAll(filters);
   }

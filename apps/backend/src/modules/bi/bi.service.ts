@@ -93,7 +93,7 @@ export class BiService {
     const postedPayments = await db
       .select({
         count: sql<number>`count(*)`,
-        sum: sql<number>`coalesce(sum(${payments.amount}::numeric), 0)`,
+        sum: sql<number>`coalesce(sum(${payments.amountBase}::numeric), 0)`,
       })
       .from(payments)
       .where(eq(payments.status, 'POSTED'));
@@ -169,7 +169,7 @@ export class BiService {
       const monthlyPayments = await db
         .select({
           month: sql<number>`extract(month from ${payments.date})`,
-          total: sql<number>`coalesce(sum(${payments.amount}::numeric), 0)`,
+          total: sql<number>`coalesce(sum(${payments.amountBase}::numeric), 0)`,
           count: sql<number>`count(*)`,
         })
         .from(payments)

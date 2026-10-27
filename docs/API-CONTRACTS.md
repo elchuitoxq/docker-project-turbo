@@ -540,6 +540,31 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
   gasto mayor al saldo responde `400 El fondo no puede quedar negativo`. Para cerrar hay que devolver
   el saldo completo (`400` si no coincide).
 
+## Auditoría, panel y navegación (desde 2026-10-27)
+
+`T-07-01`, `T-07-04`, `T-07-05`, `T-07-07`.
+
+| Método | Ruta                                                                                     | Permiso               |
+| ------ | ---------------------------------------------------------------------------------------- | --------------------- |
+| `GET`  | `/v1/audit?entityTable&entityId&action&documentCode&userId&from&to&page&limit&paginated` | `settings:users:view` |
+| `GET`  | `/v1/audit/entities`                                                                     | `settings:users:view` |
+| `GET`  | `/v1/audit/:entityTable/:entityId`                                                       | `settings:users:view` |
+| `GET`  | `/v1/bi/kpis`                                                                            | `bi:view`             |
+| `GET`  | `/v1/bi/chart?type=sales                                                                 | payments&year`        | `bi:view` |
+| `GET`  | `/v1/bi/activity`                                                                        | `bi:view`             |
+
+- **Auditoría paginada es aditiva**: con `paginated=true` devuelve `{ data, total, page, limit }`; sin
+  el flag mantiene el arreglo plano del contrato anterior. `limit` se acota a 200.
+- `total` se cuenta con el **mismo filtro** que la página; `documentCode` es búsqueda parcial.
+- `GET /audit/entities` devuelve las tablas auditadas presentes en el registro, para poblar el filtro.
+- El campo `changes` guarda el par `{ before, after }`; la UI lo muestra como `campo: antes → después`
+  y oculta los campos que no cambiaron.
+- **Los agregados de BI van en moneda funcional** (`payments.amount_base`): sumar dólares con bolívares
+  no significa nada (H-96).
+- `/bi/chart` devuelve los 12 meses del año pedido, con ceros donde no hubo movimiento.
+- El panel y sus KPIs respetan la sucursal activa porque el cliente envía `x-branch-id` en cada
+  llamada; los endpoints de BI aún agregan por sucursal sólo donde el servicio lo aplica ⚠️.
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
