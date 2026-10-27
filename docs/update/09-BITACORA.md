@@ -587,6 +587,69 @@ asientos ni altera saldos. La revaluación de saldos sigue fuera de alcance.
 
 - `pnpm format:check` verde · enlaces relativos validados · sin cambios de código funcional.
 
+---
+
+### BT-034 · 2026-10-26 · Ola 1 (S-00) implementada: aislamiento por sucursal
+
+**Qué se implementó**
+
+| Pieza                    | Archivo                                                                     |
+| ------------------------ | --------------------------------------------------------------------------- |
+| Guard global de sucursal | `apps/backend/src/common/branch/branch-context.guard.ts`                    |
+| Decoradores              | `common/decorators/current-branch.decorator.ts`, `skip-branch.decorator.ts` |
+| Interceptor de auditoría | `common/audit/audit-write.interceptor.ts` + `AuditService.record()`         |
+| Migración                | `packages/database/drizzle/0005_famous_purifiers.sql`                       |
+| Contrato documentado     | `docs/API-CONTRACTS.md` §Contexto de sucursal                               |
+
+**Comportamiento del guard**
+
+1. `x-branch-id` validada contra `users_branches`; `branchId` en query/body acepta como
+   compatibilidad deprecada con warning.
+2. Sin cabecera: si el usuario tiene **una** sucursal asignada se usa esa; con varias → `400`.
+3. Sucursal no asignada → `403`; recurso de otra sucursal → `404` (R2).
+4. `core:branch:all` (sólo `SUPER_ADMIN`) habilita modo consolidado.
+5. Exentos: `/auth/me`, `/health`, catálogo de empresas/sucursales y `settings/currencies`.
+
+**Decisión de diseño**
+
+El filtro se aplica en el **borde HTTP** (guard + controlador con `@CurrentBranch()`), y los
+parámetros de servicio quedan opcionales al final de la firma. Razón: los 32 tests unitarios de
+`orders` y los mocks existentes siguen válidos, y la autoridad sobre la sucursal vive en un solo
+lugar. Los servicios igual filtran cuando reciben `branchId`, que es siempre desde la API.
+
+**Corrección de un dato publicado**
+
+La medición de `branch_id` que publiqué antes (50 tablas / 18 con / 32 sin) estaba **mal**: el
+parser perdía las tablas declaradas en varias líneas. El conteo correcto es **60 / 18 / 42**, y el
+grupo de tablas que realmente necesitaban columna se redujo a **3** (`audit_logs`,
+`inventory_moves`, `loans`); el resto hereda por join del padre. Corregido en
+[`04-plan-de-tareas.md`](../sdd/04-plan-de-tareas.md) §1.2.
+
+**Incidente técnico**
+
+`apps/backend/src/schema.ts` reexporta `database`, cuyo `main` apunta a `dist/`. Con el `dist` viejo,
+`inventoryMoves.branchId` llegaba `undefined` y Drizzle generaba `where = $1` (SQL inválido). Se
+resolvió con `pnpm --filter database build` y queda como recordatorio: **tras cambiar el schema hay
+que reconstruir el paquete antes de correr los tests del backend**.
+
+**Verificación ejecutada**
+
+- `pnpm --filter backend exec vitest run` → **711/711** tests, 26 archivos.
+- `branch-context.guard.test.ts` → **12/12** (400, 403, 404, auto-resolución, fallback, consolidado, cache, skip).
+- `branch-isolation.test.ts` → **4/4** contra Postgres real: listado cruzado, 404 en detalle ajeno,
+  bloqueo de `post`/`void` ajenos y movimientos de inventario.
+- Frontend `vitest run` → **75/75**.
+- `pnpm turbo run lint typecheck build test:coverage` → **16/16 tareas**, 0 errores de lint.
+- `pnpm --filter database db:migrate` + `test:db:prepare` aplicados sin error.
+
+**Pendiente de esta ola**
+
+| Tarea   | Qué falta                                                                                         |
+| ------- | ------------------------------------------------------------------------------------------------- |
+| T-00-12 | E2E de aislamiento contra el build de producción (hoy hay unitario + integración)                 |
+| —       | Aplicar `@RequirePermissions('core:catalog:manage')` en las escrituras de partners y productos    |
+| —       | `payroll_incidents`, `payroll_items` y `employee_*` filtran por join; falta el reporte que lo use |
+
 **Verificación**
 
 - Conteo y lectura directa de `schema.ts` (tablas `currencies`, `exchange_rates`, `payments`,

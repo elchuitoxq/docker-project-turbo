@@ -28,6 +28,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setAvailableBranches = useBranchStore(s => s.setAvailableBranches);
   const setBranch = useBranchStore(s => s.setBranch);
   const setUser = useAuthStore(s => s.setUser);
+  const defaultBranchId = useAuthStore(s => s.user?.defaultBranchId ?? null);
 
   // Refresca permisos/sucursales contra el backend usando la cookie httpOnly.
   React.useEffect(() => {
@@ -74,7 +75,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       currentBranchId && branchesForCompany.some(b => b.id === currentBranchId);
 
     if (!currentBranchValid && branchesForCompany.length > 0) {
-      setBranch(branchesForCompany[0].id);
+      // Preferimos la sucursal predeterminada del backend sobre "la primera que aparezca".
+      const preferred =
+        defaultBranchId && branchesForCompany.some(b => b.id === defaultBranchId)
+          ? defaultBranchId
+          : branchesForCompany[0].id;
+      setBranch(preferred);
     } else if (!currentBranchValid && branchesForCompany.length === 0) {
       const companyWithBranches = companies.find(c => c.branches.length > 0);
       if (companyWithBranches) {
@@ -85,11 +91,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     companiesLoaded,
     currentCompanyId,
     currentBranchId,
+    defaultBranchId,
     companies,
     setAvailableBranches,
     setBranch,
     setCompany,
   ]);
+
+  // R3 de S-00: cambiar de sucursal invalida la caché de datos del servidor.
+  const previousBranchId = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!hasHydratedBranch) return;
+
+    const previous = previousBranchId.current;
+    previousBranchId.current = currentBranchId;
+
+    if (previous && currentBranchId && previous !== currentBranchId) {
+      queryClient.clear();
+    }
+  }, [currentBranchId, hasHydratedBranch, queryClient]);
 
   React.useEffect(() => {
     if (!hasHydratedAuth || !hasHydratedCompany || !hasHydratedBranch) return;

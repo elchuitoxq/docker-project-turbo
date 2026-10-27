@@ -8,6 +8,8 @@ export type AuthUser = {
   email: string;
   permissions: string[];
   branches: Array<{ id: string; name: string; taxId: string | null }>;
+  /** Sucursal con la que debe arrancar la UI (viene de `/auth/me`). */
+  defaultBranchId?: string | null;
 };
 
 export function isAuthUser(value: unknown): value is AuthUser {

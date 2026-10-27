@@ -25,6 +25,29 @@
   teniendo superficies sin esa autorización; no asumir que un permiso mostrado
   en la UI protege esos endpoints.
 
+## Contexto de sucursal (obligatorio desde 2026-10-26)
+
+Implementación: `apps/backend/src/common/branch/branch-context.guard.ts` (guard global)
+y `apps/backend/src/common/decorators/current-branch.decorator.ts`.
+
+- Toda petición a un endpoint de negocio debe declarar la sucursal activa en la
+  cabecera **`x-branch-id: <uuid>`**. El guard la valida contra `users_branches`
+  antes de que el controlador se ejecute.
+- Resolución, en orden: cabecera `x-branch-id` → `branchId` en query/body
+  (compatibilidad deprecada, deja warning) → si el usuario tiene **una sola**
+  sucursal asignada se usa esa.
+- Respuestas de error:
+  - `400` — falta la cabecera y el usuario tiene varias sucursales, o el valor no es UUID.
+  - `403` — la sucursal no está asignada al usuario, o el usuario no tiene sucursales.
+  - `404` — el recurso existe pero pertenece a otra sucursal (no se filtra su existencia).
+- Exentos (`@SkipBranch()`): `GET /v1/auth/me`, `/v1/health`, catálogo de
+  empresas/sucursales y `/v1/settings/currencies` (necesarios antes de elegir sucursal).
+- `core:branch:all` (sólo `SUPER_ADMIN`) habilita el modo consolidado sobre
+  cualquier sucursal existente.
+- `GET /v1/auth/me` devuelve además `defaultBranchId`, con la que la UI debe arrancar.
+- Toda escritura sobre dinero o stock deja fila en `audit_logs` con `branch_id`,
+  usuario, IP y el cuerpo saneado (ver `AuditWriteInterceptor`).
+
 ## Partners
 
 Implementación: `apps/backend/src/modules/partners/`.
@@ -186,10 +209,12 @@ asignada. No confundir `mydb` con `testdb_database`, que usa el puerto 5433.
 
 ## Brechas pendientes
 
-1. Aplicar autorización backend a los controladores restantes, incluidos
-   Partners, Orders y Billing, y agregar pruebas HTTP negativas por rol.
+1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
+   son globales (`JwtAuthGuard` → `PermissionsGuard` → `BranchContextGuard`).
 2. Definir si Partners, Orders y Billing deben implementar paginación/filtros
    servidor o si las vistas deben adoptar las respuestas sin paginar.
 3. Resolver el contrato de Orders y la actualización/filtros de Billing.
 4. Definir un estado de cuenta con los movimientos y filtros de fechas que
    necesita la vista, o simplificar la vista al resumen implementado.
+5. Pendiente de la ola 1 (`S-00`): E2E de aislamiento entre sucursales contra el
+   build de producción (T-00-12) y escritura de catálogo bajo `core:catalog:manage`.
