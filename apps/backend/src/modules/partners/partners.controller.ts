@@ -49,7 +49,30 @@ export class PartnersController {
     description: 'List of partners',
     type: [PartnerResponseDto],
   })
-  async findAll(@Query('search') search?: string): Promise<PartnerResponseDto[]> {
+  @ApiQuery({
+    name: 'paginated',
+    required: false,
+    description: 'Con `true` devuelve { data, total, page, limit }',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
+  async findAll(
+    @Query('search') search?: string,
+    @Query('paginated') paginated?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
+  ): Promise<
+    | PartnerResponseDto[]
+    | { data: PartnerResponseDto[]; total: number; page: number; limit: number }
+  > {
+    if (paginated === 'true') {
+      return this.partnersService.findPaginated({
+        search,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      });
+    }
+
     return this.partnersService.findAll(search);
   }
 

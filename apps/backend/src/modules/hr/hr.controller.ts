@@ -24,14 +24,20 @@ import {
   UpdateEmployeeDto,
   EmployeeResponseDto,
   CreateDepartmentDto,
+  UpdateDepartmentDto,
   CreatePositionDto,
+  UpdatePositionDto,
   CreatePayrollRunDto,
   PayrollRunResponseDto,
   CreateIncidentDto,
   PayslipDto,
+  TerminateEmployeeDto,
+  UpdatePayrollSettingDto,
+  PayrollSettingResponseDto,
 } from './dto/hr.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('hr')
@@ -78,12 +84,36 @@ export class HrController {
     return this.hrService.updateEmployee(id, updateEmployeeDto);
   }
 
+  @Post('employees/:id/terminate')
+  @RequirePermissions('hr:employees:edit')
+  @ApiOperation({
+    summary: 'Terminate an employee',
+    description: 'Sets status TERMINATED and the termination date',
+  })
+  @ApiResponse({ status: 200, description: 'Employee terminated' })
+  @ApiResponse({ status: 404, description: 'Employee not found' })
+  @ApiResponse({ status: 409, description: 'Employee already terminated' })
+  async terminateEmployee(
+    @Param('id') id: string,
+    @Body() dto: TerminateEmployeeDto,
+    @CurrentBranch() branchId: string
+  ): Promise<EmployeeResponseDto> {
+    return this.hrService.terminateEmployee(id, dto, branchId);
+  }
   @Get('departments')
   @ApiOperation({ summary: 'Get all departments' })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of departments' })
   async findAllDepartments(@CurrentBranch() branchId: string) {
     return this.hrService.findAllDepartments(branchId);
+  }
+
+  @Patch('departments/:id')
+  @RequirePermissions('hr:departments:manage')
+  @ApiOperation({ summary: 'Update a department' })
+  @ApiResponse({ status: 200, description: 'Department updated' })
+  async updateDepartment(@Param('id') id: string, @Body() dto: UpdateDepartmentDto) {
+    return this.hrService.updateDepartment(id, dto);
   }
 
   @Post('departments')
@@ -99,6 +129,14 @@ export class HrController {
   @ApiResponse({ status: 200, description: 'List of positions' })
   async findAllPositions() {
     return this.hrService.findAllPositions();
+  }
+
+  @Patch('positions/:id')
+  @RequirePermissions('hr:positions:manage')
+  @ApiOperation({ summary: 'Update a position' })
+  @ApiResponse({ status: 200, description: 'Position updated' })
+  async updatePosition(@Param('id') id: string, @Body() dto: UpdatePositionDto) {
+    return this.hrService.updatePosition(id, dto);
   }
 
   @Post('positions')
@@ -178,6 +216,50 @@ export class HrController {
     return this.hrService.createIncident(createIncidentDto);
   }
 
+  @Post('incidents/:id/approve')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('hr:incidents:approve')
+  @ApiOperation({ summary: 'Approve a pending incident' })
+  @ApiResponse({ status: 200, description: 'Incident approved' })
+  @ApiResponse({ status: 409, description: 'Incident is not pending' })
+  async approveIncident(@Param('id') id: string) {
+    return this.hrService.setIncidentStatus(id, 'APPROVED');
+  }
+
+  @Post('incidents/:id/reject')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('hr:incidents:approve')
+  @ApiOperation({ summary: 'Reject a pending incident' })
+  @ApiResponse({ status: 200, description: 'Incident rejected' })
+  @ApiResponse({ status: 409, description: 'Incident is not pending' })
+  async rejectIncident(@Param('id') id: string) {
+    return this.hrService.setIncidentStatus(id, 'REJECTED');
+  }
+
+  @Get('settings')
+  @RequirePermissions('hr:settings:view')
+  @ApiOperation({ summary: 'List payroll settings' })
+  @ApiResponse({
+    status: 200,
+    description: 'Payroll settings',
+    type: [PayrollSettingResponseDto],
+  })
+  async findPayrollSettings(
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollSettingResponseDto[]> {
+    return this.hrService.findPayrollSettings(branchId) as never;
+  }
+
+  @Patch('settings')
+  @RequirePermissions('hr:settings:manage')
+  @ApiOperation({ summary: 'Create or update a payroll setting' })
+  @ApiResponse({ status: 200, description: 'Payroll setting stored' })
+  async updatePayrollSetting(
+    @Body() dto: UpdatePayrollSettingDto,
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollSettingResponseDto> {
+    return this.hrService.upsertPayrollSetting(dto, branchId) as never;
+  }
   @Get('concept-types')
   @ApiOperation({ summary: 'Get payroll concept types' })
   @ApiResponse({ status: 200, description: 'List of concept types' })

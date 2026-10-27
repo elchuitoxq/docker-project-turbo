@@ -49,5 +49,6 @@ export const movesApi = {
   get: (id: string) => apiClient.get<Move>(`/inventory/moves/${id}`),
   create: (data: Partial<Move>) => apiClient.post<Move>('/inventory/moves', data),
   approve: (id: string) => apiClient.post<Move>(`/inventory/moves/${id}/approve`, {}),
-  cancel: (id: string) => apiClient.post<Move>(`/inventory/moves/${id}/cancel`, {}),
+  // Decision T-01-11: la API expone `reject`; `cancel` era una ruta inexistente.
+  cancel: (id: string) => apiClient.post<Move>(`/inventory/moves/${id}/reject`, {}),
 };

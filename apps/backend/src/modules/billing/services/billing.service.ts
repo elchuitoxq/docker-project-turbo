@@ -140,9 +140,14 @@ export class BillingService {
     return { totalBase, totalTax, totalIgtf, total };
   }
 
-  async findAll(branchId: string, status?: InvoiceStatus): Promise<InvoiceResponseDto[]> {
+  async findAll(
+    branchId: string,
+    status?: InvoiceStatus,
+    type?: string
+  ): Promise<InvoiceResponseDto[]> {
     const conditions = [eq(invoices.branchId, branchId)];
     if (status) conditions.push(eq(invoices.status, status));
+    if (type) conditions.push(eq(invoices.type, type));
 
     const allInvoices = await db
       .select()
@@ -173,6 +178,46 @@ export class BillingService {
     return invoicesWithItems;
   }
 
+  /**
+   * Listado paginado en servidor (T-01-14). Se expone con `?paginated=true` para no
+   * romper a los consumidores que esperan el arreglo plano.
+   */
+  async findPaginated(options: {
+    branchId: string;
+    status?: InvoiceStatus;
+    type?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: InvoiceResponseDto[]; total: number; page: number; limit: number }> {
+    const page = Math.max(options.page ?? 1, 1);
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
+
+    const conditions = [eq(invoices.branchId, options.branchId)];
+    if (options.status) conditions.push(eq(invoices.status, options.status));
+    if (options.type) conditions.push(eq(invoices.type, options.type));
+
+    const where = and(...conditions);
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(invoices)
+      .where(where);
+
+    const rows = await db
+      .select()
+      .from(invoices)
+      .where(where)
+      .orderBy(desc(invoices.createdAt))
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    const data: InvoiceResponseDto[] = [];
+    for (const invoice of rows) {
+      data.push(await this.findOne(invoice.id));
+    }
+
+    return { data, total: Number(count), page, limit };
+  }
   async findOne(id: string, branchId?: string): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 

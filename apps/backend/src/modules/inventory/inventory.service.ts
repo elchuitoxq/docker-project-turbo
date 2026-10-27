@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { db } from '../../database';
 import {
   warehouses,
@@ -39,10 +44,11 @@ export class InventoryService {
     return allWarehouses.map(this.toWarehouseResponseDto);
   }
 
-  async findOneWarehouse(id: string): Promise<WarehouseResponseDto> {
+  async findOneWarehouse(id: string, branchId?: string): Promise<WarehouseResponseDto> {
     const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, id)).limit(1);
 
-    if (!warehouse) {
+    // R2: almacén de otra sucursal -> 404.
+    if (!warehouse || (branchId && warehouse.branchId && warehouse.branchId !== branchId)) {
       throw new NotFoundException(`Warehouse with ID ${id} not found`);
     }
 
@@ -95,6 +101,45 @@ export class InventoryService {
     return this.findOneWarehouse(id);
   }
 
+  /**
+   * Baja lÃ³gica de un almacÃ©n (T-01-10): sÃ³lo si no tiene stock ni movimientos.
+   * Borrar un almacÃ©n con historia romperÃ­a los movimientos y los saldos.
+   */
+  async deactivateWarehouse(id: string, branchId?: string): Promise<WarehouseResponseDto> {
+    const [warehouse] = await db.select().from(warehouses).where(eq(warehouses.id, id)).limit(1);
+
+    if (!warehouse || (branchId && warehouse.branchId !== branchId)) {
+      throw new NotFoundException(`Warehouse with ID ${id} not found`);
+    }
+
+    if (!warehouse.isActive) {
+      return this.toWarehouseResponseDto(warehouse);
+    }
+
+    const stockRows = await db.select().from(stock).where(eq(stock.warehouseId, id));
+    const withQuantity = stockRows.filter(row => Number(row.quantity) !== 0);
+    if (withQuantity.length > 0) {
+      throw new ConflictException('Warehouse has stock; it cannot be deactivated');
+    }
+
+    const moves = await db
+      .select({ id: inventoryMoves.id })
+      .from(inventoryMoves)
+      .where(or(eq(inventoryMoves.fromWarehouseId, id), eq(inventoryMoves.toWarehouseId, id)))
+      .limit(1);
+
+    if (moves.length > 0) {
+      throw new ConflictException('Warehouse has inventory movements; it cannot be deactivated');
+    }
+
+    const [updated] = await db
+      .update(warehouses)
+      .set({ isActive: false })
+      .where(eq(warehouses.id, id))
+      .returning();
+
+    return { ...updated, isActive: updated.isActive ?? false };
+  }
   async findStockByWarehouse(warehouseId: string, branchId?: string): Promise<StockResponseDto[]> {
     if (branchId) {
       const [warehouse] = await db

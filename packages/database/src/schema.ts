@@ -257,6 +257,8 @@ export const partners = pgTable('partners', {
   isSpecialTaxpayer: boolean('is_special_taxpayer').default(false),
   creditLimit: numeric('credit_limit', { precision: 20, scale: 2 }).default('0'),
   islrConceptId: uuid('islr_concept_id'),
+  /** Baja logica (T-01-17): un maestro con movimientos no se borra, se desactiva. */
+  isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

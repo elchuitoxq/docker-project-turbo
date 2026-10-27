@@ -62,7 +62,11 @@ export const ALL_PERMISSIONS = [
   'hr:payroll:process',
   'hr:incidents:view',
   'hr:incidents:create',
+  'hr:incidents:approve',
+  'hr:departments:manage',
+  'hr:positions:manage',
   'hr:settings:view',
+  'hr:settings:manage',
 
   'settings:view',
   'settings:users:view',

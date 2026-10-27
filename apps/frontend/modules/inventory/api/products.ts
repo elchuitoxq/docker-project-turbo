@@ -21,5 +21,5 @@ export const productsApi = {
   create: (data: Partial<Product>) => apiClient.post<Product>('/products', data),
   update: (id: string, data: Partial<Product>) => apiClient.patch<Product>(`/products/${id}`, data),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/products/${id}`),
-  listCategories: () => apiClient.get<ProductCategory[]>('/product-categories'),
+  listCategories: () => apiClient.get<ProductCategory[]>('/products/categories'),
 };

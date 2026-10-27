@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { db } from '../../../database';
 import {
   employees,
@@ -71,6 +76,153 @@ export class HrService {
     return (await this.mapEmployeesWithRelations([employee]))[0];
   }
 
+  /** Egreso del empleado (T-01-01). */
+  async terminateEmployee(
+    id: string,
+    dto: { date: string; reason?: string; cause?: string },
+    branchId?: string
+  ): Promise<EmployeeResponseDto> {
+    const [employee] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
+
+    if (!employee || (branchId && employee.branchId && employee.branchId !== branchId)) {
+      throw new NotFoundException(`Employee with ID ${id} not found`);
+    }
+
+    if (employee.status === 'TERMINATED') {
+      throw new ConflictException('Employee is already terminated');
+    }
+
+    await db
+      .update(employees)
+      .set({
+        status: 'TERMINATED',
+        terminationDate: new Date(dto.date),
+        terminationReason: dto.cause ?? dto.reason ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(employees.id, id));
+
+    return this.findOneEmployee(id);
+  }
+
+  /** EdiciÃ³n de departamento (T-01-02). */
+  async updateDepartment(
+    id: string,
+    dto: { name?: string; parentId?: string | null }
+  ): Promise<typeof departments.$inferSelect> {
+    const [department] = await db.select().from(departments).where(eq(departments.id, id)).limit(1);
+
+    if (!department) {
+      throw new NotFoundException(`Department with ID ${id} not found`);
+    }
+
+    const [updated] = await db
+      .update(departments)
+      .set({
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.parentId !== undefined ? { parentId: dto.parentId } : {}),
+      })
+      .where(eq(departments.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /** EdiciÃ³n de cargo (T-01-03). */
+  async updatePosition(
+    id: string,
+    dto: { name?: string; description?: string; baseSalaryMin?: number; baseSalaryMax?: number }
+  ): Promise<typeof jobPositions.$inferSelect> {
+    const [position] = await db.select().from(jobPositions).where(eq(jobPositions.id, id)).limit(1);
+
+    if (!position) {
+      throw new NotFoundException(`Position with ID ${id} not found`);
+    }
+
+    const [updated] = await db
+      .update(jobPositions)
+      .set({
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.baseSalaryMin !== undefined ? { baseSalaryMin: String(dto.baseSalaryMin) } : {}),
+        ...(dto.baseSalaryMax !== undefined ? { baseSalaryMax: String(dto.baseSalaryMax) } : {}),
+      })
+      .where(eq(jobPositions.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /** AprobaciÃ³n o rechazo de una incidencia (T-01-04). SÃ³lo desde PENDING. */
+  async setIncidentStatus(id: string, status: 'APPROVED' | 'REJECTED'): Promise<unknown> {
+    const [incident] = await db
+      .select()
+      .from(payrollIncidents)
+      .where(eq(payrollIncidents.id, id))
+      .limit(1);
+
+    if (!incident) {
+      throw new NotFoundException(`Incident with ID ${id} not found`);
+    }
+
+    if (incident.status !== 'PENDING') {
+      throw new ConflictException(`Incident is already ${incident.status}`);
+    }
+
+    const [updated] = await db
+      .update(payrollIncidents)
+      .set({ status })
+      .where(eq(payrollIncidents.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  /** ParÃ¡metros de nÃ³mina vigentes (T-01-07). */
+  async findPayrollSettings(
+    branchId?: string
+  ): Promise<Array<typeof payrollSettings.$inferSelect>> {
+    const rows = await db.select().from(payrollSettings).where(eq(payrollSettings.isActive, true));
+
+    return rows.filter(row => !row.branchId || !branchId || row.branchId === branchId);
+  }
+
+  /** Alta o actualizaciÃ³n de un parÃ¡metro de nÃ³mina (T-01-07). */
+  async upsertPayrollSetting(
+    dto: { key: string; value: number },
+    branchId?: string
+  ): Promise<typeof payrollSettings.$inferSelect> {
+    const [existing] = await db
+      .select()
+      .from(payrollSettings)
+      .where(eq(payrollSettings.key, dto.key))
+      .limit(1);
+
+    if (existing) {
+      const [updated] = await db
+        .update(payrollSettings)
+        .set({ value: String(dto.value), updatedAt: new Date() })
+        .where(eq(payrollSettings.id, existing.id))
+        .returning();
+
+      return updated;
+    }
+
+    const [created] = await db
+      .insert(payrollSettings)
+      .values({
+        id: uuidv4(),
+        key: dto.key,
+        label: dto.key,
+        value: String(dto.value),
+        type: 'NUMBER',
+        branchId: branchId ?? null,
+        isActive: true,
+      })
+      .returning();
+
+    return created;
+  }
   private async mapEmployeesWithRelations(
     emps: (typeof employees.$inferSelect)[]
   ): Promise<EmployeeResponseDto[]> {

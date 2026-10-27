@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Delete,
   Post,
   Patch,
   Body,
@@ -30,6 +31,7 @@ import {
 } from './dto/inventory.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
+import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('inventory')
 @Controller('v1/inventory')
@@ -66,6 +68,32 @@ export class InventoryController {
     return this.inventoryService.createWarehouse(createWarehouseDto);
   }
 
+  @Get('warehouses/:id')
+  @RequirePermissions('inventory:warehouses:view')
+  @ApiOperation({ summary: 'Get a warehouse by id' })
+  @ApiResponse({ status: 200, description: 'Warehouse detail' })
+  @ApiResponse({ status: 404, description: 'Warehouse not found' })
+  async findOneWarehouse(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<WarehouseResponseDto> {
+    return this.inventoryService.findOneWarehouse(id, branchId);
+  }
+
+  @Delete('warehouses/:id')
+  @RequirePermissions('inventory:warehouses:edit')
+  @ApiOperation({
+    summary: 'Deactivate a warehouse',
+    description: 'Logical delete: rejects with 409 when the warehouse still has stock or movements',
+  })
+  @ApiResponse({ status: 200, description: 'Warehouse deactivated' })
+  @ApiResponse({ status: 409, description: 'Warehouse has stock or movements' })
+  async deactivateWarehouse(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string
+  ): Promise<WarehouseResponseDto> {
+    return this.inventoryService.deactivateWarehouse(id, branchId);
+  }
   @Patch('warehouses/:id')
   @ApiOperation({
     summary: 'Update a warehouse',

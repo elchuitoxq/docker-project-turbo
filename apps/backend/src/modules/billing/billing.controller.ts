@@ -47,6 +47,14 @@ export class BillingController {
     enum: InvoiceStatus,
     description: 'Filter by invoice status',
   })
+  @ApiQuery({ name: 'type', required: false, description: 'SALE o PURCHASE' })
+  @ApiQuery({
+    name: 'paginated',
+    required: false,
+    description: 'Con `true` devuelve { data, total, page, limit } (aditivo, no rompe clientes)',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 20 })
   @ApiResponse({
     status: 200,
     description: 'List of invoices',
@@ -54,9 +62,26 @@ export class BillingController {
   })
   async findAll(
     @CurrentBranch() branchId: string,
-    @Query('status') status?: InvoiceStatus
-  ): Promise<InvoiceResponseDto[]> {
-    return this.billingService.findAll(branchId, status);
+    @Query('status') status?: InvoiceStatus,
+    @Query('type') type?: string,
+    @Query('paginated') paginated?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
+  ): Promise<
+    | InvoiceResponseDto[]
+    | { data: InvoiceResponseDto[]; total: number; page: number; limit: number }
+  > {
+    if (paginated === 'true') {
+      return this.billingService.findPaginated({
+        branchId,
+        status,
+        type,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+      });
+    }
+
+    return this.billingService.findAll(branchId, status, type);
   }
 
   @Get('stats')

@@ -64,6 +64,13 @@
       "when": 1793064555410,
       "tag": "0008_superb_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793072262132,
+      "tag": "0009_lonely_alex_power",
+      "breakpoints": true
     }
   ]
 }

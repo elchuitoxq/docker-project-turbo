@@ -75,7 +75,7 @@ export function IncidentsView() {
   const approve = useApproveIncident();
   const reject = useRejectIncident();
 
-  const incidents: Incident[] = data?.data ?? [];
+  const incidents: Incident[] = data ?? [];
   const pendingCount = incidents.filter(i => i.status === 'PENDING').length;
 
   return (

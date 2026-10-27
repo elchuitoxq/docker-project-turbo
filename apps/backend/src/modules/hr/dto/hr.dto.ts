@@ -443,3 +443,89 @@ export class PayslipDto {
   @ApiProperty({ example: 1550.0 })
   netSalary: number;
 }
+
+export class TerminateEmployeeDto {
+  @ApiProperty({ description: 'Fecha de egreso (ISO)', example: '2026-10-31' })
+  @IsString()
+  date: string;
+
+  @ApiPropertyOptional({ description: 'Motivo del egreso', example: 'Renuncia voluntaria' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+
+  @ApiPropertyOptional({
+    description: 'Causa legal del egreso (LOTTT)',
+    example: 'RENUNCIA',
+  })
+  @IsOptional()
+  @IsString()
+  cause?: string;
+}
+
+export class UpdateDepartmentDto {
+  @ApiPropertyOptional({ example: 'AdministraciÃ³n' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Departamento padre', nullable: true })
+  @IsOptional()
+  @IsUUID()
+  parentId?: string | null;
+}
+
+export class UpdatePositionDto {
+  @ApiPropertyOptional({ example: 'Analista de nÃ³mina' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ example: 250 })
+  @IsOptional()
+  @IsNumber()
+  baseSalaryMin?: number;
+
+  @ApiPropertyOptional({ example: 450 })
+  @IsOptional()
+  @IsNumber()
+  baseSalaryMax?: number;
+}
+
+export class UpdatePayrollSettingDto {
+  @ApiProperty({ description: 'Clave del parÃ¡metro', example: 'SALARIO_MINIMO' })
+  @IsString()
+  key: string;
+
+  @ApiProperty({ description: 'Valor numÃ©rico', example: 130 })
+  @IsNumber()
+  value: number;
+}
+
+export class PayrollSettingResponseDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'SALARIO_MINIMO' })
+  key: string;
+
+  @ApiProperty({ example: 'Salario mÃ­nimo' })
+  label: string;
+
+  @ApiProperty({ example: 130 })
+  value: number;
+
+  @ApiProperty({ example: 'CURRENCY' })
+  type: string;
+
+  @ApiProperty({ nullable: true })
+  branchId: string | null;
+
+  @ApiProperty()
+  isActive: boolean;
+}

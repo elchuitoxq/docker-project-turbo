@@ -28,7 +28,7 @@ export const invoicesApi = {
     filters: { type?: 'SALE' | 'PURCHASE'; status?: string; page?: number; limit?: number } = {}
   ) =>
     apiClient.get<{ data: Invoice[]; total: number; page: number; limit: number }>(
-      `/billing/invoices${buildQuery(filters)}`
+      `/billing/invoices${buildQuery({ ...filters, paginated: 'true' })}`
     ),
   get: (id: string) => apiClient.get<Invoice>(`/billing/invoices/${id}`),
   post: (id: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/post`, {}),

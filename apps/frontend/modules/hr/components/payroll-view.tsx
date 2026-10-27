@@ -55,7 +55,7 @@ export function PayrollView() {
   const approve = useApprovePayroll();
   const pay = usePayPayroll();
 
-  const runs: PayrollRun[] = data?.data ?? [];
+  const runs: PayrollRun[] = data ?? [];
 
   return (
     <div className="flex flex-col gap-4">

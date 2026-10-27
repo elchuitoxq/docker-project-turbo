@@ -128,17 +128,17 @@ export const hrApi = {
       fromDate?: string;
       toDate?: string;
     } = {}
-  ) => apiClient.get<{ data: Incident[]; total: number }>(`/hr/incidents${buildQuery(filters)}`),
+  ) => apiClient.get<Incident[]>(`/hr/incidents${buildQuery(filters)}`),
   createIncident: (data: Partial<Incident>) => apiClient.post<Incident>('/hr/incidents', data),
   approveIncident: (id: string) => apiClient.post<Incident>(`/hr/incidents/${id}/approve`, {}),
   rejectIncident: (id: string) => apiClient.post<Incident>(`/hr/incidents/${id}/reject`, {}),
 
   listPayrolls: (filters: { status?: string; from?: string; to?: string } = {}) =>
-    apiClient.get<{ data: PayrollRun[]; total: number }>(`/hr/payroll${buildQuery(filters)}`),
+    apiClient.get<PayrollRun[]>(`/hr/payroll${buildQuery(filters)}`),
   getPayroll: (id: string) => apiClient.get<PayrollRun>(`/hr/payroll/${id}`),
   calculatePayroll: (periodFrom: string, periodTo: string) =>
     apiClient.post<PayrollRun>('/hr/payroll/calculate', { periodFrom, periodTo }),
-  approvePayroll: (id: string) => apiClient.post<PayrollRun>(`/hr/payroll/${id}/approve`, {}),
+  approvePayroll: (id: string) => apiClient.post<PayrollRun>(`/hr/payroll/${id}/process`, {}),
   payPayroll: (id: string) => apiClient.post<PayrollRun>(`/hr/payroll/${id}/pay`, {}),
 
   getSettings: () => apiClient.get<Record<string, unknown>>('/hr/settings'),

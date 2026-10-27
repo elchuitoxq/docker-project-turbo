@@ -657,14 +657,24 @@ describe('PartnersService', () => {
   });
 
   describe('remove', () => {
-    it('should soft delete partner by setting isSpecialTaxpayer to false', async () => {
-      vi.mocked(db).select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
+    /** partner encontrado, y sin facturas/pagos/pedidos asociados. */
+    function mockSelectsWithoutDocuments() {
+      let call = 0;
+      vi.mocked(db).select.mockImplementation((() => {
+        const rows = call === 0 ? [mockPartner] : [];
+        call += 1;
+        return {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue(makeAwaitable(rows)),
+            }),
           }),
-        }),
-      } as any);
+        } as any;
+      }) as never);
+    }
+
+    it('deactivates the partner when it has no related documents', async () => {
+      mockSelectsWithoutDocuments();
 
       vi.mocked(db).update.mockReturnValue({
         set: vi.fn().mockReturnValue({
@@ -676,6 +686,23 @@ describe('PartnersService', () => {
 
       expect(db.update).toHaveBeenCalledWith(partners);
       expect(result.message).toContain('deactivated successfully');
+    });
+
+    it('rejects with 409 when the partner has related documents', async () => {
+      let call = 0;
+      vi.mocked(db).select.mockImplementation((() => {
+        const rows = call === 0 ? [mockPartner] : [{ id: 'doc-1' }];
+        call += 1;
+        return {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue(makeAwaitable(rows)),
+            }),
+          }),
+        } as any;
+      }) as never);
+
+      await expect(service.remove(mockPartner.id)).rejects.toThrow(ConflictException);
     });
 
     it('should throw NotFoundException when removing non-existent partner', async () => {
@@ -690,14 +717,8 @@ describe('PartnersService', () => {
       await expect(service.remove('nonexistent-id')).rejects.toThrow(NotFoundException);
     });
 
-    it('should set updatedAt when soft deleting', async () => {
-      vi.mocked(db).select.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue(makeAwaitable([mockPartner])),
-          }),
-        }),
-      } as any);
+    it('should set updatedAt when deactivating', async () => {
+      mockSelectsWithoutDocuments();
 
       vi.mocked(db).update.mockReturnValue({
         set: vi.fn().mockReturnValue({

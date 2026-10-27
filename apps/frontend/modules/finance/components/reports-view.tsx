@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { reportsApi } from '../api/reports';
+import { ApiError } from '@/lib/api/client';
 import { formatCurrency } from '@/lib/utils';
 
 export function ReportsView() {
@@ -39,8 +40,16 @@ export function ReportsView() {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      alert('Error al generar el reporte');
+    } catch (error) {
+      // T-01-16: balance y estado de resultados aún no existen en la API (dependen de S-04).
+      // Se informa con claridad en vez de mostrar un error genérico.
+      if (error instanceof ApiError && error.status === 404) {
+        alert(
+          'Ese reporte todavía no está disponible: depende del cierre contable (S-04). Use el libro de IVA o ISLR.'
+        );
+      } else {
+        alert('Error al generar el reporte');
+      }
     } finally {
       setBusy(null);
     }

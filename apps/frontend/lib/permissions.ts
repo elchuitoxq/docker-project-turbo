@@ -87,8 +87,11 @@ export const PERMISSIONS = {
     INCIDENTS: {
       VIEW: 'hr:incidents:view',
       CREATE: 'hr:incidents:create',
+      APPROVE: 'hr:incidents:approve',
     },
-    SETTINGS: { VIEW: 'hr:settings:view' },
+    DEPARTMENTS: { MANAGE: 'hr:departments:manage' },
+    POSITIONS: { MANAGE: 'hr:positions:manage' },
+    SETTINGS: { VIEW: 'hr:settings:view', MANAGE: 'hr:settings:manage' },
   },
   SETTINGS: {
     VIEW: 'settings:view',

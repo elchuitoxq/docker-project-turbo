@@ -10,10 +10,10 @@ export type Warehouse = {
 };
 
 export const warehousesApi = {
-  list: () => apiClient.get<Warehouse[]>('/warehouses'),
-  get: (id: string) => apiClient.get<Warehouse>(`/warehouses/${id}`),
-  create: (data: Partial<Warehouse>) => apiClient.post<Warehouse>('/warehouses', data),
+  list: () => apiClient.get<Warehouse[]>('/inventory/warehouses'),
+  get: (id: string) => apiClient.get<Warehouse>(`/inventory/warehouses/${id}`),
+  create: (data: Partial<Warehouse>) => apiClient.post<Warehouse>('/inventory/warehouses', data),
   update: (id: string, data: Partial<Warehouse>) =>
-    apiClient.patch<Warehouse>(`/warehouses/${id}`, data),
-  remove: (id: string) => apiClient.delete<{ message: string }>(`/warehouses/${id}`),
+    apiClient.patch<Warehouse>(`/inventory/warehouses/${id}`, data),
+  remove: (id: string) => apiClient.delete<{ message: string }>(`/inventory/warehouses/${id}`),
 };

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../database';
-import { partners } from '../../schema';
-import { eq, sql, like, or } from 'drizzle-orm';
+import { partners, invoices, payments, orders } from '../../schema';
+import { eq, sql, like, or, ilike } from 'drizzle-orm';
 import {
   CreatePartnerDto,
   UpdatePartnerDto,
@@ -119,6 +119,10 @@ export class PartnersService {
     return this.findOne(id);
   }
 
+  /**
+   * Baja de un socio de negocio (T-01-17): si tiene documentos asociados responde 409 y
+   * sugiere desactivarlo; si no, lo desactiva (baja logica, no se borra la fila).
+   */
   async remove(id: string): Promise<{ message: string }> {
     const [partner] = await db.select().from(partners).where(eq(partners.id, id)).limit(1);
 
@@ -126,12 +130,66 @@ export class PartnersService {
       throw new NotFoundException(`Partner with ID ${id} not found`);
     }
 
+    const [invoice] = await db
+      .select({ id: invoices.id })
+      .from(invoices)
+      .where(eq(invoices.partnerId, id))
+      .limit(1);
+    const [payment] = await db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.partnerId, id))
+      .limit(1);
+    const [order] = await db
+      .select({ id: orders.id })
+      .from(orders)
+      .where(eq(orders.partnerId, id))
+      .limit(1);
+
+    if (invoice || payment || order) {
+      throw new ConflictException(
+        'Partner has related documents; deactivate it instead of deleting it'
+      );
+    }
+
     await db
       .update(partners)
-      .set({ isSpecialTaxpayer: false, updatedAt: new Date() })
+      .set({ isActive: false, updatedAt: new Date() })
       .where(eq(partners.id, id));
 
     return { message: `Partner ${id} deactivated successfully` };
+  }
+
+  /** Listado paginado en servidor (T-01-18). */
+  async findPaginated(options: {
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: PartnerResponseDto[]; total: number; page: number; limit: number }> {
+    const page = Math.max(options.page ?? 1, 1);
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
+
+    const where = options.search
+      ? or(
+          ilike(partners.name, `%${options.search}%`),
+          ilike(partners.taxId, `%${options.search}%`)
+        )
+      : undefined;
+
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(partners)
+      .where(where);
+
+    const rows = await db
+      .select()
+      .from(partners)
+      .where(where)
+      .orderBy(partners.name)
+      .limit(limit)
+      .offset((page - 1) * limit);
+
+    return { data: rows.map(this.toResponseDto), total: Number(count), page, limit };
   }
 
   async getStats(): Promise<PartnerStatsResponseDto> {

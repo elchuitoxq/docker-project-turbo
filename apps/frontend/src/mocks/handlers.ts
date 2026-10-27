@@ -397,6 +397,13 @@ export const handlers = [
     return HttpResponse.json({ id: 'pr-new', ...body }, { status: 201 });
   }),
 
+  http.get(`${API}/products/categories`, () => {
+    return HttpResponse.json([
+      { id: 'cat-1', name: 'Electrónica', description: null, parentId: null },
+      { id: 'cat-2', name: 'Servicios profesionales', description: null, parentId: null },
+    ]);
+  }),
+
   http.get(`${API}/products/:id`, ({ params }) => {
     return HttpResponse.json({
       id: params.id,
@@ -426,14 +433,7 @@ export const handlers = [
     return HttpResponse.json({ message: 'Product deleted' });
   }),
 
-  http.get(`${API}/product-categories`, () => {
-    return HttpResponse.json([
-      { id: 'cat-1', name: 'Electrónica', description: null, parentId: null },
-      { id: 'cat-2', name: 'Servicios profesionales', description: null, parentId: null },
-    ]);
-  }),
-
-  http.get(`${API}/warehouses`, () => {
+  http.get(`${API}/inventory/warehouses`, () => {
     return HttpResponse.json([
       {
         id: 'wh-1',
@@ -452,12 +452,12 @@ export const handlers = [
     ]);
   }),
 
-  http.post(`${API}/warehouses`, async ({ request }) => {
+  http.post(`${API}/inventory/warehouses`, async ({ request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ id: 'wh-new', ...body }, { status: 201 });
   }),
 
-  http.delete(`${API}/warehouses/:id`, () => {
+  http.delete(`${API}/inventory/warehouses/:id`, () => {
     return HttpResponse.json({ message: 'Warehouse deleted' });
   }),
 
@@ -526,7 +526,7 @@ export const handlers = [
     return HttpResponse.json({ message: 'approved' });
   }),
 
-  http.post(`${API}/inventory/moves/:id/cancel`, () => {
+  http.post(`${API}/inventory/moves/:id/reject`, () => {
     return HttpResponse.json({ message: 'cancelled' });
   }),
 
