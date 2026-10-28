@@ -1340,6 +1340,29 @@ export const accountingMaps = pgTable('accounting_maps', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+/**
+ * Tabla progresiva de ISLR por ejercicio (`H-59`, RN-09).
+ *
+ * Igual que el customizing de SAP: tramos en unidades tributarias con tasa y sustraendo, y una
+ * vigencia (`effectiveFrom`) para que un cambio de la ley no reescriba el pasado.
+ */
+export const incomeTaxBrackets = pgTable(
+  'income_tax_brackets',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    effectiveFrom: timestamp('effective_from').notNull(),
+    fromUt: numeric('from_ut', { precision: 14, scale: 2 }).notNull(),
+    toUt: numeric('to_ut', { precision: 14, scale: 2 }),
+    rate: numeric('rate', { precision: 6, scale: 4 }).notNull(),
+    discountUt: numeric('discount_ut', { precision: 14, scale: 2 }).default('0').notNull(),
+    source: text('source'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => [index('income_tax_brackets_effective_idx').on(t.effectiveFrom, t.fromUt)]
+);
+
 export const loans = pgTable(
   'loans',
   {

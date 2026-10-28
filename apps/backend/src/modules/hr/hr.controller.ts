@@ -324,6 +324,16 @@ export class HrController {
     return this.hrService.upsertPayrollSetting(dto, branchId);
   }
 
+  @Get('income-tax-table')
+  @RequirePermissions('hr:settings:view')
+  @ApiOperation({
+    summary: 'Current ISLR bracket table and tax unit value (RN-09)',
+  })
+  @ApiResponse({ status: 200, description: 'Brackets effective today' })
+  async getIncomeTaxTable(@Query('asOf') asOf?: string) {
+    return this.hrService.getIncomeTaxTable(asOf ? new Date(asOf) : new Date());
+  }
+
   @Get('concept-types')
   @RequirePermissions('hr:concepts:view')
   @ApiOperation({ summary: 'Get payroll concept types' })

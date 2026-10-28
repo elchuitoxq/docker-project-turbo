@@ -173,6 +173,21 @@ export type Settlement = {
   status: string;
 };
 
+/** Tabla de ISLR vigente y valor de la UT (`RN-09`). */
+export type IncomeTaxBracket = {
+  fromUt: number;
+  toUt: number | null;
+  rate: number;
+  discountUt: number;
+};
+
+export type IncomeTaxTable = {
+  effectiveFrom: string | null;
+  utValue: number;
+  singleDiscount: number;
+  brackets: IncomeTaxBracket[];
+};
+
 export type PayrollEntryLine = {
   id: string;
   accountId: string;
@@ -284,6 +299,8 @@ export const hrApi = {
     }
   ) => apiClient.post<PayrollPayment>(`/hr/payroll/${id}/pay`, body),
   postPayroll: (id: string) => apiClient.post<PayrollEntry>(`/hr/payroll/${id}/post`, {}),
+  getIncomeTaxTable: (asOf?: string) =>
+    apiClient.get<IncomeTaxTable>(`/hr/income-tax-table${buildQuery({ asOf })}`),
   getPayrollParameters: (id: string) =>
     apiClient.get<PayrollSetting[]>(`/hr/payroll/${id}/parameters`),
 

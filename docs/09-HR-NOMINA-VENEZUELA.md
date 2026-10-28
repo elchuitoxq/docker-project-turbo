@@ -403,6 +403,7 @@ la prueba que la sostiene, no a la intención de implementarla.
 | RN-06 | El tope se aplica antes de la alícuota                                     | `payroll.calculator.test.ts` · "aplica el tope de la base antes de la alícuota" |
 | RN-07 | Alícuotas parametrizadas por base                                          | `payroll.calculator.test.ts` · "aplica las deducciones legales"                 |
 | RN-08 | El costo patronal no reduce el neto                                        | `payroll.calculator.test.ts` · "registra el costo patronal sin restarlo"        |
+| RN-09 | ISLR progresivo por tramos en UT, con sustraendo y prorrateo mensual       | `payroll/income-tax.test.ts` · bordes de los 8 tramos y base sin retención      |
 | RN-10 | Neto negativo falla y no se persiste                                       | `payroll.calculator.test.ts` · "falla si el neto resulta negativo"              |
 | RN-11 | Se paga la modalidad mayor (garantía vs retroactivo)                       | `hr-benefits.test.ts` · "toma el salario integral del motor de nómina"          |
 | RN-12 | Días adicionales con tope                                                  | `labor-benefits.test.ts` · prestaciones (RN-11, RN-12, RN-13)                   |
@@ -421,11 +422,10 @@ la prueba que la sostiene, no a la intención de implementarla.
 
 **Reglas sin cobertura todavía**
 
-| Regla | Por qué                                                                                                       |
-| ----- | ------------------------------------------------------------------------------------------------------------- |
-| RN-09 | ISLR: falta la tabla progresiva y la definición de desgravámenes (decisión P-28). El concepto existe y paga 0 |
-| RN-21 | `VOID` de un run pagado: el estado está previsto en el enum pero la reversión no se implementó                |
-| RN-25 | Mapeo contable por concepto: depende de `accounting_maps` (S-04)                                              |
+| Regla | Por qué                                                                                        |
+| ----- | ---------------------------------------------------------------------------------------------- |
+| RN-21 | `VOID` de un run pagado: el estado está previsto en el enum pero la reversión no se implementó |
+| RN-25 | Mapeo contable por concepto: depende de `accounting_maps` (S-04)                               |
 
 > **Hueco detectado al validar la UI (H-72):** RN-14 y RN-15 se cumplen para antigüedad ≥ 1 año, pero
 > con `years = 0` acreditan 15 + 7 días completos. La liquidación en vivo de un empleado con un día de
@@ -441,11 +441,17 @@ patronal aparte y falla con un mensaje claro si el neto queda negativo; y las pr
 vacaciones, bono vacacional y utilidades se calculan con sus topes y se registran con idempotencia
 por trimestre y por ejercicio.
 
-**Lo que falta:** la retención de ISLR (requiere la tabla progresiva, decisión P-28), la reversión
-(`VOID`) de un run pagado (RN-21) y el mapeo contable por concepto (RN-25, depende de `accounting_maps`
-de `S-04`). La épica de nómina (`E2`) queda cerrada en lo funcional: backend, UI y casos legales.
+**Lo que falta:** la reversión (`VOID`) de un run pagado (RN-21) y el mapeo contable por concepto
+(RN-25, depende de `accounting_maps` de `S-04`). La retención de ISLR ya se aplica con la tabla
+progresiva real; el detalle de cada parámetro legal —qué pide la ley, cómo lo modela SAP, qué falta
+validar— está en [`10-PARAMETROS-LEGALES.md`](./10-PARAMETROS-LEGALES.md) (P-28). La épica de nómina
+(`E2`) queda cerrada en lo funcional: backend, UI y casos legales.
 
 ## 15. Decisiones abiertas (requieren validación profesional)
+
+> El desarrollo de cada punto —qué dice la fuente, qué confianza tiene, qué parámetro lo controla y
+> cómo se comprueba— está en [`10-PARAMETROS-LEGALES.md`](./10-PARAMETROS-LEGALES.md). Esa es la
+> versión para llevar a la reunión con el contador.
 
 1. **Alícuotas y topes vigentes** de IVSS, paro forzoso y FAOV: los porcentajes cambian por reforma
    y por decreto. Deben confirmarse antes de producción. ⚠️
@@ -455,8 +461,9 @@ de `S-04`). La épica de nómina (`E2`) queda cerrada en lo funcional: backend, 
    colectiva que mejore el mínimo legal.
 4. **Indemnización por egreso**: el cálculo del Art. 92 depende de la causa y del salario integral
    histórico; se implementará con tabla de días por año y debe validarse caso por caso.
-5. **Tarifa de ISLR**: requiere la tabla progresiva vigente y la definición de desgravámenes
-   aplicables (HCM, aportes, etc.).
+5. **Tarifa de ISLR**: la tabla progresiva del Art. 50 ya está cargada y el motor la aplica; falta
+   definir los **desgravámenes** aplicables (HCM, aportes, etc.) y el **descuento único anual**, que
+   quedó en 0 por la contradicción Bs. 774 vs. 774 UT.
 6. **Redondeo**: se adopta `HALF_UP` a 2 decimales en moneda funcional (regla M7 de `S-08`);
    confirmar si la práctica de la empresa redondea por concepto o sobre el neto.
 7. **Vacaciones y bono con menos de un año de servicio (H-72)**: `vacationEntitlement(0)` acredita

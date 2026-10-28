@@ -28,8 +28,9 @@ import {
   companies,
   currencies,
   accountingMaps,
+  incomeTaxBrackets,
 } from '../../../schema';
-import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, like, lte, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import { ConfigService } from '@nestjs/config';
@@ -55,6 +56,7 @@ import {
   EntryStatus,
 } from '../../accounting/dto/accounting.dto';
 import { buildPayrollJournalLines, type PayrollAccountMap } from '../payroll/payroll-posting';
+import { calculateIncomeTax } from '../payroll/income-tax';
 import { MoneyService } from '../../../common/money/money.service';
 import {
   CreateEmployeeDto,
@@ -768,6 +770,12 @@ export class HrService {
           periodEnd
         );
         const settings = this.toSettingNumbers(usedSettings, converter);
+        const incomeTax = await this.buildIncomeTaxCalculator(
+          periodEnd,
+          frozenSettings,
+          converter,
+          concepts
+        );
 
         for (const emp of activeEmployees) {
           const calculation = this.calculator.calculate(
@@ -786,6 +794,7 @@ export class HrService {
               concepts,
               convertToRunCurrency: converter.convert,
               runCurrency: runCurrency.code,
+              computeIncomeTax: incomeTax,
             }
           );
 
@@ -1929,6 +1938,116 @@ export class HrService {
       exchangeRate: Number(payment.exchangeRate ?? 1),
       date: (payment.date ?? new Date()).toISOString(),
     };
+  }
+
+  /**
+   * Tabla de ISLR vigente y valor de la UT (`RN-09`), para mostrarla en la guía de parámetros.
+   */
+  async getIncomeTaxTable(asOf: Date): Promise<{
+    effectiveFrom: string | null;
+    utValue: number;
+    singleDiscount: number;
+    brackets: Array<{
+      fromUt: number;
+      toUt: number | null;
+      rate: number;
+      discountUt: number;
+    }>;
+  }> {
+    const rows = await db
+      .select()
+      .from(incomeTaxBrackets)
+      .where(lte(incomeTaxBrackets.effectiveFrom, asOf))
+      .orderBy(desc(incomeTaxBrackets.effectiveFrom), incomeTaxBrackets.fromUt);
+
+    const settings = await db
+      .select()
+      .from(payrollSettings)
+      .where(
+        and(
+          inArray(payrollSettings.key, ['UNIDAD_TRIBUTARIA', 'ISLR_DESCUENTO_UNICO']),
+          isNull(payrollSettings.branchId)
+        )
+      );
+
+    const latestRow = rows[0];
+    const valueOf = (key: string) => Number(settings.find(row => row.key === key)?.value ?? 0);
+
+    return {
+      effectiveFrom: latestRow ? latestRow.effectiveFrom.toISOString() : null,
+      utValue: valueOf('UNIDAD_TRIBUTARIA'),
+      singleDiscount: valueOf('ISLR_DESCUENTO_UNICO'),
+      brackets: latestRow
+        ? rows
+            .filter(row => row.effectiveFrom.getTime() === latestRow.effectiveFrom.getTime())
+            .map(row => ({
+              fromUt: Number(row.fromUt),
+              toUt: row.toUt === null ? null : Number(row.toUt),
+              rate: Number(row.rate),
+              discountUt: Number(row.discountUt),
+            }))
+        : [],
+    };
+  }
+
+  /**
+   * Devuelve el calculador de ISLR o `undefined` si la empresa no usa el concepto (`RN-09`).
+   *
+   * La tabla y el valor de la UT son datos con vigencia; si un concepto con monto depende de
+   * `ISLR_WITHHOLDING` y falta cualquiera de los dos, el run **no se genera**: es mejor detenerlo
+   * que retener cero en silencio.
+   */
+  private async buildIncomeTaxCalculator(
+    at: Date,
+    frozenSettings: PayrollSettingRow[],
+    converter: CurrencyConverter,
+    concepts: ConceptDefinition[]
+  ): Promise<((annualBase: number) => number) | undefined> {
+    const usesIslr = concepts.some(concept => {
+      if (!concept.expression) return false;
+      return extractIdentifiers(concept.expression).includes('ISLR_WITHHOLDING');
+    });
+    if (!usesIslr) return undefined;
+
+    const rows = await db
+      .select()
+      .from(incomeTaxBrackets)
+      .where(lte(incomeTaxBrackets.effectiveFrom, at))
+      .orderBy(desc(incomeTaxBrackets.effectiveFrom), incomeTaxBrackets.fromUt);
+
+    if (rows.length === 0) {
+      throw new BadRequestException(
+        'No hay tramos de ISLR vigentes: cárguelos en Contabilidad → Parámetros legales antes de generar la nómina (RN-09).'
+      );
+    }
+
+    // Sólo vale el bloque de la vigencia más reciente: una reforma no se mezcla con la anterior.
+    const latest = rows[0].effectiveFrom.getTime();
+    const brackets = rows
+      .filter(row => row.effectiveFrom.getTime() === latest)
+      .map(row => ({
+        fromUt: Number(row.fromUt),
+        toUt: row.toUt === null ? null : Number(row.toUt),
+        rate: Number(row.rate),
+        discountUt: Number(row.discountUt),
+      }));
+
+    const islrSettings = frozenSettings.filter(row =>
+      ['UNIDAD_TRIBUTARIA', 'ISLR_DESCUENTO_UNICO'].includes(row.key)
+    );
+    const values = this.toSettingNumbers(islrSettings, converter);
+    const utValue = values['UNIDAD_TRIBUTARIA'];
+
+    if (!utValue || utValue <= 0) {
+      throw new BadRequestException(
+        'Falta el valor de la unidad tributaria (parámetro UNIDAD_TRIBUTARIA) para retener ISLR (RN-09).'
+      );
+    }
+
+    const singleDiscount = values['ISLR_DESCUENTO_UNICO'] ?? 0;
+
+    return (annualBase: number) =>
+      calculateIncomeTax(annualBase, brackets, { utValue, singleDiscount }).monthlyWithholding;
   }
 
   /** Tasa a moneda funcional para pagar el run: manual si viene, si no la del período. */

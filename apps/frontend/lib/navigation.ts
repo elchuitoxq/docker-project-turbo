@@ -266,6 +266,12 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'Percent',
       },
       {
+        title: 'Guía de parámetros legales',
+        url: '/dashboard/settings/payroll-guide',
+        permission: PERMISSIONS.HR.SETTINGS.VIEW,
+        icon: 'GraduationCap',
+      },
+      {
         title: 'Auditoría',
         url: '/dashboard/settings/audit',
         permission: PERMISSIONS.SETTINGS.USERS.VIEW,

@@ -16,6 +16,7 @@ export const CONCEPT_BASES = [
   'BASE_PARO',
   'BASE_FAOV',
   'BASE_ISLR',
+  'ISLR_WITHHOLDING',
   'PERIOD_DAYS',
   'MONTH_DAYS',
   'HOURS',
@@ -31,6 +32,7 @@ export const DERIVED_FROM_NORMAL = [
   'BASE_PARO',
   'BASE_FAOV',
   'BASE_ISLR',
+  'ISLR_WITHHOLDING',
 ] as const;
 
 const MAX_EXPRESSION_LENGTH = 200;

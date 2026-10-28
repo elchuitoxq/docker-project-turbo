@@ -141,6 +141,13 @@
       "when": 1793132000000,
       "tag": "0019_loan_item_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793135000000,
+      "tag": "0020_income_tax_brackets",
+      "breakpoints": true
     }
   ]
 }

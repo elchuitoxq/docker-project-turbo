@@ -27,8 +27,10 @@ import {
   accountingAccounts,
   accountingMaps,
   payrollConceptTypes,
+  payrollSettings,
+  incomeTaxBrackets,
 } from '../schema';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { seedRbac } from './seed-rbac';
 
@@ -99,6 +101,7 @@ export async function seedTestData() {
   await seedDepartments();
   await seedAccountingAccounts();
   await seedPayrollAccountingMaps();
+  await seedIncomeTaxBrackets();
   await seedOrders();
   await seedInvoices();
   await seedPayments();
@@ -836,6 +839,102 @@ async function seedPayrollAccountingMaps() {
   }
 
   console.log(`Payroll accounting maps seeded: ${values.length}`);
+}
+
+/**
+ * Tarifa de ISLR y valor de la unidad tributaria (`RN-09`).
+ *
+ * Los tramos son los del Art. 50 de la Ley de ISLR (tarifa Nº 1) y los sustraendos hacen la tarifa
+ * continua en cada borde. La unidad tributaria va como parámetro con vigencia: cuando salga un
+ * reajuste se agrega un registro nuevo y no se reescribe el histórico.
+ *
+ * El descuento único queda en 0 a propósito: la fuente consultada no permite decidir entre
+ * «Bs. 774» y «774 UT», y ese valor necesita validación profesional (P-28).
+ */
+async function seedIncomeTaxBrackets() {
+  console.log('Seeding income tax brackets...');
+
+  const effectiveFrom = new Date('2025-06-02T00:00:00.000Z');
+  const source = 'Ley de ISLR, Art. 50 (tarifa Nº 1) · UT 43 Bs desde 02/06/2025';
+
+  const brackets = [
+    { fromUt: '0', toUt: '1000', rate: '0.06', discountUt: '0' },
+    { fromUt: '1000', toUt: '1500', rate: '0.09', discountUt: '30' },
+    { fromUt: '1500', toUt: '2000', rate: '0.12', discountUt: '75' },
+    { fromUt: '2000', toUt: '2500', rate: '0.16', discountUt: '155' },
+    { fromUt: '2500', toUt: '3000', rate: '0.20', discountUt: '255' },
+    { fromUt: '3000', toUt: '4000', rate: '0.24', discountUt: '375' },
+    { fromUt: '4000', toUt: '6000', rate: '0.29', discountUt: '575' },
+    { fromUt: '6000', toUt: null, rate: '0.34', discountUt: '875' },
+  ];
+
+  await db.delete(incomeTaxBrackets);
+  await db.insert(incomeTaxBrackets).values(
+    brackets.map(bracket => ({
+      effectiveFrom,
+      fromUt: bracket.fromUt,
+      toUt: bracket.toUt,
+      rate: bracket.rate,
+      discountUt: bracket.discountUt,
+      source,
+    }))
+  );
+
+  const companyRows = await db.select({ id: companies.id }).from(companies);
+
+  const settings = [
+    { key: 'UNIDAD_TRIBUTARIA', label: 'Unidad tributaria (Bs)', value: '43', type: 'MONEY' },
+    {
+      key: 'ISLR_DESCUENTO_UNICO',
+      label: 'Descuento único anual de ISLR (Bs)',
+      value: '0',
+      type: 'MONEY',
+    },
+  ];
+
+  for (const company of companyRows) {
+    const concepts = await db
+      .select({ id: payrollConceptTypes.id })
+      .from(payrollConceptTypes)
+      .where(eq(payrollConceptTypes.companyId, company.id))
+      .limit(1);
+
+    if (concepts.length === 0) continue;
+
+    for (const setting of settings) {
+      const [existing] = await db
+        .select({ id: payrollSettings.id })
+        .from(payrollSettings)
+        .where(
+          and(
+            eq(payrollSettings.companyId, company.id),
+            eq(payrollSettings.key, setting.key),
+            eq(payrollSettings.effectiveFrom, effectiveFrom),
+            isNull(payrollSettings.branchId)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(payrollSettings)
+          .set({ value: setting.value, label: setting.label })
+          .where(eq(payrollSettings.id, existing.id));
+      } else {
+        await db
+          .insert(payrollSettings)
+          .values({ ...setting, companyId: company.id, effectiveFrom });
+      }
+    }
+  }
+
+  // El concepto de ISLR pasa a usar la retención calculada por el motor.
+  await db
+    .update(payrollConceptTypes)
+    .set({ kind: 'FORMULA', expression: 'ISLR_WITHHOLDING' })
+    .where(eq(payrollConceptTypes.code, 'ISLR'));
+
+  console.log(`Income tax brackets seeded: ${brackets.length}`);
 }
 
 async function seedOrders() {

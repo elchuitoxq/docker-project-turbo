@@ -54,6 +54,13 @@ export interface PayrollCalculationContext {
   convertToRunCurrency: (amount: number, fromCurrency: string) => number;
   /** Código de la moneda del run, para convertir el sueldo del contrato. */
   runCurrency: string;
+  /**
+   * Retención mensual de ISLR para una base anual (`RN-09`).
+   *
+   * El motor no conoce la tabla: la recibe como dato, igual que SAP recibe el customizing del
+   * impuesto. Si no se inyecta, el concepto de ISLR paga 0 y el run lo deja ver en el recibo.
+   */
+  computeIncomeTax?: (annualBase: number) => number;
 }
 
 export interface PayrollLine {
@@ -130,6 +137,12 @@ export class PayrollCalculator {
       variables[variable] = this.cap(variables.SALARY_NORMAL, context.settings[topeKey]);
     }
     variables.BASE_ISLR = variables.SALARY_NORMAL;
+
+    // ISLR: la base anual se proyecta con el salario normal del período (RN-09). La tabla y el
+    // valor de la UT llegan desde el servicio; el motor sólo aplica lo que recibe.
+    variables.ISLR_WITHHOLDING = context.computeIncomeTax
+      ? context.computeIncomeTax(variables.BASE_ISLR * 12)
+      : 0;
 
     // Pasada 2: deducciones, aportes y alícuotas sobre el salario normal.
     const phaseTwo = context.concepts.filter(

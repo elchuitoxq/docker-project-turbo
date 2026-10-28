@@ -2125,3 +2125,55 @@ aparecían en inglés (`payables`, `credit-notes`).
 
 - Frontend **149/149** (8 nuevas) · backend **953/953** · database **39/39** · E2E **11/11** ·
   turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
+
+### BT-058 · 2026-10-27 · P-28: ISLR real y guía interactiva de parámetros legales
+
+**Lo que había**
+
+La nómina tenía el concepto de ISLR pero **pagaba 0**: no existía la tabla progresiva del Art. 50, y
+las decisiones legales vivían dispersas en un listado de «pendientes de validar» sin decir qué
+parámetro las controlaba ni cómo comprobarlas. Configurar la nómina era adivinar.
+
+**Qué se entregó**
+
+| Pieza                                                | Contenido                                                                                                         |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `payroll/income-tax.ts`                              | Calculadora pura: ubica el tramo, aplica tasa y sustraendo, prorratea a 12 meses, falla si falta la tabla o la UT |
+| `0020_income_tax_brackets.sql` + `incomeTaxBrackets` | Tabla de tramos con vigencia (`effective_from`)                                                                   |
+| `seedIncomeTaxBrackets()`                            | Los 8 tramos del Art. 50, `UNIDAD_TRIBUTARIA` = 43 Bs e `ISLR_DESCUENTO_UNICO` = 0                                |
+| `GET /v1/hr/income-tax-table?asOf=`                  | Devuelve tramos + UT vigentes a una fecha (`hr:settings:view`)                                                    |
+| `concept-expression.ts`                              | `ISLR_WITHHOLDING` disponible en las fórmulas de concepto                                                         |
+| `lib/payroll-guide.ts`                               | Los 7 bloques de P-28 (ley + SAP + decisión + comprobación) y `computeIslr` para simular                          |
+| `payroll-guide-view.tsx`                             | Pantalla con estado real por bloque, progreso, tarifa vigente y simulador                                         |
+| `docs/10-PARAMETROS-LEGALES.md`                      | La versión larga: por componente, qué dice la fuente, con qué confianza y qué falta validar                       |
+
+**Decisiones**
+
+- **La tabla es un dato, no código.** Un cambio de decreto es un registro nuevo con fecha; el motor
+  sólo lee. Si no hay tramos vigentes el run **no se genera** (misma lógica que SAP: mejor fallar que
+  retener cero en silencio).
+- **El descuento único quedó en 0** porque la fuente lo contradice (Bs. 774 nominal vs. 774 UT). Se
+  modeló como parámetro, así que corregirlo no toca código. Consecuencia documentada: con 0 **todo**
+  ingreso positivo retiene algo.
+- **La confianza de la fuente es parte del dato.** Un bloque con valores completos pero fuente de
+  confianza baja se muestra en «Revisar»: el problema no es el número, es que nadie lo confirmó.
+- **El simulador comparte aritmética con el backend** (`computeIslr` replica `income-tax.ts`) para
+  poder ver el efecto de un cambio sin llamar a la API en cada tecla.
+
+**Verificación con datos reales**
+
+| Qué                                  | Resultado                                                             |
+| ------------------------------------ | --------------------------------------------------------------------- |
+| `GET /v1/hr/income-tax-table`        | 8 tramos, UT = 43, `singleDiscount` = 0                               |
+| Run `NOM-000003` (sueldo 365.000 Bs) | Retención **120.964,58** — igual al cálculo a mano                    |
+| Simulador con 365.000 Bs             | **120.964,58**, idéntico al run real                                  |
+| Simulador con 100 Bs                 | **6,00** (6 % del primer tramo, sin mínimo exento)                    |
+| Pantalla                             | 7 bloques, 2 configurados / 5 a revisar / 0 pendientes, progreso 29 % |
+| Breadcrumb                           | `Panel / Configuración / Guía de parámetros legales`                  |
+
+**Pruebas**
+
+- `payroll/income-tax.test.ts` (9): bordes de cada tramo, continuidad, descuento que no supera el
+  impuesto, base cero, fallo sin tabla o sin UT.
+- `lib/payroll-guide.test.ts` (15): contenido de los 7 bloques, estados y progreso, y 6 de paridad de
+  `computeIslr` — incluida la retención real de `NOM-000003`.

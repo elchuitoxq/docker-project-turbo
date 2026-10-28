@@ -56,6 +56,7 @@ const LABELS: Record<string, string> = {
   'tax-concepts': 'Impuestos',
   'payroll-settings': 'Parámetros de nómina',
   'payroll-concepts': 'Conceptos de nómina',
+  'payroll-guide': 'Guía de parámetros legales',
   audit: 'Auditoría',
 };
 

@@ -23,6 +23,7 @@ import {
   PiggyBank,
   CircleDollarSign,
   Percent,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -58,6 +59,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   CircleDollarSign,
   Percent,
   FileText,
+  GraduationCap,
 };
 
 type SearchResult = {

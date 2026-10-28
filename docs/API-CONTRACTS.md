@@ -356,6 +356,7 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 | `PATCH`  | `/v1/hr/concept-types/:id`      | `hr:concepts:manage` |
 | `DELETE` | `/v1/hr/concept-types/:id`      | `hr:concepts:manage` |
 | `GET`    | `/v1/hr/payroll/:id/parameters` | `hr:payroll:view`    |
+| `GET`    | `/v1/hr/income-tax-table?asOf=` | `hr:settings:view`   |
 
 - `PATCH /hr/settings` **no edita el histórico**: guarda una fila nueva con su `effectiveFrom`. La UI
   lo presenta como "nueva vigencia", no como "editar".
@@ -363,6 +364,9 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
   nómina: el catálogo es histórico, no se borra lo que ya pagó.
 - `GET /hr/payroll/:id/parameters` devuelve la **copia congelada** del período (IDs distintos a los
   parámetros vivos). Es lo que el recibo muestra como evidencia.
+- `GET /hr/income-tax-table` devuelve los tramos vigentes a la fecha y el valor de la UT:
+  `{ effectiveFrom, utValue, singleDiscount, brackets[] }`. Si no hay tramos, el run **no se genera**
+  (RN-09); el endpoint devuelve la lista vacía para que la UI lo advierta antes.
 - `EmployeeResponseDto` incorpora `salaryCurrencyId` y `salaryCurrencyCode` (H-71): sin ellos la UI no
   puede decir si un sueldo de `10.000` es USD o VES. Los importes diarios de vacaciones y prestaciones
   (`normalDaily`, `integralDaily`) vienen en **moneda funcional**; el sueldo del contrato viene en la
