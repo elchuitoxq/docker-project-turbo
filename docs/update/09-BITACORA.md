@@ -2231,3 +2231,49 @@ del trabajador. La retención salía más alta que la real en todos los casos.
   nómina ahí fallaba con 500 y la guía aparecía vacía.
 - **H-105**: correr el seed del catálogo después del de impuestos devolvía el concepto `ISLR` a
   `FIXED` y la retención pasaba a 0 **sin error**.
+
+### BT-060 · 2026-10-28 · «Olvidé mi contraseña» deja de depender del administrador (P-23)
+
+**Lo que había**
+
+La API ya enviaba el enlace por correo (`POST /v1/auth/forgot-password`, con respuesta genérica para no
+filtrar cuentas) y `/reset-password` ya funcionaba. Lo que faltaba era **la puerta**: no había ningún
+formulario público donde pedirlo, así que un usuario que olvidaba su clave dependía de que alguien con
+acceso al correo del sistema o a la base lo resolviera.
+
+**Qué se entregó**
+
+| Pieza                                      | Contenido                                                          |
+| ------------------------------------------ | ------------------------------------------------------------------ |
+| `app/(auth)/forgot-password/page.tsx`      | Ruta pública, mismo layout que login y reset                       |
+| `components/auth/forgot-password-form.tsx` | Un solo campo (correo), estados de envío y error                   |
+| `login-form.tsx`                           | Enlace «¿Olvidaste tu contraseña?» junto a la etiqueta de la clave |
+| i18n `es-VE` / `en-US`                     | `auth.forgot` y `auth.forgotPassword.*`                            |
+| `docs/API-CONTRACTS.md`                    | Contrato de los dos endpoints y su límite de intentos              |
+
+**Decisiones**
+
+- **El mensaje es siempre el mismo**, exista o no la cuenta: la pantalla repite la frase con el correo
+  que se escribió y nunca confirma si está registrado. La API ya lo hacía así; la UI no lo estropea.
+- **El texto es localizado, no el de la API**: el mensaje del backend está en inglés y la pantalla en
+  español mezclaba idiomas. La pantalla usa sus propias traducciones.
+- **El enlace directo sólo aparece en desarrollo** (`mockUrl`): sin `SMTP_URL` no hay correo, y sin
+  enlace no habría forma de probar el flujo. En producción el campo no llega y la alerta no se pinta.
+- **El límite de intentos se explica**: 3 por minuto; con `429` la pantalla dice que se espere, en vez
+  de mostrar un error técnico.
+
+**Verificación en el navegador (flujo completo, no simulado)**
+
+| Paso                                     | Resultado                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| Login → «¿Olvidaste tu contraseña?»      | abre `/forgot-password`                                            |
+| Enviar `test-admin@test.local`           | «Si test-admin@test.local está registrado…» + enlace de desarrollo |
+| Abrir el enlace                          | formulario de nueva contraseña con el token                        |
+| Guardar `NuevaClave123!`                 | «Tu contraseña fue actualizada»                                    |
+| `POST /v1/auth/login` con la clave nueva | **200** con el usuario correcto                                    |
+| Restaurada la clave de prueba            | `Test1234!` vuelve a autenticar                                    |
+
+**Pruebas**
+
+- E2E `forgot-password.spec.ts` **4**: llegada desde el login, mensaje genérico sin enlace, enlace de
+  desarrollo cuando `mockUrl` está presente, y el `429` explicado en pantalla.

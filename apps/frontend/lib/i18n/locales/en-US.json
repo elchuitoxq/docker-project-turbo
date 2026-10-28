@@ -10,6 +10,20 @@
     "submit": "Sign in",
     "invalidCredentials": "Invalid credentials",
     "sessionExpired": "Your session has expired",
+    "forgot": "Forgot your password?",
+    "forgotPassword": {
+      "title": "Recover password",
+      "description": "Enter your account email and we will send you a link to choose a new one.",
+      "email": "Email",
+      "hint": "Use the same email you sign in with.",
+      "submit": "Send link",
+      "sentTitle": "Check your inbox",
+      "sentDescription": "If {email} is registered, the link is on its way.",
+      "devLinkTitle": "Development link",
+      "devLinkDescription": "With no mail provider configured, use this link directly:",
+      "tooManyAttempts": "Too many attempts. Wait a minute and try again.",
+      "backToLogin": "Back to sign in"
+    },
     "resetPassword": {
       "title": "Reset password",
       "description": "Choose a new password for your account.",

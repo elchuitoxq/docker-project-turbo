@@ -10,6 +10,20 @@
     "submit": "Entrar",
     "invalidCredentials": "Credenciales inválidas",
     "sessionExpired": "Tu sesión ha expirado",
+    "forgot": "¿Olvidaste tu contraseña?",
+    "forgotPassword": {
+      "title": "Recuperar contraseña",
+      "description": "Escribe el correo de tu cuenta y te enviamos un enlace para elegir una nueva.",
+      "email": "Correo electrónico",
+      "hint": "Usa el mismo correo con el que entras al sistema.",
+      "submit": "Enviar enlace",
+      "sentTitle": "Revisa tu correo",
+      "sentDescription": "Si {email} está registrado, el enlace ya va en camino.",
+      "devLinkTitle": "Enlace de desarrollo",
+      "devLinkDescription": "Sin correo configurado, usa este enlace directamente:",
+      "tooManyAttempts": "Demasiados intentos. Espera un minuto e inténtalo de nuevo.",
+      "backToLogin": "Volver al inicio de sesión"
+    },
     "resetPassword": {
       "title": "Restablecer contraseña",
       "description": "Elige una nueva contraseña para tu cuenta.",

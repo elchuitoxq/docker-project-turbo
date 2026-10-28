@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
@@ -74,7 +75,15 @@ export function LoginForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">{t('password')}</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="password">{t('password')}</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:underline"
+              >
+                {t('forgot')}
+              </Link>
+            </div>
             <Input
               id="password"
               type="password"

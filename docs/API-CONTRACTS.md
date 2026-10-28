@@ -45,8 +45,18 @@ y `apps/backend/src/common/decorators/current-branch.decorator.ts`.
 - `core:branch:all` (sólo `SUPER_ADMIN`) habilita el modo consolidado sobre
   cualquier sucursal existente.
 - `GET /v1/auth/me` devuelve además `defaultBranchId`, con la que la UI debe arrancar.
-- Toda escritura sobre dinero o stock deja fila en `audit_logs` con `branch_id`,
-  usuario, IP y el cuerpo saneado (ver `AuditWriteInterceptor`).
+
+## Recuperación de contraseña
+
+`POST /v1/auth/forgot-password` (`@Public`, 3 intentos/min por IP) recibe `{ email }` y responde
+**siempre** `{ message }` genérico, exista o no la cuenta, para no filtrar qué correos están
+registrados. Fuera de producción agrega `mockUrl` con el enlace directo, porque sin `SMTP_URL` no hay
+correo. La pantalla está en `/forgot-password` y desde ahí se llega al formulario de `/reset-password`.
+
+`POST /v1/auth/reset-password` (`@Public`, 3 intentos/min) recibe `{ token, newPassword }`; consume el
+token y borra cualquier otro pendiente del usuario. Un token usado, vencido o inexistente responde
+`401`.- Toda escritura sobre dinero o stock deja fila en `audit_logs` con `branch_id`,
+usuario, IP y el cuerpo saneado (ver `AuditWriteInterceptor`).
 
 ## Partners
 
