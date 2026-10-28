@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Banknote, Lock, Receipt } from 'lucide-react';
+import { ArrowLeft, Banknote, BookOpen, Lock, Receipt } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { usePayroll, usePayPayroll } from '@/modules/hr/hooks';
+import { usePayroll, usePayPayroll, usePostPayroll } from '@/modules/hr/hooks';
 import { hrApi, type ConceptCategory, type PayrollItem, type PayrollLine } from '@/modules/hr/api';
 import { treasuryApi } from '@/modules/finance/api/treasury';
 import { useQuery } from '@tanstack/react-query';
@@ -96,6 +96,7 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
     enabled: canProcess,
   });
   const payPayroll = usePayPayroll();
+  const postPayroll = usePostPayroll();
 
   const run = runQuery.data;
   const items = useMemo(() => run?.items ?? [], [run]);
@@ -155,6 +156,27 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={run.status === 'PAID' ? 'default' : 'secondary'}>{run.status}</Badge>
+          {canProcess && run.status !== 'DRAFT' ? (
+            <Button
+              variant="outline"
+              onClick={() =>
+                postPayroll.mutate(run.id, {
+                  onSuccess: entry =>
+                    toast.success(
+                      `Asiento ${entry.reference ?? entry.id} contabilizado por ${entry.lines.length} cuentas`
+                    ),
+                  onError: error =>
+                    toast.error(
+                      error instanceof Error ? error.message : 'No se pudo contabilizar la nómina'
+                    ),
+                })
+              }
+              disabled={postPayroll.isPending}
+            >
+              <BookOpen data-icon="inline-start" />
+              {postPayroll.isPending ? 'Contabilizando…' : 'Contabilizar'}
+            </Button>
+          ) : null}
           {canProcess && run.status !== 'PAID' ? (
             <Button onClick={() => setPayOpen(true)}>
               <Banknote data-icon="inline-start" />

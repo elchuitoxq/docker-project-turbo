@@ -235,6 +235,22 @@ export class HrController {
     return this.hrService.payPayrollRun(id, dto, branchId, user.id);
   }
 
+  @Post('payroll/:id/post')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({
+    summary: 'Post the payroll run to accounting by concept (RN-25, idempotent per run)',
+  })
+  @ApiResponse({ status: 200, description: 'Accounting entry created or reused' })
+  @ApiResponse({ status: 400, description: 'Run in draft or concept without accounting map' })
+  async postPayrollRun(
+    @Param('id') id: string,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    return this.hrService.postPayrollRun(id, branchId, user.id);
+  }
+
   @Get('payroll/:runId/payslip/:itemId')
   @ApiOperation({ summary: 'Get payslip for employee' })
   @ApiResponse({ status: 200, description: 'Payslip data', type: PayslipDto })

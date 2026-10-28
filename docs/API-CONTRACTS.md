@@ -615,6 +615,25 @@ availableAmount }` y rechaza si `amount` supera el disponible de la nota o el sa
   `minStock` y `belowMinimum`, para que la pantalla pueda alertar sin recalcular en el cliente. El
   endpoint respeta la sucursal del almacén (404 si pertenece a otra).
 
+## Nómina: contabilización por concepto (desde 2026-10-27)
+
+`H-59`, RN-25 y §12 de [`09-HR-NOMINA-VENEZUELA.md`](./09-HR-NOMINA-VENEZUELA.md).
+
+| Método | Ruta                      | Permiso              |
+| ------ | ------------------------- | -------------------- |
+| `POST` | `/v1/hr/payroll/:id/post` | `hr:payroll:process` |
+
+- **Cada concepto con monto necesita su mapeo** en `accounting_maps` con `module = 'PAYROLL'` y
+  `transactionType = <código del concepto>`; `debitAccountId`/`creditAccountId` definen el par.
+  Sin mapeo el run **no se contabiliza** y el error nombra los conceptos que faltan (RN-25).
+- **El asiento cuadra por construcción**: cada concepto aporta su débito y su crédito, así que
+  `totalDebit === totalCredit` siempre. Las asignaciones acreditan «sueldos por pagar» y las
+  deducciones lo debitan, de modo que el saldo de esa cuenta es el **neto** del run.
+- Los conceptos `INFORMATIVE` no mueven cuentas: exponen bases y alícuotas y se descartan.
+- **Idempotente** por `(sourceType = 'PAYROLL', sourceId = runId)`: llamarlo de nuevo devuelve el
+  mismo asiento en lugar de duplicarlo. Un run en `DRAFT` no se contabiliza.
+- El mapa de la sucursal gana sobre el genérico (`branchId = null`).
+
 ## Brechas pendientes
 
 1. ~~Aplicar autorización backend a los controladores restantes~~ — **resuelto**: los guards
@@ -626,7 +645,7 @@ availableAmount }` y rechaza si `amount` supera el disponible de la nota o el sa
    necesita la vista, o simplificar la vista al resumen implementado.
 5. Pendiente de la ola 1 (`S-00`): E2E de aislamiento entre sucursales contra el
    build de producción (T-00-12) y escritura de catálogo bajo `core:catalog:manage`.
-6. Nómina: falta el contrato de ISLR (RN-09, bloqueado por la tabla progresiva de `P-28`), la
-   reversión de un run pagado (RN-21, `VOID`) y el mapeo contable por concepto (RN-25, depende de
-   `accounting_maps` de `S-04`). También queda validar que el `methodId` del pago pertenezca a la
-   sucursal del run.
+6. Nómina: falta el contrato de ISLR (RN-09, bloqueado por la tabla progresiva de `P-28`) y la
+   reversión de un run pagado (RN-21, `VOID`). ~~El mapeo contable por concepto (RN-25)~~ quedó
+   resuelto con `accounting_maps[PAYROLL]` y `POST /hr/payroll/:id/post`. También queda validar que
+   el `methodId` del pago pertenezca a la sucursal del run.

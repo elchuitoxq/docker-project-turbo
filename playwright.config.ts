@@ -7,7 +7,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
-  workers: isCI ? 1 : undefined,
+  // La API limita a 100 peticiones por minuto y por IP: con más de 2 navegadores en paralelo la
+  // propia suite agota el límite y falla por 429, no por un defecto del producto.
+  workers: isCI ? 1 : 2,
   timeout: 30_000,
   expect: { timeout: 15_000 },
   reporter: isCI ? [['list'], ['html', { open: 'never' }]] : [['html', { open: 'never' }]],

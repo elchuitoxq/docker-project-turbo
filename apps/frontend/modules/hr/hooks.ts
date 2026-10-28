@@ -160,6 +160,18 @@ export function usePayPayroll() {
   });
 }
 
+/** Contabiliza el run por concepto (`H-59`, RN-25). Idempotente: repite el mismo asiento. */
+export function usePostPayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.postPayroll(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hrKeys.payrolls });
+      qc.invalidateQueries({ queryKey: ['accounting'] });
+    },
+  });
+}
+
 export const payrollConfigKeys = {
   settings: (asOf?: string) => ['hr', 'payroll-settings', asOf ?? 'today'] as const,
   concepts: ['hr', 'payroll-concepts'] as const,

@@ -19,48 +19,12 @@ import { Button } from '@/components/ui/button';
 import { ModeToggle } from '@/components/mode-toggle';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CommandPalette } from './command-palette';
-
-const LABELS: Record<string, string> = {
-  dashboard: 'Panel',
-  operations: 'Operaciones',
-  inventory: 'Inventario',
-  finance: 'Finanzas',
-  hr: 'Recursos Humanos',
-  settings: 'Configuración',
-  partners: 'Clientes y Proveedores',
-  sales: 'Ventas',
-  purchases: 'Compras',
-  orders: 'Pedidos',
-  products: 'Productos',
-  warehouses: 'Almacenes',
-  moves: 'Movimientos',
-  invoices: 'Facturación',
-  treasury: 'Tesorería',
-  'daily-close': 'Cierre diario',
-  retentions: 'Retenciones',
-  reports: 'Reportes',
-  employees: 'Empleados',
-  positions: 'Cargos',
-  departments: 'Departamentos',
-  payroll: 'Nómina',
-  incidents: 'Novedades',
-  users: 'Usuarios y Roles',
-  branches: 'Sucursales',
-  banks: 'Bancos',
-  currencies: 'Monedas',
-  'tax-concepts': 'Impuestos',
-  'payroll-settings': 'Parámetros de nómina',
-  'payroll-concepts': 'Conceptos de nómina',
-  accounting: 'Contabilidad',
-  entries: 'Asientos',
-  periods: 'Cierre y reportes',
-};
+import { buildCrumbs } from '@/lib/breadcrumb';
 
 export function AppHeader() {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const segments = pathname.split('/').filter(Boolean);
-  const crumbs = segments.map(segment => ({ slug: segment, label: LABELS[segment] ?? segment }));
+  const crumbs = buildCrumbs(pathname);
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-3 backdrop-blur sm:px-4">
@@ -70,17 +34,18 @@ export function AppHeader() {
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList>
           {crumbs.map((crumb, i) => {
-            const href = '/' + segments.slice(0, i + 1).join('/');
             const isLast = i === crumbs.length - 1;
             return (
-              <React.Fragment key={href}>
+              <React.Fragment key={crumb.href}>
                 {i > 0 && <BreadcrumbSeparator />}
                 <BreadcrumbItem>
                   {isLast ? (
-                    <BreadcrumbPage className="truncate">{crumb.label}</BreadcrumbPage>
+                    <BreadcrumbPage className="truncate" title={crumb.slug}>
+                      {crumb.label}
+                    </BreadcrumbPage>
                   ) : (
                     <BreadcrumbLink asChild>
-                      <Link href={href}>{crumb.label}</Link>
+                      <Link href={crumb.href}>{crumb.label}</Link>
                     </BreadcrumbLink>
                   )}
                 </BreadcrumbItem>

@@ -27,6 +27,7 @@ import {
   branches,
   companies,
   currencies,
+  accountingMaps,
 } from '../../../schema';
 import { eq, and, desc, isNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,6 +48,13 @@ import {
 } from '../payroll/labor-benefits';
 import { CurrencyConverter, PayrollSettingRow } from '../payroll/payroll.types';
 import { ExchangeRateService } from '../../settings/currencies/exchange-rate.service';
+import { AccountingService } from '../../accounting/accounting.service';
+import {
+  EntryResponseDto,
+  EntrySourceType,
+  EntryStatus,
+} from '../../accounting/dto/accounting.dto';
+import { buildPayrollJournalLines, type PayrollAccountMap } from '../payroll/payroll-posting';
 import { MoneyService } from '../../../common/money/money.service';
 import {
   CreateEmployeeDto,
@@ -88,7 +96,8 @@ export class HrService {
       new ConfigService()
     ),
     private readonly benefits: LaborBenefits = new LaborBenefits(),
-    private readonly treasury: TreasuryService = new TreasuryService(new MoneyService())
+    private readonly treasury: TreasuryService = new TreasuryService(new MoneyService()),
+    private readonly accounting: AccountingService = new AccountingService()
   ) {}
 
   async findAllEmployees(branchId?: string): Promise<EmployeeResponseDto[]> {
@@ -1815,6 +1824,90 @@ export class HrService {
       .where(eq(payrollRuns.id, run.id));
 
     return this.toPayrollPaymentResponse(run.code, PayrollRunStatus.PAID, payment, false);
+  }
+
+  /**
+   * Contabiliza el run de nómina (`H-59`, RN-25).
+   *
+   * Cada concepto con monto aporta su par débito/crédito desde `accounting_maps`
+   * (`module = PAYROLL`, `transactionType = <código de concepto>`), así que el asiento cuadra por
+   * construcción y el neto queda como saldo de «sueldos por pagar». Si falta el mapeo de un
+   * concepto con monto el run **no se contabiliza**: es preferible detenerlo a descuadrar el libro.
+   *
+   * Es idempotente por `(sourceType = 'PAYROLL', sourceId = runId)`: volver a llamarlo devuelve el
+   * asiento existente en lugar de duplicarlo.
+   */
+  async postPayrollRun(
+    runId: string,
+    branchId?: string,
+    userId?: string
+  ): Promise<EntryResponseDto> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
+
+    if (!run || (branchId && run.branchId !== branchId)) {
+      throw new NotFoundException(`Payroll run with ID ${runId} not found`);
+    }
+
+    const existing = await this.accounting.findEntryBySource(EntrySourceType.PAYROLL, run.id);
+    if (existing) return existing;
+
+    if (run.status === PayrollRunStatus.DRAFT) {
+      throw new BadRequestException(
+        'El run está en borrador: procéselo antes de contabilizarlo (RN-25)'
+      );
+    }
+
+    const lines = await db
+      .select({
+        conceptCode: payrollItemLines.conceptCode,
+        conceptName: payrollItemLines.conceptName,
+        category: payrollItemLines.category,
+        amount: payrollItemLines.amount,
+      })
+      .from(payrollItemLines)
+      .innerJoin(payrollItems, eq(payrollItems.id, payrollItemLines.itemId))
+      .where(eq(payrollItems.runId, run.id));
+
+    const mapRows = await db
+      .select({
+        transactionType: accountingMaps.transactionType,
+        debitAccountId: accountingMaps.debitAccountId,
+        creditAccountId: accountingMaps.creditAccountId,
+        branchId: accountingMaps.branchId,
+      })
+      .from(accountingMaps)
+      .where(and(eq(accountingMaps.module, 'PAYROLL'), eq(accountingMaps.isActive, true)));
+
+    // El mapa de la sucursal gana sobre el genérico (`branchId = null`).
+    const byConcept = new Map<string, PayrollAccountMap>();
+    for (const row of mapRows) {
+      if (!row.transactionType) continue;
+      const current = byConcept.get(row.transactionType);
+      if (!current || row.branchId === run.branchId) {
+        byConcept.set(row.transactionType, {
+          transactionType: row.transactionType,
+          debitAccountId: row.debitAccountId,
+          creditAccountId: row.creditAccountId,
+        });
+      }
+    }
+
+    const posting = buildPayrollJournalLines(
+      lines.map(line => ({ ...line, amount: Number(line.amount ?? 0) })),
+      [...byConcept.values()]
+    );
+
+    return this.accounting.createEntry({
+      date: (run.endDate ?? new Date()).toISOString(),
+      description: `Nómina ${run.code}`,
+      reference: run.code,
+      branchId: run.branchId,
+      sourceType: EntrySourceType.PAYROLL,
+      sourceId: run.id,
+      userId,
+      status: EntryStatus.POSTED,
+      lines: posting.lines,
+    });
   }
 
   private toPayrollPaymentResponse(

@@ -25,6 +25,8 @@ import {
   departments,
   employees,
   accountingAccounts,
+  accountingMaps,
+  payrollConceptTypes,
 } from '../schema';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
@@ -96,6 +98,7 @@ export async function seedTestData() {
   await seedEmployees();
   await seedDepartments();
   await seedAccountingAccounts();
+  await seedPayrollAccountingMaps();
   await seedOrders();
   await seedInvoices();
   await seedPayments();
@@ -767,6 +770,72 @@ async function seedAccountingAccounts() {
     });
 
   console.log('Accounting accounts seeded');
+}
+
+/**
+ * Mapeo contable de la nómina (`H-59`, RN-25).
+ *
+ * No inventa un plan de cuentas: usa el que ya existe por compañía. Cada concepto con monto apunta
+ * a su par débito/crédito según su naturaleza y la clave es `(module = PAYROLL, transactionType =
+ * código de concepto)`.
+ */
+async function seedPayrollAccountingMaps() {
+  console.log('Seeding payroll accounting maps...');
+
+  const companyRows = await db.select({ id: companies.id }).from(companies);
+
+  // Cuentas por código: las de sueldos/gastos y las de obligaciones por pagar del plan existente.
+  const accountRows = await db
+    .select({ id: accountingAccounts.id, code: accountingAccounts.code })
+    .from(accountingAccounts);
+  const byCode = new Map<string, string>();
+  for (const row of accountRows) {
+    if (!byCode.has(row.code)) byCode.set(row.code, row.id);
+  }
+
+  const required = ['6.1.1.001', '6.1.1.002', '2.1.1.003', '2.1.1.004', '2.1.1.005'];
+  const missing = required.filter(code => !byCode.has(code));
+  if (missing.length > 0) {
+    console.log(`Plan de cuentas incompleto para nómina, faltan: ${missing.join(', ')}`);
+    return;
+  }
+
+  await db.delete(accountingMaps).where(eq(accountingMaps.module, 'PAYROLL'));
+
+  const values: Array<typeof accountingMaps.$inferInsert> = [];
+  for (const company of companyRows) {
+    const concepts = await db
+      .select({ code: payrollConceptTypes.code, category: payrollConceptTypes.category })
+      .from(payrollConceptTypes)
+      .where(eq(payrollConceptTypes.companyId, company.id));
+
+    for (const concept of concepts) {
+      const pair =
+        concept.category === 'ASSIGNMENT'
+          ? { debit: '6.1.1.001', credit: '2.1.1.004' }
+          : concept.category === 'DEDUCTION'
+            ? { debit: '2.1.1.004', credit: concept.code === 'ISLR' ? '2.1.1.003' : '2.1.1.005' }
+            : concept.category === 'EMPLOYER_CONTRIBUTION'
+              ? { debit: '6.1.1.002', credit: '2.1.1.005' }
+              : null;
+
+      if (!pair) continue;
+
+      values.push({
+        module: 'PAYROLL',
+        transactionType: concept.code,
+        debitAccountId: byCode.get(pair.debit),
+        creditAccountId: byCode.get(pair.credit),
+        isActive: true,
+      });
+    }
+  }
+
+  if (values.length > 0) {
+    await db.insert(accountingMaps).values(values);
+  }
+
+  console.log(`Payroll accounting maps seeded: ${values.length}`);
 }
 
 async function seedOrders() {

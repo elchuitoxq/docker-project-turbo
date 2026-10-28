@@ -173,6 +173,27 @@ export type Settlement = {
   status: string;
 };
 
+export type PayrollEntryLine = {
+  id: string;
+  accountId: string;
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+};
+
+/** Asiento contable que genera el run (`POST /hr/payroll/:id/post`, RN-25). */
+export type PayrollEntry = {
+  id: string;
+  date: string;
+  description: string;
+  reference: string | null;
+  status: string;
+  sourceType: string | null;
+  sourceId: string | null;
+  lines: PayrollEntryLine[];
+};
+
 export type PayrollPayment = {
   payrollRunId: string;
   runCode: string;
@@ -262,6 +283,7 @@ export const hrApi = {
       reference?: string;
     }
   ) => apiClient.post<PayrollPayment>(`/hr/payroll/${id}/pay`, body),
+  postPayroll: (id: string) => apiClient.post<PayrollEntry>(`/hr/payroll/${id}/post`, {}),
   getPayrollParameters: (id: string) =>
     apiClient.get<PayrollSetting[]>(`/hr/payroll/${id}/parameters`),
 

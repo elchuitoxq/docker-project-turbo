@@ -763,10 +763,8 @@ export class AccountingService {
     return entry;
   }
 
-  private async findEntryBySource(
-    sourceType: string,
-    sourceId: string
-  ): Promise<EntryResponseDto | null> {
+  /** Asiento que generó un documento (`sourceType` + `sourceId`): llave de idempotencia de `T-04-03`. */
+  async findEntryBySource(sourceType: string, sourceId: string): Promise<EntryResponseDto | null> {
     const [entry] = await db
       .select()
       .from(accountingEntries)

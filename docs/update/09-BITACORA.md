@@ -2028,3 +2028,100 @@ dist/main` en 4000) y **11/11** contra el stack de desarrollo.
 - Backend **942/942** · frontend **141/141** · database **39/39** · E2E **11/11** · turbo **16/16** ·
   `format:check` verde · `audit --prod` sin vulnerabilidades.
 - Plan: **100 de 100 tareas**. Lo abierto es `⚠️ P-28` (parámetros legales y de negocio).
+
+### BT-056 · 2026-10-27 · Nómina contabilizada concepto por concepto (H-59, RN-25)
+
+**Lo que había**
+
+La nómina llegaba hasta tesorería (el pago salía del banco) pero **nunca entraba al libro**: no había
+ni una sola clave `PAYROLL` en `accounting_maps`, así que el gasto de sueldos, las obligaciones con
+IVSS/paro/FAOV y el ISLR retenido no existían para la contabilidad. El run `NOM-000001` de la empresa
+de prueba llevaba meses pagado y sin asiento.
+
+**Qué se entregó**
+
+| Pieza                          | Contenido                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------- |
+| `payroll/payroll-posting.ts`   | Constructor puro del asiento: agrupa por cuenta y falla si falta un mapeo (RN-25) |
+| `HrService.postPayrollRun`     | Carga líneas y mapas, arma las líneas y crea el asiento (`sourceType = PAYROLL`)  |
+| `POST /v1/hr/payroll/:id/post` | Endpoint idempotente con permiso `hr:payroll:process`                             |
+| `seed-test`                    | Mapea los 15 conceptos con monto contra el **plan de cuentas existente**          |
+| UI del run                     | Botón «Contabilizar» con el resultado en un toast                                 |
+
+**Decisiones**
+
+- **Cada concepto aporta su par débito/crédito**, no sólo su cuenta de gasto: así el asiento cuadra
+  por construcción y el saldo de «sueldos por pagar» es exactamente el neto del run. La alternativa
+  (una cuenta por naturaleza y cuadrar a mano) deja el libro a merced de un cálculo de cierre.
+- **El mapeo usa el plan que ya existe** (`6.1.1.001` sueldos, `6.1.1.002` cargas sociales,
+  `2.1.1.003/4/5` obligaciones): inventar un plan paralelo para la demo habría dejado dos catálogos.
+- **Sin mapeo no hay asiento**: el error dice qué conceptos faltan y cómo resolverlo. Un run detenido
+  es mejor que un libro descuadrado (RN-25).
+- **El asiento es idempotente por documento** (`sourceType`+`sourceId`), igual que facturas y pagos,
+  y el botón puede pulsarse dos veces sin duplicar nada.
+- **Los conceptos informativos** (bases de IVSS, cestaticket en USD) no mueven cuentas.
+
+**Verificación real (navegador, empresa de prueba, run `NOM-000001`)**
+
+- `POST /v1/hr/payroll/:id/post` → `200` con asiento `Nómina NOM-000001` (`POSTED`, origen `Nómina`);
+  una segunda llamada devuelve **el mismo id** (idempotencia).
+- Asiento en Contabilidad → Asientos, con las cuatro líneas y totales cuadrados:
+
+  | Cuenta                         |           Debe |          Haber |
+  | ------------------------------ | -------------: | -------------: |
+  | 2.1.1.004 Sueldos por pagar    |         20.075 |        366.460 |
+  | 6.1.1.001 Sueldos y salarios   |        366.460 |              0 |
+  | 2.1.1.005 Aportes parafiscales |              0 |         71.175 |
+  | 6.1.1.002 Cargas sociales      |         51.100 |              0 |
+  | **Totales**                    | **437.635,00** | **437.635,00** |
+
+- El saldo acreedor de «sueldos por pagar» (366.460 − 20.075) es **346.385**, el neto del run.
+- El botón «Contabilizar» de la pantalla del run devuelve «Asiento NOM-000001 contabilizado por 4
+  cuentas».
+
+**Pruebas**
+
+- Unitarias **7** del constructor puro (neto, aportes, RN-25, mapeo incompleto, informativos,
+  redondeo, run vacío).
+- Integración **4** contra Postgres (asiento completo, idempotencia real en la base, RN-25 y
+  aislamiento por sucursal).
+- Backend **953/953** · frontend **141/141** · database **39/39** · turbo **16/16** ·
+  `format:check` verde · `audit --prod` sin vulnerabilidades.
+
+### BT-057 · 2026-10-27 · El breadcrumb deja de mostrar UUIDs (H-97)
+
+**Lo que había**
+
+El encabezado armaba la ruta con el segmento crudo de la URL: en un detalle se leía
+`Panel / Recursos Humanos / Nómina / 24615290-1b16-4e28-831a-b657f33b121d`, y módulos sin etiqueta
+aparecían en inglés (`payables`, `credit-notes`).
+
+**Qué se entregó**
+
+| Pieza                    | Contenido                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `lib/breadcrumb.ts`      | Mapa ruta → etiqueta de todas las secciones y regla de identificadores         |
+| `app-header.tsx`         | Usa `buildCrumbs`; el `title` conserva el valor original al pasar el ratón     |
+| `lib/breadcrumb.test.ts` | 8 pruebas: UUID, hex, numérico, rutas anidadas y nombre provisto por la página |
+
+**Decisiones**
+
+- **El identificador se muestra como «Detalle»**, no se oculta: la miga sigue siendo navegable y el
+  valor real queda en el `title`. `buildCrumbs` acepta un mapa `names` para que una página que ya
+  conoce el código (por ejemplo `NOM-000001`) lo use en lugar del genérico.
+- **La detección es por forma, no por lista**: UUID, hex largo y numérico. Así un `[id]` nuevo no
+  necesita tocar el breadcrumb.
+- **Las etiquetas viven fuera del componente** para poder probarlas sin renderizar el header.
+
+**Verificación en el navegador**
+
+| Ruta                                              | Antes                               | Ahora                                                 |
+| ------------------------------------------------- | ----------------------------------- | ----------------------------------------------------- |
+| `/dashboard/finance/payables`                     | `Finanzas / payables`               | `Finanzas / Cuentas por pagar`                        |
+| `/dashboard/hr/payroll/<uuid>`                    | `Nómina / 24615290-…`               | `Nómina / Detalle`                                    |
+| `/dashboard/operations/partners/<uuid>/statement` | `partners / 00000000-… / statement` | `Clientes y Proveedores / Detalle / Estado de cuenta` |
+
+**Pruebas**
+
+- Frontend **149/149** (8 nuevas) · backend **953/953** · database **39/39** · E2E **11/11** ·
+  turbo **16/16** · `format:check` verde · `audit --prod` sin vulnerabilidades.
