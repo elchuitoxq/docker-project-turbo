@@ -28,7 +28,7 @@
     "lint:fix": "eslint src --fix"
   },
   "dependencies": {
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.9",
     "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.9"
   },
