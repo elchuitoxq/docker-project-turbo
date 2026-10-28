@@ -321,3 +321,133 @@ function result_line(code: string) {
   if (!line) throw new Error(`Línea ${code} no encontrada`);
   return line;
 }
+
+/**
+ * Desgravámenes de ISLR (`P-30`).
+ *
+ * La retención no se calcula sobre el salario normal completo: los aportes obligatorios del
+ * trabajador restan de la base antes de aplicar la tarifa del Art. 50. El motor no cablea los
+ * códigos: resta lo que el concepto declare con `reducesIncomeTaxBase`.
+ */
+describe('PayrollCalculator · desgravámenes de ISLR (P-30)', () => {
+  const ISLR_CONCEPT: ConceptDefinition = {
+    code: 'ISLR',
+    name: 'Retención de ISLR',
+    category: PayrollConceptCategory.DEDUCTION,
+    kind: PayrollConceptKind.FORMULA,
+    expression: 'ISLR_WITHHOLDING',
+    affectsIntegralSalary: false,
+    isSalarial: true,
+  };
+
+  /** Marca como desgravables los códigos indicados y devuelve el catálogo con el concepto ISLR. */
+  function catalogWith(codes: string[], extra: ConceptDefinition[] = []): ConceptDefinition[] {
+    return [
+      ...catalog().map(concept => ({
+        ...concept,
+        reducesIncomeTaxBase: codes.includes(concept.code),
+      })),
+      ...extra,
+      ISLR_CONCEPT,
+    ];
+  }
+
+  /** Calcula y devuelve la base anual que recibió el calculador de ISLR. */
+  function calculateCapturingBase(concepts: ConceptDefinition[], withholding = 100) {
+    let seenAnnualBase = Number.NaN;
+    const result = CALCULATOR.calculate(employee(), {
+      ...context(),
+      concepts,
+      computeIncomeTax: (annualBase: number) => {
+        seenAnnualBase = annualBase;
+        return withholding;
+      },
+    });
+
+    return { result, seenAnnualBase };
+  }
+
+  it('resta los aportes del trabajador de la base antes de aplicar la tarifa', () => {
+    const { result, seenAnnualBase } = calculateCapturingBase(
+      catalogWith(['SSO_EMP', 'PIE_EMP', 'FAOV_EMP'])
+    );
+
+    // 10.000 − (400 + 50 + 100) = 9.450 de base mensual → 113.400 anuales.
+    expect(result.variables.BASE_ISLR).toBeCloseTo(9_450, 2);
+    expect(seenAnnualBase).toBeCloseTo(113_400, 2);
+  });
+
+  it('descuenta la retención del neto y la muestra como línea propia', () => {
+    const { result } = calculateCapturingBase(catalogWith(['SSO_EMP', 'PIE_EMP', 'FAOV_EMP']));
+
+    expect(amountOf(result, 'ISLR')).toBe(100);
+    expect(result.deductions).toBeCloseTo(650, 2);
+    expect(result.netTotal).toBeCloseTo(9_350, 2);
+  });
+
+  it('la línea de retención expone la base gravable, no el importe retenido', () => {
+    const { result } = calculateCapturingBase(catalogWith(['SSO_EMP', 'PIE_EMP', 'FAOV_EMP']));
+    const line = result.lines.find(item => item.conceptCode === 'ISLR');
+
+    expect(line?.base).toBeCloseTo(9_450, 2);
+    expect(line?.amount).toBe(100);
+  });
+
+  it('sin conceptos marcados la base sigue siendo el salario normal (retrocompatible)', () => {
+    const { result, seenAnnualBase } = calculateCapturingBase(catalogWith([]));
+
+    expect(result.variables.BASE_ISLR).toBeCloseTo(10_000, 2);
+    expect(seenAnnualBase).toBeCloseTo(120_000, 2);
+  });
+
+  it('sólo restan las deducciones: marcar una asignación no cambia la base', () => {
+    const { seenAnnualBase } = calculateCapturingBase(
+      catalogWith(['PRIMA', 'CESTATICKET', 'SALARY'])
+    );
+
+    expect(seenAnnualBase).toBeCloseTo(120_000, 2);
+  });
+
+  it('la base nunca queda negativa aunque los desgravámenes superen el sueldo', () => {
+    const bigDeduction: ConceptDefinition = {
+      code: 'ADELANTO',
+      name: 'Adelanto de sueldo',
+      category: PayrollConceptCategory.DEDUCTION,
+      kind: PayrollConceptKind.FORMULA,
+      expression: 'SALARY_NORMAL',
+      affectsIntegralSalary: false,
+      isSalarial: true,
+      reducesIncomeTaxBase: true,
+    };
+
+    let seenAnnualBase = Number.NaN;
+    const result = CALCULATOR.calculate(employee(), {
+      // Sin aportes para que el neto no quede negativo: aquí se prueba el tope de la base, no RN-10.
+      ...context({ settings: { ...SETTINGS, SSO_EMP: 0, PIE_EMP: 0, FAOV_EMP: 0 } }),
+      concepts: catalogWith([], [bigDeduction]),
+      computeIncomeTax: (annualBase: number) => {
+        seenAnnualBase = annualBase;
+        return 0;
+      },
+    });
+
+    expect(result.variables.BASE_ISLR).toBe(0);
+    expect(seenAnnualBase).toBe(0);
+  });
+
+  it('respeta el tope del aporte: se desgrava lo descontado, no el porcentaje teórico', () => {
+    // Con tope de 5.000 el seguro social descontado es 200, así que la base baja en 200 y no en 400.
+    let seenAnnualBase = Number.NaN;
+    const result = CALCULATOR.calculate(employee(), {
+      ...context({ settings: { ...SETTINGS, TOPE_SSO: 5_000 } }),
+      concepts: catalogWith(['SSO_EMP', 'PIE_EMP', 'FAOV_EMP']),
+      computeIncomeTax: (annualBase: number) => {
+        seenAnnualBase = annualBase;
+        return 100;
+      },
+    });
+
+    expect(result.variables.BASE_ISLR).toBeCloseTo(9_650, 2);
+    expect(seenAnnualBase).toBeCloseTo(115_800, 2);
+  });
+});

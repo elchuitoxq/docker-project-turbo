@@ -22,6 +22,7 @@ interface ConceptSeed {
   expression?: string;
   affectsIntegralSalary?: boolean;
   isSalarial?: boolean;
+  reducesIncomeTaxBase?: boolean;
 }
 
 export const CONCEPT_SEED: ConceptSeed[] = [
@@ -93,6 +94,7 @@ export const CONCEPT_SEED: ConceptSeed[] = [
     category: 'DEDUCTION',
     kind: 'FORMULA',
     expression: 'BASE_IVSS * SSO_EMP / 100',
+    reducesIncomeTaxBase: true,
   },
   {
     code: 'PIE_EMP',
@@ -100,6 +102,7 @@ export const CONCEPT_SEED: ConceptSeed[] = [
     category: 'DEDUCTION',
     kind: 'FORMULA',
     expression: 'BASE_PARO * PIE_EMP / 100',
+    reducesIncomeTaxBase: true,
   },
   {
     code: 'FAOV_EMP',
@@ -107,8 +110,17 @@ export const CONCEPT_SEED: ConceptSeed[] = [
     category: 'DEDUCTION',
     kind: 'FORMULA',
     expression: 'BASE_FAOV * FAOV_EMP / 100',
+    reducesIncomeTaxBase: true,
   },
-  { code: 'ISLR', name: 'Retención de ISLR', category: 'DEDUCTION', kind: 'FIXED' },
+  {
+    code: 'ISLR',
+    name: 'Retención de ISLR',
+    category: 'DEDUCTION',
+    kind: 'FORMULA',
+    // La retención la calcula el motor con la tarifa del Art. 50 (`RN-09`); aquí sólo se declara
+    // que el concepto la toma. Definirla como FIXED obligaba a que otro seed la reescribiera.
+    expression: 'ISLR_WITHHOLDING',
+  },
   {
     code: 'SSO_PAT',
     name: 'Seguro social patronal',
@@ -233,6 +245,7 @@ export async function seedPayrollCatalog(companyId: string): Promise<void> {
         expression: concept.expression ?? null,
         affectsIntegralSalary: concept.affectsIntegralSalary ?? false,
         isSalarial: concept.isSalarial ?? true,
+        reducesIncomeTaxBase: concept.reducesIncomeTaxBase ?? false,
         isSystem: true,
         branchId: null,
       })
@@ -247,6 +260,7 @@ export async function seedPayrollCatalog(companyId: string): Promise<void> {
           expression: concept.expression ?? null,
           affectsIntegralSalary: concept.affectsIntegralSalary ?? false,
           isSalarial: concept.isSalarial ?? true,
+          reducesIncomeTaxBase: concept.reducesIncomeTaxBase ?? false,
           isSystem: true,
         },
       });

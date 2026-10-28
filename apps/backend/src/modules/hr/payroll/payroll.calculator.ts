@@ -27,6 +27,8 @@ export interface ConceptDefinition {
   expression: string | null;
   affectsIntegralSalary: boolean;
   isSalarial: boolean;
+  /** `P-30`: resta de la base de ISLR antes de aplicar la tarifa (aportes del trabajador). */
+  reducesIncomeTaxBase?: boolean;
 }
 
 export interface PayrollEmployeeInput {
@@ -136,20 +138,37 @@ export class PayrollCalculator {
     for (const { variable, topeKey } of SETTING_BASES) {
       variables[variable] = this.cap(variables.SALARY_NORMAL, context.settings[topeKey]);
     }
-    variables.BASE_ISLR = variables.SALARY_NORMAL;
 
-    // ISLR: la base anual se proyecta con el salario normal del período (RN-09). La tabla y el
-    // valor de la UT llegan desde el servicio; el motor sólo aplica lo que recibe.
-    variables.ISLR_WITHHOLDING = context.computeIncomeTax
-      ? context.computeIncomeTax(variables.BASE_ISLR * 12)
-      : 0;
-
-    // Pasada 2: deducciones, aportes y alícuotas sobre el salario normal.
+    // Pasada 2: deducciones, aportes y alícuotas sobre el salario normal. El impuesto se resuelve
+    // aparte porque su base depende de los desgravámenes que produce esta misma pasada.
     const phaseTwo = context.concepts.filter(
       concept =>
         !this.usesAny(concept, ['SALARY_INTEGRAL']) && this.usesAny(concept, DERIVED_FROM_NORMAL)
     );
-    this.resolvePhase('salario normal', phaseTwo, variables, amounts);
+    const needsIncomeTax = (concept: ConceptDefinition) =>
+      this.usesAny(concept, ['ISLR_WITHHOLDING', 'BASE_ISLR']);
+
+    const phaseTwoBeforeTax = phaseTwo.filter(concept => !needsIncomeTax(concept));
+    this.resolvePhase('salario normal', phaseTwoBeforeTax, variables, amounts);
+
+    // ISLR (RN-09 + P-30): la base es el salario normal menos los conceptos marcados como
+    // desgravables —los aportes obligatorios del trabajador—, proyectada a 12 meses. La tabla y el
+    // valor de la UT llegan desde el servicio; el motor sólo aplica lo que recibe.
+    variables.BASE_ISLR = this.taxableIncomeBase(
+      phaseTwoBeforeTax,
+      amounts,
+      variables.SALARY_NORMAL
+    );
+    variables.ISLR_WITHHOLDING = context.computeIncomeTax
+      ? context.computeIncomeTax(variables.BASE_ISLR * 12)
+      : 0;
+
+    this.resolvePhase(
+      'impuesto sobre la renta',
+      phaseTwo.filter(concept => needsIncomeTax(concept)),
+      variables,
+      amounts
+    );
 
     // El salario integral se expresa en valor diario, igual que las alícuotas (§9):
     // SALARY_INTEGRAL = SALARY_NORMAL / MONTH_DAYS + alícuota utilidades + alícuota bono vacacional.
@@ -279,6 +298,26 @@ export class PayrollCalculator {
     return Math.min(value, tope);
   }
 
+  /**
+   * Base de ISLR del período: salario normal menos los conceptos marcados como desgravables
+   * (`P-30`). Sólo restan deducciones —marcar una asignación no reduce la base— y nunca por
+   * debajo de cero, para que una deducción enorme no genere una base negativa.
+   */
+  private taxableIncomeBase(
+    concepts: ConceptDefinition[],
+    amounts: Map<string, number>,
+    salaryNormal: number
+  ): number {
+    const reductions = concepts
+      .filter(
+        concept =>
+          concept.reducesIncomeTaxBase && concept.category === PayrollConceptCategory.DEDUCTION
+      )
+      .reduce((acc, concept) => acc + (amounts.get(concept.code) ?? 0), 0);
+
+    return Number(this.money.round(Math.max(0, salaryNormal - reductions), 6));
+  }
+
   private buildLines(
     concepts: ConceptDefinition[],
     amounts: Map<string, number>,
@@ -322,6 +361,8 @@ export class PayrollCalculator {
     if (basesUsed.includes('BASE_PARO')) return variables.BASE_PARO;
     if (basesUsed.includes('BASE_FAOV')) return variables.BASE_FAOV;
     if (basesUsed.includes('BASE_ISLR')) return variables.BASE_ISLR;
+    // El concepto de retención no nombra la base en su fórmula: su base es la base gravable.
+    if (identifiers.includes('ISLR_WITHHOLDING')) return variables.BASE_ISLR;
     if (basesUsed.includes('SALARY_BASE')) return variables.SALARY_BASE;
 
     return amount;

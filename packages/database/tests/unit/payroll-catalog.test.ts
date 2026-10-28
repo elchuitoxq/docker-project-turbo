@@ -20,6 +20,7 @@ const ALLOWED_IDENTIFIERS = new Set([
   'BASE_PARO',
   'BASE_FAOV',
   'BASE_ISLR',
+  'ISLR_WITHHOLDING',
   'PERIOD_DAYS',
   'MONTH_DAYS',
   'HOURS',
@@ -77,6 +78,21 @@ describe('catálogo de conceptos de nómina', () => {
   it('el cestaticket no es salarial (Ley de Alimentación)', () => {
     const cestaticket = CONCEPT_SEED.find(concept => concept.code === 'CESTATICKET');
     expect(cestaticket?.isSalarial).toBe(false);
+  });
+
+  it('la retención de ISLR nace como fórmula, no como importe fijo (P-30)', () => {
+    // Un `ISLR` FIXED sin expresión deja la retención en 0 y el run no avisa (H-105).
+    const islr = CONCEPT_SEED.find(concept => concept.code === 'ISLR');
+    expect(islr?.kind).toBe('FORMULA');
+    expect(islr?.expression).toBe('ISLR_WITHHOLDING');
+  });
+
+  it('los aportes del trabajador son los desgravables del catálogo (P-30)', () => {
+    const desgravables = CONCEPT_SEED.filter(concept => concept.reducesIncomeTaxBase).map(
+      concept => concept.code
+    );
+
+    expect(desgravables.sort()).toEqual(['FAOV_EMP', 'PIE_EMP', 'SSO_EMP']);
   });
 
   it('las deducciones legales usan su base acotada, no el salario normal directo', () => {

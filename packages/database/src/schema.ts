@@ -1129,6 +1129,11 @@ export const payrollConceptTypes = pgTable(
     expression: text('expression'),
     affectsIntegralSalary: boolean('affects_integral_salary').notNull().default(false),
     isSalarial: boolean('is_salarial').notNull().default(true),
+    /**
+     * `P-30`: el importe de este concepto reduce la base de ISLR antes de aplicar la tarifa. Se usa
+     * para los aportes obligatorios del trabajador (IVSS, paro forzoso, FAOV).
+     */
+    reducesIncomeTaxBase: boolean('reduces_income_tax_base').notNull().default(false),
     isSystem: boolean('is_system').default(false),
     branchId: uuid('branch_id'),
     createdAt: timestamp('created_at').defaultNow(),

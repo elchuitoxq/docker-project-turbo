@@ -2175,5 +2175,59 @@ parámetro las controlaba ni cómo comprobarlas. Configurar la nómina era adivi
 
 - `payroll/income-tax.test.ts` (9): bordes de cada tramo, continuidad, descuento que no supera el
   impuesto, base cero, fallo sin tabla o sin UT.
-- `lib/payroll-guide.test.ts` (15): contenido de los 7 bloques, estados y progreso, y 6 de paridad de
-  `computeIslr` — incluida la retención real de `NOM-000003`.
+- `lib/payroll-guide.test.ts` (**18**): contenido de los 7 bloques, estados y progreso, 6 de paridad
+  de `computeIslr` — incluida la retención de `NOM-000003` — y 3 de `sumTaxDeductions`.
+
+### BT-059 · 2026-10-28 · Desgravámenes de ISLR: la retención deja de salir alta (P-30)
+
+**Lo que había**
+
+La base de ISLR era el salario normal completo: **nadie restaba los desgravámenes**. Con 365.000 Bs de
+sueldo el recibo retenía **120.964,58**, cuando la ley permite restar antes los aportes obligatorios
+del trabajador. La retención salía más alta que la real en todos los casos.
+
+**Qué se entregó**
+
+| Pieza                                           | Contenido                                                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `payroll_concept_types.reduces_income_tax_base` | Migración `0021`: el concepto declara si su importe resta de la base                                                 |
+| `PayrollCalculator`                             | Resuelve primero las deducciones, calcula `BASE_ISLR = salario normal − desgravables` y **después** aplica la tarifa |
+| Conceptos del sistema                           | IVSS, paro forzoso y FAOV del trabajador marcados como desgravables en el seed                                       |
+| UI de conceptos                                 | Columna y casilla «Desgrava ISLR»                                                                                    |
+| Simulador de la guía                            | Resta los conceptos marcados, igual que el motor                                                                     |
+| `income_tax_brackets` + `ISLR`                  | El concepto del sistema nace `FORMULA` (`ISLR_WITHHOLDING`), no `FIXED`                                              |
+
+**Decisiones**
+
+- **El motor no cablea códigos**: resta lo que el concepto declare. Un cambio de criterio es una
+  casilla, no un despliegue — el equivalente a la clase de evaluación de impuesto del wage type en SAP.
+- **Se desgrava lo descontado, no el porcentaje teórico**: si el tope recorta el IVSS a la mitad, la
+  base baja por el importe real. Es lo que recibe el trabajador en la mano.
+- **Sólo restan deducciones**: marcar una asignación no cambia la base. La base nunca baja de cero.
+- **El orden del pipeline cambió**: el impuesto ya no se calcula antes de las deducciones, porque su
+  base depende de ellas.
+
+**Verificación con datos reales**
+
+| Qué                           | Resultado                                                         |
+| ----------------------------- | ----------------------------------------------------------------- |
+| Run `NOM-000004` (365.000 Bs) | base **344.925,00** (salario − 20.075) → retención **114.139,08** |
+| Antes (misma nómina)          | 120.964,58 sobre la base completa                                 |
+| Recibo en pantalla            | `ISLR · Deducción · 344.925,00 · 33,09 % · 114.139,08`            |
+| Simulador de la guía          | **114.139,08** con el mismo sueldo — coincide con el run          |
+| Conceptos de nómina           | columna «Desgrava ISLR» = Sí en SSO_EMP, PIE_EMP y FAOV_EMP       |
+
+**Pruebas**
+
+- `payroll.calculator.test.ts` **25** (6 nuevas): qué resta, retrocompatibilidad sin marcas, sólo
+  deducciones, base mínima en cero, topes y base expuesta en la línea del recibo.
+- `lib/payroll-guide.test.ts` **18** (3 nuevas de `sumTaxDeductions`).
+- E2E `payroll-islr.spec.ts` **3**: con desgravables la retención es 976,25 y no 1.086,25; sin marcas
+  retiene sobre el salario completo; la tarifa vigente se muestra con sus 8 tramos.
+
+**Hallazgos colaterales**
+
+- **H-104**: el seed de pruebas no creaba el catálogo de nómina de su propia empresa, así que generar
+  nómina ahí fallaba con 500 y la guía aparecía vacía.
+- **H-105**: correr el seed del catálogo después del de impuestos devolvía el concepto `ISLR` a
+  `FIXED` y la retención pasaba a 0 **sin error**.

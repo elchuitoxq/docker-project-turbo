@@ -362,6 +362,8 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
   lo presenta como "nueva vigencia", no como "editar".
 - `DELETE /hr/concept-types/:id` responde `409` si el concepto es `isSystem` o si ya se usó en alguna
   nómina: el catálogo es histórico, no se borra lo que ya pagó.
+- Los conceptos aceptan `reducesIncomeTaxBase` (`P-30`): si es `true` y la categoría es `DEDUCTION`,
+  el importe resta de `BASE_ISLR` antes de aplicar la tarifa del Art. 50.
 - `GET /hr/payroll/:id/parameters` devuelve la **copia congelada** del período (IDs distintos a los
   parámetros vivos). Es lo que el recibo muestra como evidencia.
 - `GET /hr/income-tax-table` devuelve los tramos vigentes a la fecha y el valor de la UT:

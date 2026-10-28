@@ -109,11 +109,11 @@ export const GUIDE_ITEMS: GuideItem[] = [
     summary: 'Retención de ISLR: tarifa progresiva por tramos en unidades tributarias.',
     sap: 'Tabla de tramos en Customizing (límite inferior y superior, tasa y sustraendo), valor de la UT como constante con vigencia, base anual acumulada y prorrateo mensual. El motor sólo aplica la tabla; si falta, el cálculo se bloquea.',
     legal:
-      'Ocho tramos en UT: 6 % hasta 1.000, 9 % hasta 1.500, 12 % hasta 2.000, 16 % hasta 2.500, 20 % hasta 3.000, 24 % hasta 4.000, 29 % hasta 6.000 y 34 % por encima, cada uno con su sustraendo. UT de 43 Bs desde el 02/06/2025. El descuento único anual está en disputa (¿Bs. 774 o 774 UT?), por eso quedó en 0.',
+      'Ocho tramos en UT: 6 % hasta 1.000, 9 % hasta 1.500, 12 % hasta 2.000, 16 % hasta 2.500, 20 % hasta 3.000, 24 % hasta 4.000, 29 % hasta 6.000 y 34 % por encima, cada uno con su sustraendo. La base es el salario menos los desgravámenes: los aportes obligatorios del trabajador se restan antes de aplicar la tarifa. UT de 43 Bs desde el 02/06/2025. El descuento único anual está en disputa (¿Bs. 774 o 774 UT?), por eso quedó en 0.',
     confidence: 'media',
     keys: ['UNIDAD_TRIBUTARIA', 'ISLR_DESCUENTO_UNICO'],
     decision:
-      'Validar el descuento único con la Gaceta y confirmar si hubo reajuste de la UT. Sin la tabla cargada el run no se genera: es intencional.',
+      'Validar el descuento único con la Gaceta, confirmar si hubo reajuste de la UT y qué aportes desgravan. Sin la tabla cargada el run no se genera: es intencional.',
     check:
       'Cada tramo debe cuadrar al céntimo y la retención del recibo tiene que coincidir con la del asiento. Ojo: con el descuento único en 0 todo ingreso positivo retiene algo, porque la tarifa arranca al 6 % desde la primera unidad tributaria.',
   },
@@ -133,6 +133,21 @@ export type IncomeTaxBracket = {
 function has(values: SettingValues, key: string): boolean {
   const value = values[key];
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * Suma los importes de los conceptos que la empresa marcó como desgravables (`P-30`). El simulador
+ * lo usa para restarlos de la base antes de aplicar la tarifa, igual que el motor.
+ */
+export function sumTaxDeductions(
+  amounts: Record<string, number>,
+  desgravableCodes: Iterable<string>
+): number {
+  const flagged = new Set(desgravableCodes);
+
+  return Object.entries(amounts)
+    .filter(([code]) => flagged.has(code))
+    .reduce((acc, [, amount]) => acc + amount, 0);
 }
 
 /**

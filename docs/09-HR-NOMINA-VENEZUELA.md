@@ -174,7 +174,11 @@ Así un cambio en la definición de “salario normal” se hace en un solo luga
 | `BASE_IVSS`        | `SALARIO_NORMAL` acotado al tope de IVSS                          | IVSS trabajador y patronal              |
 | `BASE_PARO`        | `SALARIO_NORMAL` acotado al tope de paro forzoso                  | Paro forzoso                            |
 | `BASE_FAOV`        | `SALARIO_NORMAL` acotado al tope de FAOV                          | FAOV                                    |
-| `BASE_ISLR`        | Remuneración acumulada del año menos desgravámenes                | Retención de ISLR                       |
+| `BASE_ISLR`        | `SALARIO_NORMAL` menos los conceptos marcados como desgravables   | Retención de ISLR                       |
+
+> **Desgravámenes (`P-30`):** el concepto declara `reduces_income_tax_base` y el motor resta los que
+> estén marcados —en el seed, los tres aportes del trabajador— antes de aplicar la tarifa. Marcar un
+> concepto de categoría `ASSIGNMENT` no cambia nada: sólo restan deducciones.
 
 > **Decisión registrada:** el **cestaticket no forma parte del salario** (Ley de Alimentación). No
 > entra en `SALARIO_NORMAL`, por lo tanto no afecta integral ni prestaciones. Es el error más común
@@ -462,9 +466,10 @@ detalle de cada parámetro legal —qué pide la ley, cómo lo modela SAP, qué 
    colectiva que mejore el mínimo legal.
 4. **Indemnización por egreso**: el cálculo del Art. 92 depende de la causa y del salario integral
    histórico; se implementará con tabla de días por año y debe validarse caso por caso.
-5. **Tarifa de ISLR**: la tabla progresiva del Art. 50 ya está cargada y el motor la aplica; falta
-   definir los **desgravámenes** aplicables (HCM, aportes, etc.) y el **descuento único anual**, que
-   quedó en 0 por la contradicción Bs. 774 vs. 774 UT.
+5. **Tarifa de ISLR**: la tabla progresiva del Art. 50 ya está cargada y el motor la aplica sobre el
+   salario menos los **desgravámenes** que el concepto declare (`reduces_income_tax_base`, `P-30`);
+   falta confirmar **cuáles** corresponden (¿sólo los aportes obligatorios o también HCM y otros?) y
+   el **descuento único anual**, que quedó en 0 por la contradicción Bs. 774 vs. 774 UT.
 6. **Redondeo**: se adopta `HALF_UP` a 2 decimales en moneda funcional (regla M7 de `S-08`);
    confirmar si la práctica de la empresa redondea por concepto o sobre el neto.
 7. **Vacaciones y bono con menos de un año de servicio (H-72)**: `vacationEntitlement(0)` acredita

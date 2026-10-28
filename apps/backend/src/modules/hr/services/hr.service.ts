@@ -739,6 +739,7 @@ export class HrService {
         expression: concept.expression,
         affectsIntegralSalary: concept.affectsIntegralSalary,
         isSalarial: concept.isSalarial,
+        reducesIncomeTaxBase: concept.reducesIncomeTaxBase,
       }));
 
       const periodDays = this.periodDays(newRun.startDate, newRun.endDate);
@@ -1235,6 +1236,7 @@ export class HrService {
         expression,
         affectsIntegralSalary: dto.affectsIntegralSalary ?? false,
         isSalarial: dto.isSalarial ?? true,
+        reducesIncomeTaxBase: dto.reducesIncomeTaxBase ?? false,
         isSystem: false,
         branchId: branchId ?? null,
       })
@@ -1272,6 +1274,7 @@ export class HrService {
         expression,
         affectsIntegralSalary: dto.affectsIntegralSalary ?? concept.affectsIntegralSalary,
         isSalarial: dto.isSalarial ?? concept.isSalarial,
+        reducesIncomeTaxBase: dto.reducesIncomeTaxBase ?? concept.reducesIncomeTaxBase,
       })
       .where(eq(payrollConceptTypes.id, concept.id))
       .returning();
@@ -1359,6 +1362,7 @@ export class HrService {
       expression: row.expression,
       affectsIntegralSalary: row.affectsIntegralSalary,
       isSalarial: row.isSalarial,
+      reducesIncomeTaxBase: row.reducesIncomeTaxBase,
       isSystem: row.isSystem ?? false,
       branchId: row.branchId,
     };

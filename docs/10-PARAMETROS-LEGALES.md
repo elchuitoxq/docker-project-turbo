@@ -178,12 +178,22 @@ Y dos reglas de estilo que SAP aplica en todo el módulo y que aquí se respetan
 
   `impuesto anual = (renta en UT × tasa − sustraendo) × valor de la UT`, y la retención mensual es
   `impuesto anual / 12`. **UT = 43,00 Bs desde el 02/06/2025** (Providencia SNAT/2025/0048).
-  El **descuento único anual** está en disputa (**Bs. 774** nominal histórico vs. **774 UT**), por eso
-  quedó en **0** y se modeló como parámetro con unidad explícita. _Confianza:_ alta en la tabla y su
-  continuidad, media en la vigencia de la UT, **baja en el descuento único**.
+  La renta no es el sueldo completo: se le restan los **desgravámenes** (aportes obligatorios del
+  trabajador). El **descuento único anual** está en disputa (**Bs. 774** nominal histórico vs.
+  **774 UT**), por eso quedó en **0** y se modeló como parámetro con unidad explícita. _Confianza:_
+  alta en la tabla y su continuidad, media en la vigencia de la UT y en la lista de desgravámenes,
+  **baja en el descuento único**.
 
-- **Qué hay que decidir.** Validar el descuento único contra la Gaceta y confirmar si hubo reajuste de
-  la UT en 2026. Sin la tabla cargada el run **no se genera**: es intencional.
+- **Desgravámenes en el sistema (`P-30`).** Cada concepto declara si su importe resta de la base
+  (`reduces_income_tax_base`). En el seed están marcados IVSS, paro forzoso y FAOV del trabajador; el
+  motor suma **lo efectivamente descontado** (no el porcentaje teórico, así que los topes se
+  respetan) y aplica la tarifa sobre el resto. Marcar una asignación no cambia la base: sólo restan
+  deducciones. **Qué conceptos desgravan es una decisión del contador**: hoy es una casilla en
+  Configuración → Conceptos de nómina.
+
+- **Qué hay que decidir.** Validar el descuento único contra la Gaceta, confirmar si hubo reajuste de
+  la UT en 2026 y qué desgravámenes aplican (¿sólo aportes sociales, o también HCM y otros?). Sin la
+  tabla cargada el run **no se genera**: es intencional.
 - **Cómo se comprueba.** Cada tramo debe cuadrar al céntimo y la retención del recibo tiene que
   coincidir con la del asiento. Ojo: con el descuento único en 0 **todo ingreso positivo retiene
   algo**, porque la tarifa arranca al 6 % desde la primera unidad tributaria; el mínimo exento no
@@ -194,26 +204,27 @@ Y dos reglas de estilo que SAP aplica en todo el módulo y que aquí se respetan
 
 ## 3. Estado de los parámetros en el sistema
 
-| Parámetro                    | Unidad  | Fuente                        | Confianza |
-| ---------------------------- | ------- | ----------------------------- | --------- |
-| `SSO_EMP`                    | %       | Ley del Seguro Social         | alta      |
-| `SSO_PAT`                    | %       | clase de riesgo de la empresa | media     |
-| `TOPE_SSO`                   | Bs/mes  | 5 salarios mínimos            | media     |
-| `PIE_EMP`                    | %       | Ley de Paro Forzoso           | alta      |
-| `PIE_PAT`                    | %       | Ley de Paro Forzoso           | alta      |
-| `TOPE_PARO`                  | Bs/mes  | 10 salarios mínimos           | media     |
-| `FAOV_EMP`                   | %       | Ley de Vivienda y Hábitat     | alta      |
-| `FAOV_PAT`                   | %       | Ley de Vivienda y Hábitat     | alta      |
-| `TOPE_FAOV`                  | Bs/mes  | **en disputa**                | baja      |
-| `CESTATICKET_USD`            | USD/mes | práctica de mercado           | baja      |
-| `DIAS_UTILIDADES`            | días    | LOTTT 131–133                 | baja      |
-| `TOPE_UTILIDADES_MESES`      | meses   | LOTTT 131–133                 | baja      |
-| `DIAS_VACACIONES_BASE`       | días    | LOTTT 190                     | alta      |
-| `DIAS_BONO_VACACIONAL`       | días    | LOTTT 192                     | alta      |
-| `TOPE_DIAS_VACACIONES_EXTRA` | días    | LOTTT 190                     | media     |
-| `UNIDAD_TRIBUTARIA`          | Bs/UT   | Providencia SNAT/2025/0048    | media     |
-| `ISLR_DESCUENTO_UNICO`       | Bs/año  | **en disputa**                | baja      |
-| `income_tax_brackets`        | UT + %  | Ley de ISLR Art. 50           | alta      |
+| Parámetro                                | Unidad  | Fuente                        | Confianza |
+| ---------------------------------------- | ------- | ----------------------------- | --------- |
+| `SSO_EMP`                                | %       | Ley del Seguro Social         | alta      |
+| `SSO_PAT`                                | %       | clase de riesgo de la empresa | media     |
+| `TOPE_SSO`                               | Bs/mes  | 5 salarios mínimos            | media     |
+| `PIE_EMP`                                | %       | Ley de Paro Forzoso           | alta      |
+| `PIE_PAT`                                | %       | Ley de Paro Forzoso           | alta      |
+| `TOPE_PARO`                              | Bs/mes  | 10 salarios mínimos           | media     |
+| `FAOV_EMP`                               | %       | Ley de Vivienda y Hábitat     | alta      |
+| `FAOV_PAT`                               | %       | Ley de Vivienda y Hábitat     | alta      |
+| `TOPE_FAOV`                              | Bs/mes  | **en disputa**                | baja      |
+| `CESTATICKET_USD`                        | USD/mes | práctica de mercado           | baja      |
+| `DIAS_UTILIDADES`                        | días    | LOTTT 131–133                 | baja      |
+| `TOPE_UTILIDADES_MESES`                  | meses   | LOTTT 131–133                 | baja      |
+| `DIAS_VACACIONES_BASE`                   | días    | LOTTT 190                     | alta      |
+| `DIAS_BONO_VACACIONAL`                   | días    | LOTTT 192                     | alta      |
+| `TOPE_DIAS_VACACIONES_EXTRA`             | días    | LOTTT 190                     | media     |
+| `UNIDAD_TRIBUTARIA`                      | Bs/UT   | Providencia SNAT/2025/0048    | media     |
+| `ISLR_DESCUENTO_UNICO`                   | Bs/año  | **en disputa**                | baja      |
+| `reduces_income_tax_base` (por concepto) | sí/no   | criterio contable             | media     |
+| `income_tax_brackets`                    | UT + %  | Ley de ISLR Art. 50           | alta      |
 
 `GET /v1/hr/income-tax-table?asOf=YYYY-MM-DD` devuelve la tabla vigente en esa fecha junto con el
 valor de la UT (`hr:settings:view`). `GET /v1/hr/settings` devuelve el resto de los parámetros con la
@@ -250,25 +261,27 @@ La pantalla hace tres cosas:
    resuelve SAP, lo que dice la norma, qué hay que decidir, cómo se comprueba) y muestra los
    parámetros del bloque con su valor actual.
 3. **Simula**: con un sueldo mensual calcula IVSS, paro forzoso, FAOV e ISLR con los **mismos**
-   parámetros y la misma aritmética que el backend (`computeIslr` replica `income-tax.ts`), para ver el
-   efecto de un cambio **antes** de tocarlo. No graba nada, igual que el modo simulación del driver de
-   SAP.
+   parámetros y la misma aritmética que el backend (`computeIslr` replica `income-tax.ts` y resta los
+   conceptos marcados como desgravables, igual que el motor), para ver el efecto de un cambio
+   **antes** de tocarlo. No graba nada, igual que el modo simulación del driver de SAP.
 
-Pruebas: `apps/frontend/lib/payroll-guide.test.ts` (estado de los bloques y progreso) y
-`apps/backend/src/modules/hr/payroll/income-tax.test.ts` (bordes de cada tramo, tope inferior sin
-retención, coherencia con la tabla sembrada).
+Pruebas: `apps/frontend/lib/payroll-guide.test.ts` (estado de los bloques, progreso, desgravámenes y
+paridad de `computeIslr`), `apps/backend/src/modules/hr/payroll/payroll.calculator.test.ts`
+(desgravámenes: qué resta, topes, base mínima) y `apps/backend/src/modules/hr/payroll/income-tax.test.ts`
+(bordes de cada tramo y fallo sin tabla).
 
 ---
 
 ## 6. Qué falta para cerrar P-28 del todo
 
-| Pendiente                                     | Por qué no se resolvió aquí                                                             |
-| --------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Texto del descuento único (Arts. 60/61 LISLR) | Contradicción de unidad (Bs. vs UT) sin Gaceta accesible. Queda en 0 y parametrizado.   |
-| Reajuste de la UT en 2026                     | Sólo está confirmado el valor de 43 Bs desde el 02/06/2025.                             |
-| Tope del FAOV                                 | Contradicción documental; el parámetro existe pero su valor es una decisión jurídica.   |
-| Art. 92 / 142 / 196 LOTTT                     | Sin texto oficial verificado no se fijan días ni prorrateos (**H-72** depende de esto). |
-| Cestaticket en divisas                        | No hay base normativa; se modela como política interna.                                 |
+| Pendiente                                     | Por qué no se resolvió aquí                                                                                             |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Texto del descuento único (Arts. 60/61 LISLR) | Contradicción de unidad (Bs. vs UT) sin Gaceta accesible. Queda en 0 y parametrizado.                                   |
+| Reajuste de la UT en 2026                     | Sólo está confirmado el valor de 43 Bs desde el 02/06/2025.                                                             |
+| Tope del FAOV                                 | Contradicción documental; el parámetro existe pero su valor es una decisión jurídica.                                   |
+| Art. 92 / 142 / 196 LOTTT                     | Sin texto oficial verificado no se fijan días ni prorrateos (**H-72** depende de esto).                                 |
+| Cestaticket en divisas                        | No hay base normativa; se modela como política interna.                                                                 |
+| Lista cerrada de desgravámenes                | El mecanismo está (`P-30`); falta que el contador confirme si además de los aportes obligatorios desgravan HCM u otros. |
 
 Cerrarlos es trabajo de validación legal, no de programación: cuando llegue la respuesta, se cambia
 **un parámetro** y la nómina cambia con él.

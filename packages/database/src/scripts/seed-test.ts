@@ -33,6 +33,7 @@ import {
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import * as bcrypt from 'bcryptjs';
 import { seedRbac } from './seed-rbac';
+import { seedPayrollCatalog } from './seed-payroll-catalog';
 
 const IDs = {
   usd: '00000000-0000-4000-8000-000000000001',
@@ -99,6 +100,7 @@ export async function seedTestData() {
   await seedStock();
   await seedEmployees();
   await seedDepartments();
+  await seedPayrollCatalogForTestCompany();
   await seedAccountingAccounts();
   await seedPayrollAccountingMaps();
   await seedIncomeTaxBrackets();
@@ -730,6 +732,25 @@ async function seedEmployees() {
   console.log('Employees seeded');
 }
 
+/**
+ * Catálogo de nómina de la empresa de pruebas.
+ *
+ * El seed creaba empresa y empleados pero no el catálogo de conceptos: sin él la nómina no se puede
+ * generar («No hay conceptos de nómina configurados») y la guía de parámetros aparece sin estado.
+ * Se siembra el mismo catálogo del sistema que usa la empresa principal.
+ */
+async function seedPayrollCatalogForTestCompany() {
+  const [company] = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.taxId, 'J-12345678-9'))
+    .limit(1);
+
+  if (!company) return;
+
+  await seedPayrollCatalog(company.id);
+}
+
 async function seedDepartments() {
   console.log('Seeding departments...');
 
@@ -928,7 +949,8 @@ async function seedIncomeTaxBrackets() {
     }
   }
 
-  // El concepto de ISLR pasa a usar la retención calculada por el motor.
+  // El concepto de ISLR toma la retención calculada por el motor. El catálogo ya lo declara así;
+  // se mantiene el update para no depender del orden en que corran los seeds.
   await db
     .update(payrollConceptTypes)
     .set({ kind: 'FORMULA', expression: 'ISLR_WITHHOLDING' })

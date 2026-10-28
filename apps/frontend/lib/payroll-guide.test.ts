@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { GUIDE_ITEMS, computeIslr, guideProgress, itemStatus } from './payroll-guide';
+import {
+  GUIDE_ITEMS,
+  computeIslr,
+  guideProgress,
+  itemStatus,
+  sumTaxDeductions,
+} from './payroll-guide';
 
 const complete = {
   SSO_EMP: 4,
@@ -93,6 +99,23 @@ const BRACKETS = [
   { fromUt: 6000, toUt: null, rate: 0.34, discountUt: 875 },
 ];
 const UT = 43;
+
+describe('sumTaxDeductions', () => {
+  it('sólo suma los conceptos marcados como desgravables', () => {
+    const amounts = { SSO_EMP: 400, PIE_EMP: 50, FAOV_EMP: 100, ISLR: 900 };
+
+    expect(sumTaxDeductions(amounts, ['SSO_EMP', 'PIE_EMP', 'FAOV_EMP'])).toBe(550);
+    expect(sumTaxDeductions(amounts, ['SSO_EMP'])).toBe(400);
+  });
+
+  it('sin conceptos marcados no desgrava nada', () => {
+    expect(sumTaxDeductions({ SSO_EMP: 400, PIE_EMP: 50 }, [])).toBe(0);
+  });
+
+  it('ignora códigos marcados que no tengan importe', () => {
+    expect(sumTaxDeductions({ SSO_EMP: 400 }, ['SSO_EMP', 'HCM'])).toBe(400);
+  });
+});
 
 describe('computeIslr', () => {
   it('reproduce la retención verificada contra el backend (365.000 Bs/mes)', () => {

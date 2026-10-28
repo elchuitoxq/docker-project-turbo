@@ -116,6 +116,7 @@ export default function PayrollConceptsPage() {
       expression: expression || null,
       affectsIntegralSalary: form.get('affectsIntegralSalary') === 'on',
       isSalarial: form.get('isSalarial') === 'on',
+      reducesIncomeTaxBase: form.get('reducesIncomeTaxBase') === 'on',
     };
 
     if (kind === 'FORMULA' && !body.expression) {
@@ -197,6 +198,7 @@ export default function PayrollConceptsPage() {
                   <TableHead>Tipo</TableHead>
                   <TableHead>Fórmula</TableHead>
                   <TableHead>Integral</TableHead>
+                  <TableHead>Desgrava ISLR</TableHead>
                   {canManage ? <TableHead className="text-right">Acciones</TableHead> : null}
                 </TableRow>
               </TableHeader>
@@ -222,6 +224,9 @@ export default function PayrollConceptsPage() {
                     </TableCell>
                     <TableCell className="text-sm">
                       {concept.affectsIntegralSalary ? 'Sí' : 'No'}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {concept.reducesIncomeTaxBase ? 'Sí' : 'No'}
                     </TableCell>
                     {canManage ? (
                       <TableCell className="text-right">
@@ -361,6 +366,16 @@ export default function PayrollConceptsPage() {
                   defaultChecked={editing?.isSalarial ?? true}
                 />
                 <FieldLabel htmlFor="isSalarial">Es salarial</FieldLabel>
+              </Field>
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="reducesIncomeTaxBase"
+                  name="reducesIncomeTaxBase"
+                  defaultChecked={editing?.reducesIncomeTaxBase ?? false}
+                />
+                <FieldLabel htmlFor="reducesIncomeTaxBase">
+                  Desgrava ISLR (resta de la base)
+                </FieldLabel>
               </Field>
             </FieldGroup>
             <DialogFooter className="mt-6">

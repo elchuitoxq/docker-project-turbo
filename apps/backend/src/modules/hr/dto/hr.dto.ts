@@ -644,6 +644,16 @@ export class CreatePayrollConceptDto {
   @IsOptional()
   @IsBoolean()
   isSalarial?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Si el importe del concepto reduce la base de ISLR antes de aplicar la tarifa (P-30). ' +
+      'Sólo tiene efecto en conceptos de categoría DEDUCTION',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  reducesIncomeTaxBase?: boolean;
 }
 
 export class UpdatePayrollConceptDto {
@@ -676,6 +686,11 @@ export class UpdatePayrollConceptDto {
   @IsOptional()
   @IsBoolean()
   isSalarial?: boolean;
+
+  @ApiPropertyOptional({ description: 'Si su importe resta de la base de ISLR (P-30)' })
+  @IsOptional()
+  @IsBoolean()
+  reducesIncomeTaxBase?: boolean;
 }
 
 export class PayrollConceptResponseDto {
@@ -702,6 +717,9 @@ export class PayrollConceptResponseDto {
 
   @ApiProperty()
   isSalarial: boolean;
+
+  @ApiProperty({ description: 'Si su importe resta de la base de ISLR (P-30)' })
+  reducesIncomeTaxBase: boolean;
 
   @ApiProperty()
   isSystem: boolean;

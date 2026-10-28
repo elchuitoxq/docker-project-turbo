@@ -29,6 +29,7 @@ import {
   computeIslr,
   guideProgress,
   itemStatus,
+  sumTaxDeductions,
   type GuideConfidence,
   type GuideStatus,
   type IncomeTaxBracket,
@@ -102,6 +103,10 @@ export function PayrollGuideView() {
   const incomeTax = useQuery({
     queryKey: ['hr', 'income-tax-table'],
     queryFn: () => hrApi.getIncomeTaxTable(),
+  });
+  const concepts = useQuery({
+    queryKey: ['hr', 'concepts'],
+    queryFn: () => hrApi.listConcepts(),
   });
 
   const values = React.useMemo(() => {
@@ -265,7 +270,18 @@ export function PayrollGuideView() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <PayrollSimulator values={values} brackets={incomeTax.data?.brackets ?? []} />
+          <PayrollSimulator
+            values={values}
+            brackets={incomeTax.data?.brackets ?? []}
+            singleDiscount={incomeTax.data?.singleDiscount ?? 0}
+            desgravableCodes={
+              new Set(
+                (concepts.data ?? [])
+                  .filter(concept => concept.reducesIncomeTaxBase)
+                  .map(concept => concept.code)
+              )
+            }
+          />
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -304,9 +320,13 @@ export function PayrollGuideView() {
 function PayrollSimulator({
   values,
   brackets,
+  singleDiscount,
+  desgravableCodes,
 }: {
   values: Record<string, number>;
   brackets: IncomeTaxBracket[];
+  singleDiscount: number;
+  desgravableCodes: Set<string>;
 }) {
   const [salary, setSalary] = React.useState('10000');
   const monthly = Number(salary) || 0;
@@ -318,7 +338,20 @@ function PayrollSimulator({
   const ivss = (ivssBase * (values.SSO_EMP ?? 0)) / 100;
   const pie = (pieBase * (values.PIE_EMP ?? 0)) / 100;
   const faov = (faovBase * (values.FAOV_EMP ?? 0)) / 100;
-  const islr = computeIslr(monthly * 12, brackets, values.UNIDAD_TRIBUTARIA ?? 0);
+
+  // Igual que el motor (`P-30`): sólo resta lo que el concepto tenga marcado como desgravable.
+  const desgravado = sumTaxDeductions(
+    { SSO_EMP: ivss, PIE_EMP: pie, FAOV_EMP: faov },
+    desgravableCodes
+  );
+
+  const taxableBase = Math.max(0, monthly - desgravado);
+  const islr = computeIslr(
+    taxableBase * 12,
+    brackets,
+    values.UNIDAD_TRIBUTARIA ?? 0,
+    singleDiscount
+  );
   const net = monthly - ivss - pie - faov - islr;
 
   const rows = [
@@ -381,8 +414,9 @@ function PayrollSimulator({
         </div>
 
         <p className="text-[11px] leading-snug text-muted-foreground">
-          Estimación con la tabla vigente y el descuento único configurado. No incluye desgravámenes
-          ni otros conceptos del recibo.
+          Estimación con la tabla vigente, el descuento único configurado y los conceptos marcados
+          como desgravables ({formatCurrency(desgravado, 'VES')} al mes). No incluye otros
+          desgravámenes ni conceptos del recibo.
         </p>
       </CardContent>
     </Card>

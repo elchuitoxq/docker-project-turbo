@@ -124,6 +124,8 @@ export type PayrollConcept = {
   expression: string | null;
   affectsIntegralSalary: boolean;
   isSalarial: boolean;
+  /** `P-30`: su importe resta de la base de ISLR antes de aplicar la tarifa. */
+  reducesIncomeTaxBase: boolean;
   isSystem: boolean;
   branchId: string | null;
 };
