@@ -1031,6 +1031,10 @@ export const payrollRuns = pgTable('payroll_runs', {
   endDate: timestamp('end_date').notNull(),
   totalAmount: numeric('total_amount', { precision: 20, scale: 2 }).default('0'),
   status: text('status').default('DRAFT'),
+  /** `P-29` (RN-21): la anulación no borra nada; deja quién, cuándo y por qué. */
+  voidedAt: timestamp('voided_at'),
+  voidedBy: uuid('voided_by'),
+  voidReason: text('void_reason'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

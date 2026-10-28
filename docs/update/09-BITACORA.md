@@ -2277,3 +2277,57 @@ acceso al correo del sistema o a la base lo resolviera.
 
 - E2E `forgot-password.spec.ts` **4**: llegada desde el login, mensaje genérico sin enlace, enlace de
   desarrollo cuando `mockUrl` está presente, y el `429` explicado en pantalla.
+
+### BT-061 · 2026-10-28 · Una nómina pagada ya se puede anular (P-29, RN-21)
+
+**Lo que había**
+
+`PayrollRunStatus` sólo tenía `DRAFT`, `PROCESSED` y `PAID`. Si un sueldo salía mal y la nómina ya
+estaba pagada o contabilizada, **no había forma de deshacerlo**: el asiento quedaba posteado y el
+único camino era tocar la base a mano, sin rastro de quién ni por qué.
+
+**Qué se entregó**
+
+| Pieza                          | Contenido                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `0022_payroll_run_void.sql`    | `voided_at`, `voided_by`, `void_reason` en `payroll_runs`                        |
+| `PayrollRunStatus.VOID`        | Cuarto estado, con su etiqueta y su badge en la UI                               |
+| `POST /v1/hr/payroll/:id/void` | Recibe `{ reason }` (5–500), permiso `hr:payroll:process`                        |
+| Asiento de reversión           | `REV-<código>` con débitos y créditos intercambiados; el original no se toca     |
+| Pantalla del run               | Botón «Anular nómina», diálogo con motivo obligatorio y aviso con motivo y fecha |
+| Listado                        | Estado «Anulada» en rojo, no confundible con «Pagada»                            |
+
+**Decisiones**
+
+- **No se borra nada**: el run queda `VOID` con autor, fecha y motivo, y las líneas del recibo siguen
+  ahí. La evidencia de lo que se pagó es parte del registro.
+- **El asiento original queda posteado** y la anulación se registra con un asiento espejo. Es la
+  práctica contable: el libro cuenta la historia, no la reescribe.
+- **Un borrador no se anula**: se descarta antes de procesarlo. Anular es para lo que ya tuvo efecto.
+- **Un pago vivo se anula primero en Tesorería**: nómina no borra movimientos de caja de otro módulo.
+  El mensaje lo dice con el código del pago.
+- **La reversión se fecha al día de la anulación**, no al del pago. Si el cierre de mes cae en medio,
+  la reversión va al mes en curso: queda como decisión del contador (§15.8).
+
+**Verificación con datos reales**
+
+| Paso                                   | Resultado                                                                     |
+| -------------------------------------- | ----------------------------------------------------------------------------- |
+| `NOM-000004` procesada y contabilizada | asiento `NOM-000004`, 5 líneas, 551.774,08 por lado                           |
+| Anular desde la pantalla con un motivo | toast «Nómina NOM-000004 anulada»                                             |
+| Estado del run                         | `VOID` con motivo y `voidedAt = 2026-10-28`                                   |
+| Asiento de reversión                   | `REV-NOM-000004` por 551.774,08 por lado, `POSTED`                            |
+| Neto por cuenta entre los dos asientos | **0,00** en las cinco cuentas                                                 |
+| Pantalla recargada                     | badge «Anulada», aviso con el motivo y sin botones de pago ni contabilización |
+
+**Pruebas**
+
+- `test/payroll-void.test.ts` **8**: marca el run, espejo exacto del asiento, no inventa asientos si no
+  estaba contabilizado, doble anulación, borrador, pago vivo, pago ya anulado y otra sucursal.
+- E2E `payroll-void.spec.ts` **3**: run anulado sin acciones de pago, anulación con motivo obligatorio
+  que deja el run anulado (prueba también la invalidación de la caché) y borrador sin opción de anular.
+
+**Hallazgo colateral**
+
+- **H-106**: anular un pago en Tesorería no revierte su asiento contable. La nómina ya no puede quedar
+  descuadrada por su lado, pero el egreso del pago anulado sigue en el libro. Queda como `P-31`.

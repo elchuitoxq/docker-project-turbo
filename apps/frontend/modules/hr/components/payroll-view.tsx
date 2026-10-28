@@ -44,12 +44,17 @@ const STATUS_LABEL: Record<PayrollRunStatus, string> = {
   DRAFT: 'Borrador',
   PROCESSED: 'Procesada',
   PAID: 'Pagada',
+  VOID: 'Anulada',
 };
 
-const STATUS_VARIANT: Record<PayrollRunStatus, 'secondary' | 'outline' | 'default'> = {
+const STATUS_VARIANT: Record<
+  PayrollRunStatus,
+  'secondary' | 'outline' | 'default' | 'destructive'
+> = {
   DRAFT: 'secondary',
   PROCESSED: 'outline',
   PAID: 'default',
+  VOID: 'destructive',
 };
 
 export function PayrollView() {

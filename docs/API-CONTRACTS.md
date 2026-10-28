@@ -367,6 +367,7 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 | `DELETE` | `/v1/hr/concept-types/:id`      | `hr:concepts:manage` |
 | `GET`    | `/v1/hr/payroll/:id/parameters` | `hr:payroll:view`    |
 | `GET`    | `/v1/hr/income-tax-table?asOf=` | `hr:settings:view`   |
+| `POST`   | `/v1/hr/payroll/:id/void`       | `hr:payroll:process` |
 
 - `PATCH /hr/settings` **no edita el histórico**: guarda una fila nueva con su `effectiveFrom`. La UI
   lo presenta como "nueva vigencia", no como "editar".
@@ -379,6 +380,11 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 - `GET /hr/income-tax-table` devuelve los tramos vigentes a la fecha y el valor de la UT:
   `{ effectiveFrom, utValue, singleDiscount, brackets[] }`. Si no hay tramos, el run **no se genera**
   (RN-09); el endpoint devuelve la lista vacía para que la UI lo advierta antes.
+- `POST /hr/payroll/:id/void` recibe `{ reason }` (5–500 caracteres) y devuelve el run en `VOID` con
+  `voidedAt`, `voidedBy` y `voidReason`. Reglas (RN-21): un `DRAFT` responde `400` (se descarta, no se
+  anula), una segunda anulación `409`, y un pago vivo del run `409` pidiendo anularlo antes en
+  Tesorería. Si el run estaba contabilizado, crea el asiento `REV-<código>` con débitos y créditos
+  intercambiados; el asiento original queda intacto.
 - `EmployeeResponseDto` incorpora `salaryCurrencyId` y `salaryCurrencyCode` (H-71): sin ellos la UI no
   puede decir si un sueldo de `10.000` es USD o VES. Los importes diarios de vacaciones y prestaciones
   (`normalDaily`, `integralDaily`) vienen en **moneda funcional**; el sueldo del contrato viene en la

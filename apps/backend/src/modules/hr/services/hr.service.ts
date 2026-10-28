@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { db } from '../../../database';
 import {
@@ -29,8 +30,9 @@ import {
   currencies,
   accountingMaps,
   incomeTaxBrackets,
+  payments,
 } from '../../../schema';
-import { eq, and, desc, inArray, isNull, like, lte, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, like, lte, ne, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import { ConfigService } from '@nestjs/config';
@@ -87,11 +89,13 @@ import {
   PayPayrollRunDto,
   PayrollPaymentResponseDto,
 } from '../dto/hr.dto';
-import { PaymentResponseDto } from '../../treasury/dto/treasury.dto';
+import { PaymentResponseDto, PaymentStatus } from '../../treasury/dto/treasury.dto';
 import { TreasuryService } from '../../treasury/services/treasury.service';
 
 @Injectable()
 export class HrService {
+  private readonly logger = new Logger(HrService.name);
+
   constructor(
     private readonly calculator: PayrollCalculator = new PayrollCalculator(),
     private readonly exchangeRate: ExchangeRateService = new ExchangeRateService(
@@ -1024,6 +1028,91 @@ export class HrService {
         amount: String(line.amount),
       });
     }
+  }
+
+  /**
+   * Anula un run de nómina (`P-29`, RN-21).
+   *
+   * El run pagado o contabilizado es inmutable, así que corregirlo exige anularlo y generar uno
+   * nuevo. No se borra nada: se marca `VOID` con quién, cuándo y por qué, y si ya estaba
+   * contabilizado se crea el **asiento de reversión** (débitos y créditos intercambiados) para que el
+   * libro refleje la anulación sin tocar el asiento original.
+   *
+   * Reglas:
+   * - Un borrador no se anula: se descarta antes de procesarlo.
+   * - Si hay un pago vivo, primero se anula en Tesorería: el movimiento de caja no lo deshace nómina.
+   * - El asiento de reversión exige el período abierto, igual que cualquier otro asiento.
+   */
+  async voidPayrollRun(
+    runId: string,
+    reason: string,
+    userId?: string,
+    branchId?: string
+  ): Promise<PayrollRunResponseDto> {
+    const [run] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, runId)).limit(1);
+
+    if (!run || (branchId && run.branchId !== branchId)) {
+      throw new NotFoundException(`Payroll run with ID ${runId} not found`);
+    }
+
+    if (run.status === PayrollRunStatus.VOID) {
+      throw new ConflictException(`La nómina ${run.code} ya está anulada`);
+    }
+
+    if (run.status === PayrollRunStatus.DRAFT) {
+      throw new BadRequestException(
+        'Un borrador no se anula: descártelo antes de procesarlo (RN-21)'
+      );
+    }
+
+    const [livePayment] = await db
+      .select({ id: payments.id, code: payments.code, status: payments.status })
+      .from(payments)
+      .where(and(eq(payments.payrollRunId, run.id), ne(payments.status, PaymentStatus.VOID)))
+      .limit(1);
+
+    if (livePayment) {
+      throw new ConflictException(
+        `La nómina está pagada con ${livePayment.code}: anule ese pago en Tesorería antes de anular la nómina (RN-21)`
+      );
+    }
+
+    const entry = await this.accounting.findEntryBySource(EntrySourceType.PAYROLL, run.id);
+
+    if (entry) {
+      await this.accounting.createEntry({
+        date: new Date().toISOString(),
+        description: `Anulación de nómina ${run.code}: ${reason}`,
+        reference: `REV-${run.code}`,
+        branchId: run.branchId,
+        sourceType: EntrySourceType.MANUAL,
+        userId,
+        status: EntryStatus.POSTED,
+        lines: entry.lines.map(line => ({
+          accountId: line.accountId,
+          debit: Number(line.credit ?? 0),
+          credit: Number(line.debit ?? 0),
+        })),
+      });
+    }
+
+    const [voided] = await db
+      .update(payrollRuns)
+      .set({
+        status: PayrollRunStatus.VOID,
+        voidedAt: new Date(),
+        voidedBy: userId ?? null,
+        voidReason: reason,
+      })
+      .where(eq(payrollRuns.id, run.id))
+      .returning();
+
+    this.logger.log(`Nómina ${run.code} anulada por ${userId ?? 'sistema'}: ${reason}`);
+
+    return {
+      ...voided,
+      totalAmount: parseFloat(String(voided.totalAmount)),
+    };
   }
 
   async findAllPayrollRuns(branchId?: string): Promise<PayrollRunResponseDto[]> {

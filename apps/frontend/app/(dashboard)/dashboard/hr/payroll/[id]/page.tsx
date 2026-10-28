@@ -3,7 +3,7 @@
 import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ArrowLeft, Banknote, BookOpen, Lock, Receipt } from 'lucide-react';
+import { ArrowLeft, Ban, Banknote, BookOpen, Lock, Receipt } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { usePayroll, usePayPayroll, usePostPayroll } from '@/modules/hr/hooks';
+import { usePayroll, usePayPayroll, usePostPayroll, useVoidPayroll } from '@/modules/hr/hooks';
 import { hrApi, type ConceptCategory, type PayrollItem, type PayrollLine } from '@/modules/hr/api';
 import { treasuryApi } from '@/modules/finance/api/treasury';
 import { useQuery } from '@tanstack/react-query';
@@ -84,6 +84,8 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
 
   const [selected, setSelected] = useState<PayrollItem | null>(null);
   const [payOpen, setPayOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voidReason, setVoidReason] = useState('');
 
   const runQuery = usePayroll(id);
   const parametersQuery = useQuery({
@@ -97,6 +99,7 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
   });
   const payPayroll = usePayPayroll();
   const postPayroll = usePostPayroll();
+  const voidPayroll = useVoidPayroll();
 
   const run = runQuery.data;
   const items = useMemo(() => run?.items ?? [], [run]);
@@ -155,8 +158,24 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={run.status === 'PAID' ? 'default' : 'secondary'}>{run.status}</Badge>
-          {canProcess && run.status !== 'DRAFT' ? (
+          <Badge
+            variant={
+              run.status === 'PAID'
+                ? 'default'
+                : run.status === 'VOID'
+                  ? 'destructive'
+                  : 'secondary'
+            }
+          >
+            {run.status === 'PAID'
+              ? 'Pagada'
+              : run.status === 'VOID'
+                ? 'Anulada'
+                : run.status === 'PROCESSED'
+                  ? 'Procesada'
+                  : 'Borrador'}
+          </Badge>
+          {canProcess && run.status !== 'DRAFT' && run.status !== 'VOID' ? (
             <Button
               variant="outline"
               onClick={() =>
@@ -177,14 +196,44 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
               {postPayroll.isPending ? 'Contabilizando…' : 'Contabilizar'}
             </Button>
           ) : null}
-          {canProcess && run.status !== 'PAID' ? (
+          {canProcess && run.status !== 'PAID' && run.status !== 'VOID' ? (
             <Button onClick={() => setPayOpen(true)}>
               <Banknote data-icon="inline-start" />
               Pagar nómina
             </Button>
           ) : null}
+          {canProcess && run.status !== 'DRAFT' && run.status !== 'VOID' ? (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setVoidReason('');
+                setVoidOpen(true);
+              }}
+            >
+              <Ban data-icon="inline-start" />
+              Anular nómina
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {run.status === 'VOID' ? (
+        <Card role="alert" className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Ban className="size-4" />
+              Nómina anulada
+            </CardTitle>
+            <CardDescription>
+              {run.voidReason ?? 'Sin motivo registrado'} · {date(run.voidedAt)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-muted-foreground text-sm">
+            Este run no se paga ni se contabiliza y, si estaba contabilizado, su asiento de
+            reversión quedó registrado. Para corregirlo hay que generar una nómina nueva.
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
@@ -448,6 +497,68 @@ export default function PayrollRunPage({ params }: { params: Promise<{ id: strin
               </Button>
               <Button type="submit" disabled={payPayroll.isPending}>
                 {payPayroll.isPending ? 'Registrando…' : 'Pagar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Anular nómina {run.code}</DialogTitle>
+            <DialogDescription>
+              La nómina queda marcada como anulada con tu usuario y el motivo; no se borra nada. Si
+              estaba contabilizada se registra un asiento de reversión. Para corregirla hay que
+              generar una nómina nueva.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={event => {
+              event.preventDefault();
+              voidPayroll.mutate(
+                { id, reason: voidReason.trim() },
+                {
+                  onSuccess: () => {
+                    toast.success(`Nómina ${run.code} anulada`);
+                    setVoidOpen(false);
+                  },
+                  onError: error =>
+                    toast.error(
+                      error instanceof Error ? error.message : 'No se pudo anular la nómina'
+                    ),
+                }
+              );
+            }}
+          >
+            <FieldGroup>
+              <Field data-invalid={voidReason.trim().length < 5}>
+                <FieldLabel htmlFor="voidReason">Motivo de la anulación</FieldLabel>
+                <Input
+                  id="voidReason"
+                  name="voidReason"
+                  value={voidReason}
+                  onChange={event => setVoidReason(event.target.value)}
+                  aria-invalid={voidReason.trim().length < 5}
+                  placeholder="Se pagó el sueldo equivocado"
+                  required
+                  minLength={5}
+                />
+                <FieldDescription>
+                  Queda en la nómina y en la auditoría. Mínimo 5 caracteres.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setVoidOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={voidPayroll.isPending || voidReason.trim().length < 5}
+              >
+                {voidPayroll.isPending ? 'Anulando…' : 'Anular nómina'}
               </Button>
             </DialogFooter>
           </form>

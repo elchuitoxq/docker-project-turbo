@@ -11,6 +11,8 @@ import {
   Matches,
   Min,
   Max,
+  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -24,6 +26,8 @@ export enum PayrollRunStatus {
   DRAFT = 'DRAFT',
   PROCESSED = 'PROCESSED',
   PAID = 'PAID',
+  /** `P-29` (RN-21): anulada. Ni se paga ni se contabiliza; el asiento, si lo hubo, se revierte. */
+  VOID = 'VOID',
 }
 
 export enum PayFrequency {
@@ -374,8 +378,28 @@ export class PayrollRunResponseDto {
   @ApiPropertyOptional({ example: '2026-06-01T12:00:00.000Z' })
   createdAt?: Date | null;
 
+  @ApiPropertyOptional({ example: '2026-07-02T10:00:00.000Z', description: 'Anulación (P-29)' })
+  voidedAt?: Date | null;
+
+  @ApiPropertyOptional({ description: 'Usuario que anuló (P-29)' })
+  voidedBy?: string | null;
+
+  @ApiPropertyOptional({ example: 'Se pagó el sueldo equivocado', description: 'Motivo (P-29)' })
+  voidReason?: string | null;
+
   @ApiPropertyOptional({ type: [Object] })
   items?: PayrollItemResponseDto[];
+}
+
+export class VoidPayrollRunDto {
+  @ApiProperty({
+    description: 'Motivo de la anulación; queda en el run y en la auditoría',
+    example: 'Se pagó el sueldo equivocado',
+  })
+  @IsString()
+  @MinLength(5, { message: 'El motivo debe explicar la anulación (mínimo 5 caracteres)' })
+  @MaxLength(500)
+  reason: string;
 }
 
 export class PayrollItemResponseDto {

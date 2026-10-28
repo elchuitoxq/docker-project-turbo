@@ -30,6 +30,7 @@ import {
   UpdatePositionDto,
   CreatePayrollRunDto,
   PayrollRunResponseDto,
+  VoidPayrollRunDto,
   CreateIncidentDto,
   PayslipDto,
   TerminateEmployeeDto,
@@ -322,6 +323,25 @@ export class HrController {
     @CurrentBranch() branchId: string
   ): Promise<PayrollSettingResponseDto> {
     return this.hrService.upsertPayrollSetting(dto, branchId);
+  }
+
+  @Post('payroll/:id/void')
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({
+    summary: 'Anula un run de nómina (RN-21)',
+    description:
+      'El run pasa a VOID y, si ya estaba contabilizado, se crea el asiento de reversión. Un borrador no se anula y un run con pago vivo exige anular antes el pago en Tesorería.',
+  })
+  @ApiBody({ type: VoidPayrollRunDto })
+  @ApiResponse({ status: 201, type: PayrollRunResponseDto })
+  @ApiResponse({ status: 409, description: 'Ya está anulada o tiene un pago vivo' })
+  async voidPayrollRun(
+    @Param('id') id: string,
+    @Body() dto: VoidPayrollRunDto,
+    @CurrentUser() user: CurrentUserData,
+    @CurrentBranch() branchId: string
+  ): Promise<PayrollRunResponseDto> {
+    return this.hrService.voidPayrollRun(id, dto.reason, user.id, branchId);
   }
 
   @Get('income-tax-table')

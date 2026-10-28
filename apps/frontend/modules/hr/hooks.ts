@@ -172,6 +172,18 @@ export function usePostPayroll() {
   });
 }
 
+/** Anulación de un run (`P-29`, RN-21): invalida la nómina y la contabilidad por la reversión. */
+export function useVoidPayroll() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => hrApi.voidPayroll(id, reason),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hrKeys.payrolls });
+      qc.invalidateQueries({ queryKey: ['accounting'] });
+    },
+  });
+}
+
 export const payrollConfigKeys = {
   settings: (asOf?: string) => ['hr', 'payroll-settings', asOf ?? 'today'] as const,
   concepts: ['hr', 'payroll-concepts'] as const,

@@ -63,7 +63,7 @@ export type Incident = {
   approvedBy?: string;
 };
 
-export type PayrollRunStatus = 'DRAFT' | 'PROCESSED' | 'PAID';
+export type PayrollRunStatus = 'DRAFT' | 'PROCESSED' | 'PAID' | 'VOID';
 
 export type ConceptCategory = 'ASSIGNMENT' | 'DEDUCTION' | 'EMPLOYER_CONTRIBUTION' | 'INFORMATIVE';
 
@@ -100,6 +100,9 @@ export type PayrollRun = {
   endDate: string;
   totalAmount: number;
   status: PayrollRunStatus;
+  /** `P-29`: datos de la anulación; sólo vienen cuando `status = 'VOID'`. */
+  voidedAt?: string | null;
+  voidReason?: string | null;
   items?: PayrollItem[];
 };
 
@@ -301,6 +304,8 @@ export const hrApi = {
     }
   ) => apiClient.post<PayrollPayment>(`/hr/payroll/${id}/pay`, body),
   postPayroll: (id: string) => apiClient.post<PayrollEntry>(`/hr/payroll/${id}/post`, {}),
+  voidPayroll: (id: string, reason: string) =>
+    apiClient.post<PayrollRun>(`/hr/payroll/${id}/void`, { reason }),
   getIncomeTaxTable: (asOf?: string) =>
     apiClient.get<IncomeTaxTable>(`/hr/income-tax-table${buildQuery({ asOf })}`),
   getPayrollParameters: (id: string) =>

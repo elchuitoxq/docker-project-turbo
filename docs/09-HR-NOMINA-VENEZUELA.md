@@ -348,7 +348,8 @@ effectiveFrom)` para los de sucursal (índices parciales). El seed resuelve la e
    referencias al período original.
 3. La retroactividad **no** recalcula runs cerrados: se calcula la diferencia con el snapshot del
    período original y se paga aparte.
-4. Si el período está `PAID`, la corrección exige `VOID` del run y uno nuevo (RN-21).
+4. Si el período está `PAID` o contabilizado, la corrección exige anular el run (`VOID`, RN-21) y
+   generar uno nuevo; la anulación deja el asiento de reversión.
 
 ## 12. Contabilización
 
@@ -423,13 +424,13 @@ la prueba que la sostiene, no a la intención de implementarla.
 | RN-23 | Precedencia sucursal > empresa y aislamiento entre sucursales              | `payroll-rules.test.ts` · "da precedencia al valor de la sucursal"              |
 | RN-24 | Dos llamadas al pago dejan un único movimiento                             | `payroll-payment.test.ts` · "dos llamadas producen un solo movimiento"          |
 | H-70  | Sueldo en divisa: vacaciones y prestaciones resuelven la tasa del contrato | `hr-benefits.test.ts` · bloque "Sueldo en divisa (H-70)"                        |
+| RN-21 | Anular exige motivo, deja autor y fecha, y revierte el asiento             | `test/payroll-void.test.ts` · 8 casos (espejo, doble anulación, pago vivo)      |
 
 **Reglas sin cobertura todavía**
 
-| Regla | Por qué                                                                             |
-| ----- | ----------------------------------------------------------------------------------- |
-| RN-21 | `VOID` de un run pagado: no existe el estado ni la reversión (ver §15, punto 8)     |
-| RN-25 | Cubierto por H-59 (`payroll-posting.test.ts`): falla si falta el mapeo del concepto |
+| Regla | Por qué                                                                         |
+| ----- | ------------------------------------------------------------------------------- |
+| —     | Todas las reglas de la épica tienen prueba; el detalle de cada una está arriba. |
 
 > **Hueco detectado al validar la UI (H-72):** RN-14 y RN-15 se cumplen para antigüedad ≥ 1 año, pero
 > con `years = 0` acreditan 15 + 7 días completos. La liquidación en vivo de un empleado con un día de
@@ -445,11 +446,9 @@ patronal aparte y falla con un mensaje claro si el neto queda negativo; y las pr
 vacaciones, bono vacacional y utilidades se calculan con sus topes y se registran con idempotencia
 por trimestre y por ejercicio.
 
-**Lo que falta:** la reversión (`VOID`) de un run pagado (RN-21), que es la única regla de la épica
-sin implementar: `PayrollRunStatus` sólo tiene `DRAFT`, `PROCESSED` y `PAID`, así que hoy un run
-pagado o contabilizado **no se puede deshacer** desde el sistema. El mapeo contable por concepto
-(RN-25) ya está cubierto desde H-59. La retención de ISLR se aplica con la tabla progresiva real; el
-detalle de cada parámetro legal —qué pide la ley, cómo lo modela SAP, qué falta validar— está en
+**Lo que falta:** nada de la épica: RN-21 quedó implementada (anulación con motivo, autor y asiento de
+reversión), RN-25 desde H-59 y la retención de ISLR se aplica con la tabla progresiva real. El detalle
+de cada parámetro legal —qué pide la ley, cómo lo modela SAP, qué falta validar— está en
 [`10-PARAMETROS-LEGALES.md`](./10-PARAMETROS-LEGALES.md) (P-28).
 
 ## 15. Decisiones abiertas (requieren validación profesional)
@@ -477,12 +476,11 @@ detalle de cada parámetro legal —qué pide la ley, cómo lo modela SAP, qué 
    al terminar antes paga **fraccionadas** (Art. 196). Falta definir la fórmula proporcional (¿días
    por mes completo: 1,25 y 0,58?) y si el bono se paga sólo con la vacaciones causadas. Mientras no
    se valide, una liquidación de un empleado con menos de un año sobrepaga. ⚠️
-8. **Reversión de un run pagado (RN-21)**: falta decidir el procedimiento. La propuesta es
-   `VOID` + asiento de reversión espejo + run nuevo enlazado al anulado, sin borrar nada; el
-   destinatario de la decisión es el contador, porque de él depende si la reversión se registra el
-   mismo día del pago o en el período siguiente. Hoy el sistema **no permite** corregir un run ya
-   pagado: es el hueco funcional más grande que queda en la épica.
+8. **Reversión de un run pagado (RN-21)**: implementada como `VOID` + asiento de reversión espejo,
+   sin borrar nada. Queda una decisión del contador: si la reversión se registra **el mismo día** del
+   pago o en el **período siguiente**; hoy se registra a la fecha de la anulación, así que un cierre
+   de mes entre el pago y la anulación la manda al mes en curso, no al de origen.
 
-> Los puntos 1 a 7 no bloquean el diseño: son parámetros o tablas. El punto 8 es código pendiente
-> (RN-21) que depende de la decisión contable. Todos deben resolverse antes de usar la nómina en
+> Los puntos 1 a 7 no bloquean el diseño: son parámetros o tablas. El punto 8 ya está implementado y
+> sólo conserva una decisión contable menor. Todos deben resolverse antes de usar la nómina en
 > producción.
