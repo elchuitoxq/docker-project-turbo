@@ -69,21 +69,26 @@ async function codesInBranch(page: Page, branchId: string) {
 }
 
 /**
- * Cambia el contexto activo por el selector de empresa.
+ * Cambia la sucursal activa por el selector de sucursal.
  *
- * En el seed de pruebas cada empresa tiene una sola sucursal, así que el selector de sucursal está
- * deshabilitado; el de empresa no, y al cambiarlo el contexto salta a su primera sucursal.
+ * El test se llama «aislamiento entre sucursales», así que lo que se cambia es la **sucursal**. Se
+ * elige por nombre y no por posición: el orden del selector no es el mismo que el de la API. Cuando
+ * la empresa tiene una sola sucursal el selector está deshabilitado y no hay nada que cambiar.
  */
-async function switchCompany(page: Page, optionIndex: number) {
+async function switchBranch(page: Page, branchName: string) {
   const selector = page
     .getByRole('combobox')
-    .filter({ hasText: /Empresa|Company/ })
+    .filter({ hasText: /Sucursal|Branch/ })
     .first();
+
+  if (!(await selector.isEnabled())) return;
+
   await selector.click();
-  // Las opciones del `Combobox` son botones dentro del popover, no `role="option"`.
-  const options = page.locator('[data-radix-popper-content-wrapper] button[type="button"]');
-  await options.nth(optionIndex).click();
-  await expect(options).toHaveCount(0);
+  await page
+    .locator('[data-radix-popper-content-wrapper] button[type="button"]')
+    .filter({ hasText: branchName })
+    .first()
+    .click();
 }
 
 test.describe('Aislamiento entre sucursales (T-00-12)', () => {
@@ -101,21 +106,13 @@ test.describe('Aislamiento entre sucursales (T-00-12)', () => {
     });
     expect(detailFromB.status()).toBe(404);
 
-    // Capa UI: el documento aparece con la sucursal A activa y desaparece al cambiar de contexto.
-    const companiesResponse = await page.request.get(`${API_URL}/v1/branches/companies`);
-    const companies = (await companiesResponse.json()) as Array<{ id: string }>;
-    const indexOfCompany = (companyId: string) => {
-      const index = companies.findIndex(company => company.id === companyId);
-      expect(index, `la empresa ${companyId} debe estar en el selector`).toBeGreaterThanOrEqual(0);
-      return index;
-    };
-
+    // Capa UI: el documento aparece con la sucursal A activa y desaparece al cambiar de sucursal.
     await page.goto('/dashboard');
-    await switchCompany(page, indexOfCompany(a.companyId));
+    await switchBranch(page, a.name);
     await page.goto('/dashboard/operations/sales');
     await expect(page.getByText(invoice.code)).toBeVisible({ timeout: 20_000 });
 
-    await switchCompany(page, indexOfCompany(b.companyId));
+    await switchBranch(page, b.name);
     await page.goto('/dashboard/operations/sales');
     await expect(page.getByText(invoice.code)).toHaveCount(0, { timeout: 20_000 });
   });

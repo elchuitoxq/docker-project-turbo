@@ -8,6 +8,15 @@ type SeedMode = 'dev' | 'test' | 'prod' | 'core' | 'faker';
 const seedMode = process.argv[2] as SeedMode | undefined;
 const supportedModes: SeedMode[] = ['dev', 'test', 'prod', 'core', 'faker'];
 
+/** Bases desechables: las de los contenedores de prueba y las de CI. */
+const THROWAWAY_DATABASE = /^testdb(_[a-z]+)?$/;
+
+/**
+ * El seed de desarrollo se niega a correr contra cualquier cosa que no sea local, para que un
+ * `DATABASE_URL` mal apuntado no siembre datos de prueba en un servidor real. Acepta dos destinos:
+ * `mydb` en el 5432 (desarrollo) y una base `testdb_*` local (contenedores de prueba e CI, que exponen
+ * el Postgres en otro puerto).
+ */
 function assertDevelopmentDatabase() {
   if (process.env.SEED_ENV !== 'development') {
     throw new Error('Refusing development seed: set SEED_ENV=development explicitly');
@@ -25,8 +34,15 @@ function assertDevelopmentDatabase() {
   if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
     throw new Error('Development seed requires a PostgreSQL URL');
   }
-  if (!allowedHosts.has(url.hostname) || url.port !== '5432' || database !== 'mydb') {
-    throw new Error('Development seed only allows local PostgreSQL on port 5432, database mydb');
+  if (!allowedHosts.has(url.hostname)) {
+    throw new Error('Development seed only allows a local PostgreSQL host');
+  }
+
+  const isDevelopmentTarget = url.port === '5432' && database === 'mydb';
+  if (!isDevelopmentTarget && !THROWAWAY_DATABASE.test(database)) {
+    throw new Error(
+      'Development seed only allows local PostgreSQL on port 5432, database mydb, or a throwaway testdb_* database'
+    );
   }
 }
 

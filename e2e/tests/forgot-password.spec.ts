@@ -8,6 +8,10 @@ import { test, expect, type Page } from '@playwright/test';
  * depende del estado de la base.
  */
 
+// Estas pruebas necesitan llegar al login **sin sesión**: el proyecto `chromium` trae la cookie del
+// `auth.setup` y `/login` redirige al panel cuando ya hay una.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 async function mockForgot(page: Page, body: unknown, status = 200) {
   await page.route('**/v1/auth/forgot-password', route =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })

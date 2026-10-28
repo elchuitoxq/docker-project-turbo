@@ -2331,3 +2331,44 @@ estaba pagada o contabilizada, **no había forma de deshacerlo**: el asiento que
 
 - **H-106**: anular un pago en Tesorería no revierte su asiento contable. La nómina ya no puede quedar
   descuadrada por su lado, pero el egreso del pago anulado sigue en el libro. Queda como `P-31`.
+
+### BT-062 · 2026-10-28 · El job E2E de CI corre por primera vez en local (P-22)
+
+**Lo que había**
+
+El workflow `CI` **nunca se había ejecutado** en GitHub (`total_count: 0`): el job `e2e` estaba
+escrito pero nadie lo había visto pasar. Reproducir sus pasos destapó dos defectos que lo habrían
+hecho fallar en el primer intento.
+
+**Defecto 1: el seed se negaba a correr en CI**
+
+`db:seed:dev` exigía `localhost:5432/mydb`. El job usa el servicio de Postgres en `localhost:5433`
+con la base `testdb`, así que `assertDevelopmentDatabase` lanzaba «only allows local PostgreSQL on
+port 5432, database mydb» y el paso _Migrate + seed_ moría. Ahora el guard acepta dos destinos
+locales: `mydb` en el 5432 (desarrollo) o una base desechable `testdb_*` en cualquier puerto. La
+protección que importa —no sembrar datos de prueba en un servidor remoto— se mantiene.
+
+**Defecto 2: dos pruebas dependían del estado de desarrollo**
+
+| Prueba                     | Qué fallaba                                                                                                                                               | Corrección                                                           |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `forgot-password.spec.ts`  | `/login` redirigía al panel porque el proyecto `chromium` trae la cookie del `auth.setup`; la prueba de la pantalla de login necesita **no** tener sesión | `test.use({ storageState: { cookies: [], origins: [] } })`           |
+| `branch-isolation.spec.ts` | Elegía empresa y sucursal **por posición**; en la base nueva el orden difiere y el selector de empresa está deshabilitado (una sola empresa)              | Cambia la **sucursal** por nombre, que es lo que el test dice probar |
+
+**Verificación real (no simulada)**
+
+Se reprodujo el job tal como está escrito, contra un Postgres desechable en `localhost:5433`:
+
+| Paso del workflow                                          | Resultado                                        |
+| ---------------------------------------------------------- | ------------------------------------------------ |
+| `pnpm turbo run build`                                     | 12/12                                            |
+| `pnpm --filter database db:migrate`                        | 23 migraciones aplicadas                         |
+| `pnpm --filter database db:seed:dev`                       | 6 usuarios, 5 partners, 10 productos, 5 facturas |
+| `node apps/backend/dist/main.js`                           | `/health` → `{"status":"ok","database":"up"}`    |
+| `pnpm --filter frontend start`                             | `/login` → 200                                   |
+| `pnpm exec playwright test` con `CI=1` y `E2E_NO_SERVER=1` | **21/21**                                        |
+
+**Lo que sigue pendiente**
+
+Falta verlo correr **en GitHub Actions** (`e2e` es bloqueante). Requiere empujar el commit: el
+workflow se dispara en `push` a `main`, en pull request o a mano con `workflow_dispatch`.
