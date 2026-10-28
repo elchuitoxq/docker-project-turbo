@@ -35,7 +35,7 @@
 | T-00-09 | `GET /v1/auth/me` devuelve `defaultBranchId`                                                                                                                                          | `modules/auth/auth.service.ts`, `shared-types`                                                         | T-00-03          | contrato OpenAPI regenerado                                                                     | S     | ✅     |
 | T-00-10 | Frontend: validar la sucursal contra el backend antes de pintar el dashboard; pantalla "sin acceso a esta sucursal"                                                                   | `apps/frontend/app/(dashboard)/layout.tsx`, `stores/use-auth-store.ts`                                 | T-00-09          | E2E: usuario sin sucursal ve la pantalla de bloqueo                                             | M     | ✅     |
 | T-00-11 | `queryClient.clear()` al cambiar de sucursal                                                                                                                                          | `apps/frontend/lib/api/query-client.ts`, selector de sucursal                                          | T-00-10          | no quedan datos de la sucursal anterior en caché                                                | S     | ✅     |
-| T-00-12 | Pruebas de aislamiento cruzado                                                                                                                                                        | `*.service.test.ts` + `apps/backend/test/*` + `e2e/*`                                                  | T-00-08          | 3 capas verdes; E2E "B no ve A"                                                                 | M     | 🟡     |
+| T-00-12 | Pruebas de aislamiento cruzado                                                                                                                                                        | `*.service.test.ts` + `apps/backend/test/*` + `e2e/*`                                                  | T-00-08          | 3 capas verdes; E2E "B no ve A"                                                                 | M     | ✅     |
 | T-00-13 | Documentar el contrato de la cabecera                                                                                                                                                 | `docs/API-CONTRACTS.md`, [`02-arquitectura-y-convenciones.md`](./02-arquitectura-y-convenciones.md) §3 | T-00-03          | `@ApiHeader` visible en Swagger                                                                 | S     | ✅     |
 
 **Gate de salida E0:** los 8 módulos responden `403`/`404` correctamente ante sucursal ajena, no baja
@@ -285,22 +285,23 @@ trazada.
 > 2026-10-26 adelanta la obligación fiscal (E6) antes de compras/CxP (E3) y de tesorería (E5), e
 > incorpora multimoneda (E8) antes de contabilidad porque el libro debe nacer con moneda funcional.
 
-| Ola | Semanas | Épica / tareas                         | Tareas  | Hechas |
-| --- | ------- | -------------------------------------- | ------- | ------ |
-| 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 12     |
-| 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 13     |
-| 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
-| 4   | 6-7     | E2 nómina                              | 11      | 11     |
-| 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
-| 6   | 10-11   | E6 reportes fiscales                   | 6       | 6      |
-| 7   | 12-13   | E3 compras y CxP                       | 9       | 9      |
-| 8   | 14-15   | E5 tesorería                           | 9       | 9      |
-| 9   | 16      | E7 frontend restante                   | 7       | 7      |
-| —   | —       | Transversales                          | 6       | 6      |
-| —   | —       | **Total**                              | **100** | **99** |
+| Ola | Semanas | Épica / tareas                         | Tareas  | Hechas  |
+| --- | ------- | -------------------------------------- | ------- | ------- |
+| 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 13      |
+| 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 13      |
+| 3   | 5       | E1 frentes A, B y C                    | 17      | 17      |
+| 4   | 6-7     | E2 nómina                              | 11      | 11      |
+| 5   | 8-9     | E4 contabilidad                        | 9       | 9       |
+| 6   | 10-11   | E6 reportes fiscales                   | 6       | 6       |
+| 7   | 12-13   | E3 compras y CxP                       | 9       | 9       |
+| 8   | 14-15   | E5 tesorería                           | 9       | 9       |
+| 9   | 16      | E7 frontend restante                   | 7       | 7       |
+| —   | —       | Transversales                          | 6       | 6       |
+| —   | —       | **Total**                              | **100** | **100** |
 
-> Queda **1 tarea** para 100/100: `T-00-12` (en 🟡: falta el E2E de aislamiento entre sucursales
-> sobre el build de producción).
+> **Las 100 tareas del WBS están cerradas.** Lo que queda abierto son los parámetros legales y de
+> negocio de `⚠️ P-28` (alícuotas, cestaticket, tramos de ISLR), que necesitan decisión del cliente y
+> no código.
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

@@ -19,6 +19,9 @@ export default defineConfig({
     include: ['**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
     exclude: ['node_modules', '.next', '.turbo', 'dist', 'e2e'],
+    // jsdom + msw tardan; con el resto del pipeline en paralelo 5 s (default) no alcanza.
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

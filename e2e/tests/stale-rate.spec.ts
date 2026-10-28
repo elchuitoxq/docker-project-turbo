@@ -1,8 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 
-const EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'test-admin@test.local';
-const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'Test1234!';
-
 /** Fecha local en formato `YYYY-MM-DD` (no UTC: de noche en Venezuela ya es "mañana"). */
 function daysAgo(days: number): string {
   const date = new Date();
@@ -64,14 +61,6 @@ const METHOD = {
   code: 'TRANSFER',
 };
 
-async function login(page: Page) {
-  await page.goto('/login');
-  await page.locator('#email').fill(EMAIL);
-  await page.locator('#password').fill(PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await expect(page).toHaveURL(/\/dashboard/, { timeout: 20_000 });
-}
-
 /** Deja el listado de CxP y las tasas bajo control del test: la tasa vencida es el sujeto de prueba. */
 async function mockPayables(page: Page, rateDate: string) {
   await page.route('**/v1/billing/invoices/payables**', route => {
@@ -113,7 +102,6 @@ async function openPaymentDialog(page: Page) {
 
 test.describe('Tasa vencida en cuentas por pagar (T-08-12)', () => {
   test('bloquea el pago hasta confirmar la tasa vieja', async ({ page }) => {
-    await login(page);
     await mockPayables(page, daysAgo(5));
 
     const dialog = await openPaymentDialog(page);
@@ -130,7 +118,6 @@ test.describe('Tasa vencida en cuentas por pagar (T-08-12)', () => {
   });
 
   test('con la tasa del día no pide confirmación y muestra el monto dual', async ({ page }) => {
-    await login(page);
     await mockPayables(page, daysAgo(0));
 
     const dialog = await openPaymentDialog(page);

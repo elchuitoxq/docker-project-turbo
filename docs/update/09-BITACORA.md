@@ -1978,3 +1978,53 @@ mostraba sin fecha: nadie podía notar que estaba vieja.
 - Backend **942/942** · frontend **141/141** (15 nuevas) · database **39/39** · turbo **16/16** ·
   `format:check` verde · `audit --prod` sin vulnerabilidades.
 - Plan: **99 de 100**, E8 **13 de 13**. Queda `T-00-12` (E2E de aislamiento sobre build de producción).
+
+### BT-055 · 2026-10-27 · E0 cerrada: el aislamiento se prueba de punta a punta sobre el build de producción (T-00-12)
+
+**Lo que había**
+
+El aislamiento por sucursal estaba probado en dos capas (servicio y HTTP contra Postgres) pero nunca
+desde el navegador: nada demostraba que, al cambiar de sucursal en la interfaz, lo que se ve en
+pantalla sea sólo de la sucursal activa. Además la suite E2E no podía crecer: cada spec se logueaba
+por su cuenta y `/auth/login` admite **5 intentos por minuto**, así que dos corridas seguidas devolvían
+`ThrottlerException`.
+
+**Qué se entregó**
+
+| Pieza                        | Contenido                                                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/auth.setup.ts`          | Un solo login por corrida; guarda la cookie de sesión en `e2e/.auth/` (ignorado por git)                                              |
+| `playwright.config.ts`       | Proyecto `setup` + `chromium` con `storageState`; `testDir` pasa a `./e2e`                                                            |
+| `e2e/tests/branch-isolation` | Crea una factura en la sucursal A, comprueba que B no la lista ni la abre (404) y que al cambiar de empresa desaparece de la pantalla |
+| `app.spec` / `login.spec`    | Se declaran sin sesión (`storageState` vacío): prueban justamente el estado sin credenciales                                          |
+
+**Decisiones**
+
+- **El token no se persiste**: la sesión vive en una cookie httpOnly, así que la forma correcta de
+  reutilizarla en Playwright es `storageState`, no leer `localStorage`.
+- **El spec de aislamiento usa las dos primeras sucursales del usuario** en lugar de nombres fijos: si
+  el seed cambia de nombres, la prueba sigue midiendo el aislamiento y no el seed.
+- **El cambio de contexto se hace por el selector de empresa**: en el seed cada empresa tiene una sola
+  sucursal, así que el selector de sucursal está deshabilitado por diseño.
+- **Se prefiere el E2E sobre el build de producción** (`next start` + `node dist/main`) porque es la
+  única capa que puede revelar diferencias entre dev y build (RSC, caché, variables inlined).
+
+**Hallazgos**
+
+- **H-95** (bajo, era "mitigado"): las migraciones `0016`…`0019` se habían aplicado a mano y no estaban
+  en `drizzle.__drizzle_migrations`; `docker compose up` fallaba en `db-setup` al reintentar `0017`.
+  Se registraron las cuatro con su SHA-256 y su `when` del journal: `db:migrate` vuelve a ser no-op.
+
+**Verificación**
+
+- Suite E2E completa **11/11** contra el **build de producción** (`next start` en 3000 + `node
+dist/main` en 4000) y **11/11** contra el stack de desarrollo.
+- El spec de aislamiento crea una factura real en Caracas y comprueba: listado de A la contiene,
+  listado de B no, detalle desde B → 404, pantalla de ventas con A la muestra y con B no.
+- `docker compose up -d` vuelve a levantar limpio, con `db-setup` aplicando cero migraciones.
+
+**Pruebas**
+
+- Backend **942/942** · frontend **141/141** · database **39/39** · E2E **11/11** · turbo **16/16** ·
+  `format:check` verde · `audit --prod` sin vulnerabilidades.
+- Plan: **100 de 100 tareas**. Lo abierto es `⚠️ P-28` (parámetros legales y de negocio).

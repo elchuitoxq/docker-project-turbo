@@ -11,8 +11,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/test/**/*.test.ts'],
     exclude: ['node_modules', 'dist'],
     // Los tests tocan Postgres; en CI con runners lentos 10 s (default) no alcanza.
+    // 60 s cubre el caso peor: el suite completo en paralelo con el resto del pipeline.
     testTimeout: 20_000,
-    hookTimeout: 30_000,
+    hookTimeout: 60_000,
     env: {
       TEST_DATABASE_URL: backendTestUrl,
       DATABASE_URL: backendTestUrl,

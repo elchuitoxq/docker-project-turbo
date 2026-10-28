@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 
 const API_URL = process.env.E2E_API_URL ?? 'http://localhost:4000';
 
+// Este spec prueba el estado sin sesión (login visible y API sin credenciales): arranca limpio.
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test.describe('Aplicación Frontend', () => {
   test('debería cargar la página de login', async ({ page }) => {
     await page.goto('/login');
