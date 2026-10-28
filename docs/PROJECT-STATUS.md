@@ -1,23 +1,26 @@
 # Estado verificado del proyecto
 
-> **Actualizado:** 2026-10-23. Este archivo es la fuente de verdad del estado
+> **Actualizado:** 2026-10-27. Este archivo es la fuente de verdad del estado
 > observado; las casillas de `PROGRESS.md` y el plan de junio de `PLANNING.md`
-> son snapshots históricos. Los resultados de tests registran el comando y el
-> entorno donde se ejecutaron; las pruebas con PostgreSQL deben usar el entorno
-> aislado descrito en `DATABASE-TESTING.md`.
+> son snapshots históricos, y el avance del plan vive en
+> [`sdd/04-plan-de-tareas.md`](./sdd/04-plan-de-tareas.md). Los resultados de
+> tests registran el comando y el entorno donde se ejecutaron; las pruebas con
+> PostgreSQL deben usar el entorno aislado descrito en `DATABASE-TESTING.md`.
 
 ## Resumen
 
-| Área               | Estado observado                                                                 | Evidencia / límite                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Monorepo           | Configurado con pnpm y Turborepo                                                 | `package.json`, `pnpm-workspace.yaml`, `turbo.json`                                                     |
-| Database           | Esquema Drizzle; empresas y sucursales relacionadas explícitamente               | `schema.ts`, migración `0003`; ver historial de desarrollo debajo                                       |
-| Pruebas PostgreSQL | Entorno aislado separado para `testdb_database` y `testdb_backend`               | [`DATABASE-TESTING.md`](./DATABASE-TESTING.md); ejecutar resultados de nuevo antes de cerrar esta fase  |
-| Backend            | Controladores implementados para múltiples módulos; autenticación JWT disponible | El guard solo protege controladores seleccionados                                                       |
-| RBAC               | Seis roles de sistema; permisos verificados en Users, Roles y Branches           | `seed-rbac.ts` declara 68 permisos; `PermissionsGuard` protege las superficies señaladas en contratos   |
-| Frontend           | Usuarios, roles, empresas y sucursales integrados; contexto responsivo           | Typecheck, pruebas enfocadas y flujo manual verificados el 2026-10-23; ver contratos para límites       |
-| Operations         | Implementación parcial                                                           | Partners, Orders y Billing tienen divergencias documentadas en [`API-CONTRACTS.md`](./API-CONTRACTS.md) |
-| Graphify           | Informe estático generado el 2026-06-10                                          | `graphify-out/GRAPH_REPORT.md`; no usar como verificación actual                                        |
+| Área               | Estado observado                                                               | Evidencia / límite                                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| Monorepo           | Configurado con pnpm y Turborepo                                               | `package.json`, `pnpm-workspace.yaml`, `turbo.json`                                                                      |
+| Database           | Esquema Drizzle con moneda funcional, sucursal obligatoria y 20 migraciones    | `schema.ts`, `drizzle/0000…0019`; rollback por migración en [`DATABASE.md`](./DATABASE.md)                               |
+| Pruebas PostgreSQL | Entorno aislado separado para `testdb_database` y `testdb_backend`             | [`DATABASE-TESTING.md`](./DATABASE-TESTING.md); 942 backend + 39 database verdes                                         |
+| Backend            | 22 controladores; autenticación JWT por cookie httpOnly y guards globales      | `ThrottlerGuard → JwtAuthGuard → PermissionsGuard → BranchContextGuard`; 12 controladores declaran `@RequirePermissions` |
+| RBAC               | Seis roles de sistema con permisos verificados por rol                         | `seed-rbac.ts` declara 87 permisos; prueba de cobertura en `src/test/permissions-coverage.test.ts`                       |
+| Frontend           | Módulos de operaciones, inventario, finanzas, RR. HH., contabilidad y reportes | 141 pruebas; navegación y permisos sincronizados en `lib/navigation.ts` y `lib/permissions.ts`                           |
+| Multimoneda        | Moneda funcional VES, monto dual y bloqueo por tasa vencida                    | `lib/rates.ts`, `components/finance/stale-rate-gate.tsx`; E2E `stale-rate.spec.ts`                                       |
+| Aislamiento        | Probado en servicio, HTTP y navegador                                          | `src/test/branch-isolation.test.ts` + E2E `branch-isolation.spec.ts` sobre el build de producción                        |
+| Plan               | **100 de 100 tareas del WBS**                                                  | [`sdd/04-plan-de-tareas.md`](./sdd/04-plan-de-tareas.md); pendientes legales en `⚠️ P-28`                                |
+| Graphify           | Informe estático generado el 2026-06-10                                        | `graphify-out/GRAPH_REPORT.md`; no usar como verificación actual                                                         |
 
 ## Seeds de desarrollo y pruebas RBAC
 
