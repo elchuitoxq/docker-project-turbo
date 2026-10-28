@@ -21,6 +21,10 @@ export type Payable = {
   creditNotes: number;
   retained: number;
   balance: number;
+  /** Tasa del documento: `base = monto × exchangeRate`. */
+  exchangeRate: number;
+  totalBase: number;
+  balanceBase: number;
   status: PayableStatus;
   daysOverdue: number;
 };
@@ -28,6 +32,8 @@ export type Payable = {
 export type AgingReport = {
   branchId: string;
   asOf: string;
+  /** Moneda de los agregados (funcional). */
+  baseCurrencyCode: string;
   buckets: Array<{ bucket: AgingBucket; label: string; total: number; invoices: number }>;
   byPartner: Array<{
     partnerId: string;

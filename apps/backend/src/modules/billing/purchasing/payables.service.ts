@@ -23,6 +23,10 @@ export type PayableRow = {
   creditNotes: number;
   retained: number;
   balance: number;
+  /** Tasa del documento: ase = monto × exchangeRate (unidades de moneda funcional por unidad). */
+  exchangeRate: number;
+  totalBase: number;
+  balanceBase: number;
   status: PayableStatus;
   daysOverdue: number;
 };
@@ -33,6 +37,8 @@ export type AgingReport = {
   branchId: string;
   asOf: string;
   buckets: Array<{ bucket: AgingBucket; label: string; total: number; invoices: number }>;
+  /** Moneda de los agregados: la funcional (los saldos de documentos en divisa se convierten). */
+  baseCurrencyCode: string;
   byPartner: Array<{
     partnerId: string;
     partnerName: string;
@@ -71,7 +77,10 @@ export class PayablesService {
   }
 
   async aging(branchId: string, asOf?: string): Promise<AgingReport> {
-    const rows = await this.build(branchId, asOf);
+    const [rows, baseCurrency] = await Promise.all([
+      this.build(branchId, asOf),
+      this.functionalCurrency(),
+    ]);
     const cutoff = asOf ? new Date(asOf) : new Date();
 
     const buckets: Record<AgingBucket, { total: number; invoices: number }> = {
@@ -92,8 +101,11 @@ export class PayablesService {
     for (const row of rows) {
       if (row.balance <= 0) continue;
 
+      // Los agregados van en moneda funcional: sumar dólares con bolívares no significa nada (H-79).
+      const balance = row.balanceBase;
+
       const bucket = this.bucketFor(row.dueDate, cutoff);
-      buckets[bucket].total += row.balance;
+      buckets[bucket].total += balance;
       buckets[bucket].invoices += 1;
 
       const partner = partnerTotals.get(row.partnerId) ?? {
@@ -102,12 +114,12 @@ export class PayablesService {
         total: 0,
         overdue: 0,
       };
-      partner.total += row.balance;
-      if (row.daysOverdue > 0) partner.overdue += row.balance;
+      partner.total += balance;
+      if (row.daysOverdue > 0) partner.overdue += balance;
       partnerTotals.set(row.partnerId, partner);
 
-      total += row.balance;
-      if (row.daysOverdue > 0) overdue += row.balance;
+      total += balance;
+      if (row.daysOverdue > 0) overdue += balance;
     }
 
     const labels: Record<AgingBucket, string> = {
@@ -121,6 +133,7 @@ export class PayablesService {
     return {
       branchId,
       asOf: cutoff.toISOString(),
+      baseCurrencyCode: baseCurrency,
       buckets: (Object.keys(buckets) as AgingBucket[]).map(bucket => ({
         bucket,
         label: labels[bucket],
@@ -215,6 +228,9 @@ export class PayablesService {
         retained: retainedByInvoice.get(invoice.id) ?? 0,
       });
       const daysOverdue = this.daysOverdue(invoice.dueDate, cutoff);
+      const exchangeRate = Number(invoice.exchangeRate ?? 1) || 1;
+      const toBase = (amount: number) =>
+        Number(this.money.round(this.money.toBase(amount, exchangeRate)));
 
       return {
         invoiceId: invoice.id,
@@ -232,6 +248,9 @@ export class PayablesService {
         creditNotes: credited,
         retained,
         balance,
+        exchangeRate,
+        totalBase: toBase(total),
+        balanceBase: toBase(balance),
         status: this.statusFor(balance, paid + credited, daysOverdue),
         daysOverdue,
       };
@@ -269,5 +288,16 @@ export class PayablesService {
 
   private round(value: number): number {
     return Number(this.money.round(value));
+  }
+
+  /** Código de la moneda funcional, para etiquetar los agregados del aging. */
+  private async functionalCurrency(): Promise<string> {
+    const [base] = await db
+      .select({ code: currencies.code })
+      .from(currencies)
+      .where(eq(currencies.isBase, true))
+      .limit(1);
+
+    return base?.code ?? 'VES';
   }
 }

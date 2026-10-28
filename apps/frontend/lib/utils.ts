@@ -13,6 +13,23 @@ export function formatCurrency(amount: number, currency: 'USD' | 'VES' = 'USD') 
   }).format(amount);
 }
 
+/**
+ * Monto en las dos monedas (`T-08-12`): el documento manda y la otra moneda se calcula con la tasa.
+ *
+ * Con una tasa inválida devuelve sólo el monto original: es preferible un importe a un `Infinity`.
+ */
+export function formatDual(amount: number, currency: 'USD' | 'VES', rate: number) {
+  const primary = formatCurrency(amount, currency);
+  if (!Number.isFinite(rate) || rate <= 0) return primary;
+
+  const secondary =
+    currency === 'USD'
+      ? formatCurrency(amount * rate, 'VES')
+      : formatCurrency(amount / rate, 'USD');
+
+  return `${primary} · ${secondary}`;
+}
+
 export function formatDate(date: Date | string) {
   const d = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('es-VE', {

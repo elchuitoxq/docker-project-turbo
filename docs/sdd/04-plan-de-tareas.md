@@ -106,7 +106,7 @@ Medición sobre `packages/database/src/schema.ts`: **60 tablas**, **18 con `bran
 | T-08-09 | `MoneyService.convert()` único con `decimal.js` y política de redondeo                                    | `apps/backend/src/common/money/*` (nuevo)                         | T-08-01          | unit: 1 / 36,5 / 0 → error; HALF_UP                                                    | M     | ✅     |
 | T-08-10 | Frescura de tasa: `getExchangeRate` rechaza tasas fuera del umbral y la emisión exige confirmación        | `billing.service.ts`, `treasury/*`                                | T-08-04          | tasa de hace 3 días no se usa en silencio                                              | M     | ✅     |
 | T-08-11 | Diferencia cambiaria al cobrar en moneda distinta a la factura                                            | `modules/treasury/*`, `modules/accounting/*`                      | T-08-07          | cobro en VES de factura USD deja saldo 0 con línea de diferencia                       | L     | ✅     |
-| T-08-12 | Frontend: formato por moneda, monto dual y aviso de tasa vencida                                          | `global-rate-display.tsx`, `lib/utils.ts`, formularios de emisión | T-08-10          | E2E: aviso bloquea emisión hasta confirmar                                             | M     | ⬜     |
+| T-08-12 | Frontend: formato por moneda, monto dual y aviso de tasa vencida                                          | `global-rate-display.tsx`, `lib/utils.ts`, formularios de emisión | T-08-10          | E2E: aviso bloquea emisión hasta confirmar                                             | M     | ✅     |
 | T-08-13 | **Reporte dual obligatorio**: columnas VES + USD a tasa de corte en estados, libros y reportes de gestión | `modules/reports/*`, `modules/accounting/*`                       | T-08-07, T-08-09 | ambas columnas cuadran; `closingRate` en el encabezado                                 | M     | ✅     |
 
 **Gate de salida E8:** una factura en USD cobrada en VES a tasa distinta cierra el saldo en cero con
@@ -288,7 +288,7 @@ trazada.
 | Ola | Semanas | Épica / tareas                         | Tareas  | Hechas |
 | --- | ------- | -------------------------------------- | ------- | ------ |
 | 1   | 1-2     | E0 sucursal (T-00-01 … T-00-13)        | 13      | 12     |
-| 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 12     |
+| 2   | 3-4     | **E8 multimoneda (T-08-01 … T-08-13)** | 13      | 13     |
 | 3   | 5       | E1 frentes A, B y C                    | 17      | 17     |
 | 4   | 6-7     | E2 nómina                              | 11      | 11     |
 | 5   | 8-9     | E4 contabilidad                        | 9       | 9      |
@@ -297,10 +297,10 @@ trazada.
 | 8   | 14-15   | E5 tesorería                           | 9       | 9      |
 | 9   | 16      | E7 frontend restante                   | 7       | 7      |
 | —   | —       | Transversales                          | 6       | 6      |
-| —   | —       | **Total**                              | **100** | **98** |
+| —   | —       | **Total**                              | **100** | **99** |
 
-> Quedan **2 tareas** para 100/100: `T-00-12` (en 🟡: falta el E2E de aislamiento entre sucursales
-> sobre el build de producción) y `T-08-12` (aviso de tasa vencida en el frontend).
+> Queda **1 tarea** para 100/100: `T-00-12` (en 🟡: falta el E2E de aislamiento entre sucursales
+> sobre el build de producción).
 
 **Orden innegociable:** E0 antes que cualquier otro módulo (sin aislamiento, cada módulo nuevo nace
 con el mismo defecto). **E8 antes de E4** (el libro contable no puede nacer sin moneda funcional) y

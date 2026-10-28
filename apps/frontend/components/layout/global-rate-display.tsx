@@ -1,31 +1,16 @@
 'use client';
 
-import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuthStore } from '@/stores/use-auth-store';
-import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
-
-type ExchangeRate = {
-  id: string;
-  rate: number;
-  date: string | null;
-  source: string;
-  currencyCode: string;
-};
+import { findRate, isRateStale, useLatestRates } from '@/lib/rates';
+import { RateAgeBadge } from '@/components/finance/stale-rate-gate';
 
 export function GlobalRateDisplay() {
   const isAuthed = useAuthStore(s => s.isAuthenticated);
-  const { data, isLoading } = useQuery<ExchangeRate[]>({
-    queryKey: ['exchange-rate', 'current'],
-    queryFn: () => apiClient.get<ExchangeRate[]>('/settings/currencies/rates/latest'),
-    enabled: isAuthed,
-    staleTime: 5 * 60_000,
-    refetchInterval: 5 * 60_000,
-  });
+  const { data, isLoading } = useLatestRates({ enabled: isAuthed });
 
   if (isLoading) {
     return (
@@ -35,22 +20,40 @@ export function GlobalRateDisplay() {
     );
   }
 
-  const vesRate = data?.find(r => r.currencyCode === 'VES');
+  const vesRate = findRate(data, 'VES');
   if (!vesRate) return null;
 
+  const stale = isRateStale(vesRate.date);
   const rate = vesRate.rate.toFixed(2);
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
-          tooltip={`Tasa BCV · ${vesRate.source}`}
-          className="bg-muted/40 data-[state=open]:bg-sidebar-accent"
+          tooltip={
+            stale
+              ? `Tasa vencida: ${vesRate.date ?? 'sin fecha'} · ${vesRate.source}`
+              : `Tasa BCV · ${vesRate.source}`
+          }
+          className={cn(
+            'bg-muted/40 data-[state=open]:bg-sidebar-accent',
+            stale && 'border border-amber-500/40 bg-amber-500/10'
+          )}
         >
-          <TrendingUp className={cn('size-3.5 text-emerald-600 dark:text-emerald-400')} />
+          <TrendingUp
+            className={cn(
+              'size-3.5',
+              stale
+                ? 'text-amber-600 dark:text-amber-400'
+                : 'text-emerald-600 dark:text-emerald-400'
+            )}
+          />
           <div className="flex flex-col items-start gap-0 leading-tight">
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">BCV</span>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              BCV{stale ? ' · vencida' : ''}
+            </span>
             <span className="text-xs font-semibold tabular-nums">Bs {rate}</span>
+            <RateAgeBadge rate={vesRate} />
           </div>
         </SidebarMenuButton>
       </SidebarMenuItem>

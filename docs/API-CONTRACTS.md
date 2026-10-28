@@ -470,6 +470,13 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
   o nota de crédito aplicados) o `PENDING`. **Una retención no convierte la factura en `PARTIAL`.**
 - `aging` devuelve `buckets[CURRENT | D1_30 | D31_60 | D61_90 | D90_PLUS]`, `byPartner[]` y
   `totals { balance, overdue }`. El corte es `asOf` (por defecto hoy) y sólo suma saldos positivos.
+- **Los agregados de CxP van en moneda funcional** (`baseCurrencyCode`, hoy `VES`): `aging` convierte
+  cada saldo con la tasa del documento antes de sumar. Cada fila de `payables` trae además el monto
+  del documento (`total`, `balance`) y su equivalente (`totalBase`, `balanceBase`) junto con la
+  `exchangeRate` usada, para que la UI pueda mostrar el monto dual sin recalcular (`H-103`).
+- **La UI paga con la tasa de la moneda funcional, no con `1`** (`H-102`): un cobro o pago en divisa
+  envía `exchangeRate = tasa BCV vigente`; si la tasa tiene más de un día el formulario exige
+  confirmarla antes de emitir (`T-08-12`).
 - **Vencimiento**: si el cuerpo no trae `dueDate`, se calcula `emisión + partners.creditDays`. Sin días
   de crédito la factura queda sin vencimiento y cae en el bucket `CURRENT`.
 - **Retenciones**: al publicar una compra se emiten comprobantes con numeración por sucursal

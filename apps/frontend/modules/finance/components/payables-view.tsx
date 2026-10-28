@@ -36,7 +36,9 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { payablesApi, type Payable, type PayableStatus } from '../api/payables';
 import { treasuryApi } from '../api/treasury';
 import { useBranchStore } from '@/stores/use-branch-store';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatCurrency, formatDual, formatDay } from '@/lib/utils';
+import { BASE_CURRENCY_CODE, findBaseRate, isRateStale, useLatestRates } from '@/lib/rates';
+import { StaleRateGate } from '@/components/finance/stale-rate-gate';
 
 const STATUS_LABEL: Record<PayableStatus, string> = {
   PENDING: 'Pendiente',
@@ -77,11 +79,13 @@ export function PayablesView() {
     );
   }, [payables.data, search]);
 
-  const totalBalance = rows.reduce((sum, row) => sum + row.balance, 0);
+  // Los saldos de documentos en divisa se convierten con la tasa del documento (`H-102`).
+  const totalBalance = rows.reduce((sum, row) => sum + row.balanceBase, 0);
   const totalOverdue = rows.reduce(
-    (sum, row) => (row.status === 'OVERDUE' ? sum + row.balance : sum),
+    (sum, row) => (row.status === 'OVERDUE' ? sum + row.balanceBase : sum),
     0
   );
+  const baseCode = aging.data?.baseCurrencyCode === 'VES' ? 'VES' : 'USD';
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,15 +99,15 @@ export function PayablesView() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardDescription>Saldo total</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(totalBalance)}</CardTitle>
+            <CardDescription>Saldo total ({baseCode})</CardDescription>
+            <CardTitle className="text-2xl">{formatCurrency(totalBalance, baseCode)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Vencido</CardDescription>
             <CardTitle className="flex items-center gap-2 text-2xl">
-              {formatCurrency(totalOverdue)}
+              {formatCurrency(totalOverdue, baseCode)}
               {totalOverdue > 0 && <AlertTriangle className="text-destructive" />}
             </CardTitle>
           </CardHeader>
@@ -112,7 +116,10 @@ export function PayablesView() {
           <CardHeader>
             <CardDescription>Por vencer</CardDescription>
             <CardTitle className="text-2xl">
-              {formatCurrency(aging.data?.buckets.find(b => b.bucket === 'CURRENT')?.total ?? 0)}
+              {formatCurrency(
+                aging.data?.buckets.find(b => b.bucket === 'CURRENT')?.total ?? 0,
+                baseCode
+              )}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -120,7 +127,10 @@ export function PayablesView() {
           <CardHeader>
             <CardDescription>Más de 90 días</CardDescription>
             <CardTitle className="text-2xl">
-              {formatCurrency(aging.data?.buckets.find(b => b.bucket === 'D90_PLUS')?.total ?? 0)}
+              {formatCurrency(
+                aging.data?.buckets.find(b => b.bucket === 'D90_PLUS')?.total ?? 0,
+                baseCode
+              )}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -143,7 +153,7 @@ export function PayablesView() {
               {(aging.data?.buckets ?? []).map(bucket => (
                 <div key={bucket.bucket} className="rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">{bucket.label}</p>
-                  <p className="text-lg font-medium">{formatCurrency(bucket.total)}</p>
+                  <p className="text-lg font-medium">{formatCurrency(bucket.total, baseCode)}</p>
                   <p className="text-xs text-muted-foreground">{bucket.invoices} facturas</p>
                 </div>
               ))}
@@ -246,12 +256,30 @@ export function PayablesView() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(row.total, row.currencyCode === 'VES' ? 'VES' : 'USD')}
+                      <div className="flex flex-col items-end">
+                        <span>
+                          {formatCurrency(row.total, row.currencyCode === 'VES' ? 'VES' : 'USD')}
+                        </span>
+                        {row.currencyCode !== 'VES' && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatCurrency(row.totalBase, baseCode)} @ {row.exchangeRate}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">{formatCurrency(row.retained)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(row.paid)}</TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(row.balance)}
+                      <div className="flex flex-col items-end">
+                        <span>
+                          {formatCurrency(row.balance, row.currencyCode === 'VES' ? 'VES' : 'USD')}
+                        </span>
+                        {row.currencyCode !== 'VES' && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatCurrency(row.balanceBase, baseCode)}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status]}</Badge>
@@ -301,9 +329,18 @@ function PaymentDialog({
   const [amount, setAmount] = React.useState(String(payable.balance));
   const [methodId, setMethodId] = React.useState('');
   const [reference, setReference] = React.useState('');
+  const [rateConfirmed, setRateConfirmed] = React.useState(false);
   const currentBranchId = useBranchStore(state => state.currentBranchId);
 
   const methods = useQuery({ queryKey: ['payment-methods'], queryFn: treasuryApi.listMethods });
+  const rates = useLatestRates();
+
+  const isBase = payable.currencyCode === 'VES';
+  const documentRate = findBaseRate(rates.data);
+  // La moneda funcional vale 1; cualquier otra se paga con la tasa vigente, no con 1 (`H-102`).
+  const exchangeRate = isBase ? 1 : (documentRate?.rate ?? 0);
+  const rateReady = isBase || exchangeRate > 0;
+  const rateStale = !isBase && (!documentRate || isRateStale(documentRate.date));
 
   const pay = useMutation({
     mutationFn: () =>
@@ -314,7 +351,7 @@ function PaymentDialog({
         type: 'EXPENSE',
         amount: Number(amount),
         currencyId: payable.currencyId,
-        exchangeRate: 1,
+        exchangeRate: isBase ? 1 : exchangeRate,
         reference,
         // El backend valida la asignación contra el saldo real de la factura (regla 4 de `S-03`).
         allocations: [{ invoiceId: payable.invoiceId, amount: Number(amount) }],
@@ -333,7 +370,13 @@ function PaymentDialog({
         <DialogHeader>
           <DialogTitle>Pagar {payable.code}</DialogTitle>
           <DialogDescription>
-            Saldo {formatCurrency(payable.balance)} · {payable.partnerName}
+            Saldo{' '}
+            {formatDual(
+              payable.balance,
+              payable.currencyCode === 'VES' ? 'VES' : 'USD',
+              isBase ? 1 : exchangeRate
+            )}{' '}
+            · {payable.partnerName}
           </DialogDescription>
         </DialogHeader>
 
@@ -363,6 +406,13 @@ function PaymentDialog({
               value={amount}
               onChange={event => setAmount(event.target.value)}
             />
+            <p className="text-xs text-muted-foreground" data-testid="pay-dual">
+              {formatDual(
+                Number(amount) || 0,
+                payable.currencyCode === 'VES' ? 'VES' : 'USD',
+                isBase ? 1 : exchangeRate
+              )}
+            </p>
           </Field>
           <Field>
             <FieldLabel htmlFor="pay-reference">Referencia</FieldLabel>
@@ -375,13 +425,30 @@ function PaymentDialog({
           </Field>
         </FieldGroup>
 
+        {!isBase && (
+          <StaleRateGate
+            rate={documentRate}
+            currencyCode={BASE_CURRENCY_CODE}
+            confirmed={rateConfirmed}
+            onConfirmedChange={setRateConfirmed}
+            documentLabel={`el pago de ${payable.code}`}
+          />
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
           <Button
             onClick={() => pay.mutate()}
-            disabled={!methodId || !amount || Number(amount) <= 0 || pay.isPending}
+            disabled={
+              !methodId ||
+              !amount ||
+              Number(amount) <= 0 ||
+              !rateReady ||
+              (rateStale && !rateConfirmed) ||
+              pay.isPending
+            }
           >
             Registrar pago
           </Button>

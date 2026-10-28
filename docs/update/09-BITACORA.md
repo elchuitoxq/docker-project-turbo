@@ -1926,3 +1926,55 @@ compras, movimientos, stock, bancos, conceptos de impuesto, métodos de pago y a
   `audit --prod` sin vulnerabilidades.
 - Plan: **98 de 100**. Transversales 6/6; quedan `T-00-12` (E2E de aislamiento sobre build de
   producción) y `T-08-12` (aviso de tasa vencida).
+
+### BT-054 · 2026-10-27 · E8 cerrada: el frontend deja de operar con la tasa en 1 (T-08-12)
+
+**Lo que había**
+
+El diálogo de pago de cuentas por pagar enviaba `exchangeRate: 1` **fijo**: pagar una compra en USD
+grababa el monto como si fuera bolívares, subvalorando el pago en el libro (`H-102`). Y los totales de
+CxP sumaban saldos en dólares con saldos en bolívares (`H-103`). La tasa del sidebar, además, se
+mostraba sin fecha: nadie podía notar que estaba vieja.
+
+**Qué se entregó**
+
+| Pieza                        | Contenido                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| `lib/rates.ts`               | Hook único de tasas (`useLatestRates`), `findBaseRate`, `rateAgeInDays` e `isRateStale` |
+| `lib/utils.ts`               | `formatDual(amount, currency, rate)` → `USD 100,00 · Bs.S 4.000,00`                     |
+| `layout/global-rate-display` | Muestra la fecha de la tasa y la marca en ámbar cuando está vencida                     |
+| `finance/stale-rate-gate`    | Aviso con la fecha, los días de antigüedad y la casilla de confirmación                 |
+| `payables-view`              | Paga con la tasa de la moneda funcional, monto dual por fila y bloqueo del botón        |
+| `payables.service` (backend) | `exchangeRate`, `totalBase`, `balanceBase` por fila y aging en moneda funcional         |
+
+**Decisiones**
+
+- **La tasa que convierte es la de la moneda funcional (`VES`), no la del documento.** La fila
+  `USD = 1` no convierte nada: usarla fue justo el error de `H-102`.
+- **"Vencida" es más de un día de antigüedad** (la tasa de ayer todavía sirve; la de anteayer no), y
+  una fecha futura también se rechaza porque sólo puede venir de un reloj o una carga manual mal
+  hecha.
+- **El aviso es bloqueante, no informativo**: el botón queda deshabilitado hasta confirmar la tasa y
+  la casilla dice explícitamente qué tasa se va a usar. Confirmar es una decisión, no un clic de más.
+- **El aging se arregla en el backend, no en la UI**: si cada pantalla convierte por su cuenta, la
+  próxima que se agregue vuelve a sumar monedas. El DTO ahora dice `baseCurrencyCode` y los montos
+  base.
+- **`Alert` entra al sistema de diseño** por el CLI de shadcn (con el import corregido a `@/lib/utils`).
+
+**Verificación**
+
+- Unitarias: 12 nuevas (antigüedad, vencimiento, `formatDual`, `findBaseRate` y el propio gate con su
+  casilla).
+- E2E (`e2e/tests/stale-rate.spec.ts`): con la tasa de hace 5 días el botón **está deshabilitado** y
+  se habilita al confirmar; con la tasa del día no aparece el aviso y el monto dual muestra
+  `Bs.S 4.000,00` para 100 USD a 40.
+- Navegador (`superadmin`, sucursal `…0001`): CxP muestra "Saldo total (VES) Bs.S 1.580,00" y cero
+  respuestas de error.
+- API: `payables` devuelve `exchangeRate`, `totalBase` y `balanceBase`; `aging` devuelve
+  `baseCurrencyCode: VES` y suma 3.420 desde saldos USD con tasa 1 del seed.
+
+**Pruebas**
+
+- Backend **942/942** · frontend **141/141** (15 nuevas) · database **39/39** · turbo **16/16** ·
+  `format:check` verde · `audit --prod` sin vulnerabilidades.
+- Plan: **99 de 100**, E8 **13 de 13**. Queda `T-00-12` (E2E de aislamiento sobre build de producción).

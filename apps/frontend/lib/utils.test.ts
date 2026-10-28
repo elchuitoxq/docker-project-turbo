@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatCurrency, formatDate, formatDay } from './utils';
+import { cn, formatCurrency, formatDate, formatDay, formatDual } from './utils';
 
 describe('utils', () => {
   it('cn() merges classes', () => {
@@ -29,5 +29,19 @@ describe('utils', () => {
     expect(formatDay('2026-11-26')).toMatch(/26/);
     expect(formatDay('2026-11-26')).toMatch(/11/);
     expect(formatDay(null)).toBe('—');
+  });
+
+  it('formatDual() muestra el monto del documento y su equivalente', () => {
+    const usd = formatDual(100, 'USD', 40);
+    expect(usd).toContain(formatCurrency(100, 'USD'));
+    expect(usd).toContain(formatCurrency(4000, 'VES'));
+
+    const ves = formatDual(4000, 'VES', 40);
+    expect(ves).toContain(formatCurrency(100, 'USD'));
+  });
+
+  it('formatDual() con tasa inválida devuelve sólo el monto original', () => {
+    expect(formatDual(100, 'USD', 0)).toBe(formatCurrency(100, 'USD'));
+    expect(formatDual(100, 'USD', Number.NaN)).toBe(formatCurrency(100, 'USD'));
   });
 });
