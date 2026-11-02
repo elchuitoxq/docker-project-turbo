@@ -17,6 +17,7 @@ import {
   LatestRatesResponseDto,
   RateHistoryDto,
   RateWithFreshnessDto,
+  SyncResultDto,
 } from './dto/currencies.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { SkipBranch } from '../../../common/decorators/skip-branch.decorator';
@@ -46,6 +47,7 @@ export class CurrenciesController {
   }
 
   @Post()
+  @RequirePermissions('settings:currencies:manage')
   @ApiOperation({
     summary: 'Create a new currency',
     description: 'Creates a new currency with the provided data',
@@ -92,7 +94,10 @@ export class CurrenciesController {
   }
 
   @Get('rates/:code/history')
-  @ApiOperation({ summary: 'Get the rate history of a currency' })
+  @ApiOperation({
+    summary: 'Get the rate history of a currency',
+    description: 'Returns the recorded rates for a currency within an optional date range',
+  })
   @ApiParam({ name: 'code', example: 'USD' })
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
@@ -134,11 +139,16 @@ export class CurrenciesController {
   @RequirePermissions('settings:currencies:manage')
   @ApiOperation({
     summary: 'Synchronise the USD rate from BCV',
-    description: 'Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST',
+    description:
+      'Replaces the retired GET /v1/cron/trigger-bcv with an authenticated POST. Idempotente: no reescribe si el valor no cambió y respeta el override manual del día (S-15)',
   })
-  @ApiResponse({ status: 201, description: 'Rate synchronised' })
+  @ApiResponse({
+    status: 201,
+    description: 'Rate synchronised, unchanged or skipped by manual override',
+    type: SyncResultDto,
+  })
   @ApiResponse({ status: 400, description: 'BCV unavailable or rate failed the sanity check' })
-  async refresh(): Promise<RateWithFreshnessDto> {
-    return this.exchangeRates.syncFromBcv() as never;
+  async refresh(): Promise<SyncResultDto> {
+    return (await this.exchangeRates.syncFromBcv()) as never;
   }
 }

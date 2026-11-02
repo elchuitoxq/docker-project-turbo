@@ -38,16 +38,12 @@ import {
   type BankAccountAdmin,
 } from '@/modules/finance/api/treasury-operations';
 import { apiClient } from '@/lib/api/client';
-import { formatCurrency } from '@/lib/utils';
-
-type Currency = { id: string; code: string; name: string };
-
-function useCurrencies() {
-  return useQuery({
-    queryKey: ['currencies'],
-    queryFn: () => apiClient.get<Currency[]>('/settings/currencies'),
-  });
-}
+import { formatMoney } from '@/lib/utils';
+import { useCurrencies, useCurrencyIndex } from '@/lib/currency';
+import { useAccounts } from '@/modules/accounting/hooks';
+import type { AccountNode } from '@/modules/accounting/api';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 /**
  * Cuentas bancarias por sucursal (`T-05-02`, `T-05-08`).
@@ -56,12 +52,35 @@ function useCurrencies() {
  */
 export function TreasuryAccountsView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const { codeOf } = useCurrencyIndex();
+  const canCreate = hasPermission(PERMISSIONS.FINANCE.TREASURY.CREATE_ACCOUNT);
   const [creating, setCreating] = React.useState(false);
 
   const accounts = useQuery({
     queryKey: ['bank-accounts'],
     queryFn: treasuryAccountsApi.list,
   });
+
+  // Cuentas del plan contable para mostrar el vínculo y elegirlo al crear (`S-19`).
+  const ledger = useAccounts();
+  const ledgerById = React.useMemo(() => {
+    const flat: AccountNode[] = [];
+    const walk = (nodes: AccountNode[]) => {
+      for (const node of nodes) {
+        flat.push(node);
+        walk(node.children ?? []);
+      }
+    };
+    walk(ledger.data ?? []);
+    return new Map(flat.map(account => [account.id, account]));
+  }, [ledger.data]);
+
+  const ledgerLabel = (id?: string | null): string => {
+    if (!id) return 'Sin asignar';
+    const account = ledgerById.get(id);
+    return account ? `${account.code} · ${account.name}` : '—';
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,10 +91,12 @@ export function TreasuryAccountsView() {
             Cuentas por sucursal con su saldo de apertura y saldo actual
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus data-icon="inline-start" />
-          Nueva cuenta
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setCreating(true)}>
+            <Plus data-icon="inline-start" />
+            Nueva cuenta
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -105,6 +126,7 @@ export function TreasuryAccountsView() {
                   <TableHead>Cuenta</TableHead>
                   <TableHead>Número</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Cuenta contable</TableHead>
                   <TableHead className="text-right">Saldo inicial</TableHead>
                   <TableHead className="text-right">Saldo actual</TableHead>
                   <TableHead>Estado</TableHead>
@@ -118,11 +140,14 @@ export function TreasuryAccountsView() {
                       {account.accountNumber ?? '—'}
                     </TableCell>
                     <TableCell>{account.type}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {ledgerLabel(account.accountingAccountId)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(account.initialBalance ?? 0)}
+                      {formatMoney(account.initialBalance ?? 0, codeOf(account.currencyId))}
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
-                      {formatCurrency(account.currentBalance)}
+                      {formatMoney(account.currentBalance, codeOf(account.currencyId))}
                     </TableCell>
                     <TableCell>
                       <Badge variant={account.isActive ? 'default' : 'secondary'}>
@@ -162,8 +187,26 @@ function CreateAccountDialog({
   const [type, setType] = React.useState('CHECKING');
   const [currencyId, setCurrencyId] = React.useState('');
   const [initialBalance, setInitialBalance] = React.useState('0');
+  const [accountingAccountId, setAccountingAccountId] = React.useState('');
 
   const currencies = useCurrencies();
+  const ledger = useAccounts();
+
+  // Sólo hojas imputables de efectivo y equivalentes (`1.1.1.*`): es la cuenta que recibe los
+  // movimientos de la cuenta bancaria, no una cuenta por cobrar ni de inventario.
+  const postableAssets = React.useMemo(() => {
+    const flat: AccountNode[] = [];
+    const walk = (nodes: AccountNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'ASSET' && node.isPostable && node.code.startsWith('1.1.1.')) {
+          flat.push(node);
+        }
+        walk(node.children ?? []);
+      }
+    };
+    walk(ledger.data ?? []);
+    return flat;
+  }, [ledger.data]);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -173,6 +216,7 @@ function CreateAccountDialog({
         type,
         currencyId,
         initialBalance: Number(initialBalance || 0),
+        ...(accountingAccountId ? { accountingAccountId } : {}),
       }),
     onSuccess: async () => {
       toast.success('Cuenta creada');
@@ -248,6 +292,24 @@ function CreateAccountDialog({
               value={initialBalance}
               onChange={event => setInitialBalance(event.target.value)}
             />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="account-ledger">Cuenta contable</FieldLabel>
+            <Select value={accountingAccountId} onValueChange={setAccountingAccountId}>
+              <SelectTrigger id="account-ledger">
+                <SelectValue placeholder="Selecciona la cuenta del activo" />
+              </SelectTrigger>
+              <SelectContent>
+                {postableAssets.map(item => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {`${item.code} · ${item.name}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Los cobros y pagos de esta cuenta se contabilizan en esa cuenta del plan.
+            </p>
           </Field>
         </FieldGroup>
 

@@ -24,6 +24,7 @@ import {
 } from './dto/branches.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { MessageResponseDto } from '../../common/dto/api-response.dto';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 import { SkipBranch } from '../../common/decorators/skip-branch.decorator';
 
@@ -54,18 +55,36 @@ export class BranchesController {
 
   @Get('companies/all')
   @RequirePermissions('settings:companies:manage')
+  @ApiOperation({
+    summary: 'List all companies',
+    description: 'Returns every company with its branches, regardless of the current user',
+  })
+  @ApiResponse({ status: 200, description: 'All companies', type: [CompanyResponseDto] })
   async findAllCompanies(): Promise<CompanyResponseDto[]> {
     return this.branchesService.findCompanies();
   }
 
   @Post('companies')
   @RequirePermissions('settings:companies:manage')
+  @ApiOperation({
+    summary: 'Create a company',
+    description: 'Creates a company (legal entity) that groups one or more branches',
+  })
+  @ApiResponse({ status: 201, description: 'Company created', type: CompanyResponseDto })
+  @ApiResponse({ status: 409, description: 'Company with this tax ID already exists' })
   async createCompany(@Body() dto: CreateCompanyDto): Promise<CompanyResponseDto> {
     return this.branchesService.createCompany(dto);
   }
 
   @Patch('companies/:id')
   @RequirePermissions('settings:companies:manage')
+  @ApiOperation({
+    summary: 'Update a company',
+    description: 'Updates the fiscal data of an existing company',
+  })
+  @ApiParam({ name: 'id', description: 'Company UUID' })
+  @ApiResponse({ status: 200, description: 'Company updated', type: CompanyResponseDto })
+  @ApiResponse({ status: 404, description: 'Company not found' })
   async updateCompany(
     @Param('id') id: string,
     @Body() dto: UpdateCompanyDto
@@ -91,6 +110,11 @@ export class BranchesController {
 
   @Get('all')
   @RequirePermissions('settings:branches:manage')
+  @ApiOperation({
+    summary: 'List all branches for administration',
+    description: 'Returns every branch, including those not assigned to the current user',
+  })
+  @ApiResponse({ status: 200, description: 'All branches', type: [BranchResponseDto] })
   async findAllForAdministration(): Promise<BranchResponseDto[]> {
     return this.branchesService.findAll();
   }
@@ -177,12 +201,13 @@ export class BranchesController {
   @ApiResponse({
     status: 200,
     description: 'Branch deactivated successfully',
+    type: MessageResponseDto,
   })
   @ApiResponse({
     status: 404,
     description: 'Branch not found',
   })
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
+  async remove(@Param('id') id: string): Promise<MessageResponseDto> {
     return this.branchesService.remove(id);
   }
 }

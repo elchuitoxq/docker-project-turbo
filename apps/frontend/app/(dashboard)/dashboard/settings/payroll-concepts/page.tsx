@@ -42,7 +42,7 @@ import {
 } from '@/modules/hr/hooks';
 import type { ConceptCategory, ConceptKind, PayrollConcept } from '@/modules/hr/api';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 
 const CATEGORIES: Array<{ value: ConceptCategory; label: string }> = [
   { value: 'ASSIGNMENT', label: 'Asignación' },
@@ -70,9 +70,9 @@ function categoryLabel(category: ConceptCategory): string {
 }
 
 export default function PayrollConceptsPage() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canView = permissions.includes(PERMISSIONS.HR.CONCEPTS.VIEW);
-  const canManage = permissions.includes(PERMISSIONS.HR.CONCEPTS.MANAGE);
+  const { hasPermission } = usePermission();
+  const canView = hasPermission(PERMISSIONS.HR.CONCEPTS.VIEW);
+  const canManage = hasPermission(PERMISSIONS.HR.CONCEPTS.MANAGE);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PayrollConcept | null>(null);

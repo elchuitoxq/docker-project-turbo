@@ -18,6 +18,7 @@ import {
   TaxConceptResponseDto,
 } from './dto/tax-concepts.dto';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { MessageResponseDto } from '../../../common/dto/api-response.dto';
 
 import { RequirePermissions } from '../../../common/decorators/require-permissions.decorator';
 
@@ -131,12 +132,13 @@ export class TaxConceptsController {
   @ApiResponse({
     status: 200,
     description: 'Tax concept deleted successfully',
+    type: MessageResponseDto,
   })
   @ApiResponse({
     status: 404,
     description: 'Tax concept not found',
   })
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
+  async remove(@Param('id') id: string): Promise<MessageResponseDto> {
     return this.taxConceptsService.remove(id);
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { productsApi } from '../api/products';
+import { toast } from 'sonner';
+import { productsApi, type ProductPayload } from '../api/products';
 import type { Product, ProductFilters } from '../types';
 
 export const productsKeys = {
@@ -35,19 +36,21 @@ export function useProductCategories() {
 export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Product>) => productsApi.create(data),
+    mutationFn: (data: ProductPayload) => productsApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: productsKeys.all }),
+    onError: error => toast.error(error.message),
   });
 }
 
 export function useUpdateProduct(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Product>) => productsApi.update(id, data),
+    mutationFn: (data: ProductPayload) => productsApi.update(id, data),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: productsKeys.all });
       qc.setQueryData(productsKeys.detail(id), data);
     },
+    onError: error => toast.error(error.message),
   });
 }
 

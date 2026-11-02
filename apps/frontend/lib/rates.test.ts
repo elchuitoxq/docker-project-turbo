@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { findRate, isRateStale, MAX_RATE_AGE_DAYS, rateAgeInDays } from './rates';
+import {
+  findRate,
+  findReferenceRate,
+  isRateStale,
+  MAX_RATE_AGE_DAYS,
+  rateAgeInDays,
+} from './rates';
 
 const TODAY = new Date(2026, 9, 27, 15, 30); // 27-oct-2026, hora local
 
@@ -53,5 +59,26 @@ describe('findRate', () => {
     expect(findRate(rates, 'EUR')).toBeUndefined();
     expect(findRate(rates, null)).toBeUndefined();
     expect(findRate(undefined, 'VES')).toBeUndefined();
+  });
+});
+
+describe('findReferenceRate', () => {
+  it('toma la tasa del dólar, no la de la moneda funcional', () => {
+    const rates = [
+      // Fila vieja de VES: no convierte nada, vale 1 contra sí misma.
+      { id: '1', rate: 36.5, date: '2026-06-06', source: 'TEST', currencyCode: 'VES' },
+      { id: '2', rate: 889.5754, date: '2026-10-31', source: 'BCV', currencyCode: 'USD' },
+    ];
+
+    expect(findReferenceRate(rates)?.rate).toBe(889.5754);
+    expect(findReferenceRate(rates)?.currencyCode).toBe('USD');
+  });
+
+  it('devuelve undefined cuando no hay tasa del dólar', () => {
+    expect(
+      findReferenceRate([
+        { id: '1', rate: 36.5, date: '2026-06-06', source: 'TEST', currencyCode: 'VES' },
+      ])
+    ).toBeUndefined();
   });
 });

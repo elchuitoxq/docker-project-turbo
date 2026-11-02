@@ -39,11 +39,10 @@ export type Department = {
 export type Position = {
   id: string;
   name: string;
-  departmentId: string | null;
-  departmentName?: string;
-  baseSalary: string;
-  level: string;
-  isActive: boolean;
+  description: string | null;
+  currencyId: string | null;
+  baseSalaryMin: string;
+  baseSalaryMax: string;
 };
 
 export type IncidentType =
@@ -247,9 +246,25 @@ export const hrApi = {
       limit?: number;
     } = {}
   ) =>
-    apiClient.get<{ data: Employee[]; total: number; page: number; limit: number }>(
-      `/hr/employees${buildQuery(filters)}`
-    ),
+    apiClient
+      .get<Employee[] | { data: Employee[]; total: number; page: number; limit: number }>(
+        `/hr/employees${buildQuery(filters)}`
+      )
+      .then(response => {
+        // El backend responde un arreglo plano: se normaliza a la forma paginada de la vista.
+        if (Array.isArray(response)) {
+          const page = filters.page ?? 1;
+          const limit = filters.limit ?? Math.max(response.length, 1);
+          const start = (page - 1) * limit;
+          return {
+            data: response.slice(start, start + limit),
+            total: response.length,
+            page,
+            limit,
+          };
+        }
+        return response;
+      }),
   getEmployee: (id: string) => apiClient.get<Employee>(`/hr/employees/${id}`),
   createEmployee: (data: Partial<Employee>) => apiClient.post<Employee>('/hr/employees', data),
   updateEmployee: (id: string, data: Partial<Employee>) =>

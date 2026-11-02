@@ -134,28 +134,30 @@ export function WarehousesView() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              if (window.confirm(`¿Eliminar ${w.name}?`)) {
-                                del.mutate(w.id, {
-                                  onSuccess: () => toast.success('Almacén eliminado'),
-                                  onError: () => toast.error('Error al eliminar'),
-                                });
-                              }
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 /> Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {hasPermission(PERMISSIONS.INVENTORY.WAREHOUSES.EDIT) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar ${w.name}?`)) {
+                                  del.mutate(w.id, {
+                                    onSuccess: () => toast.success('Almacén eliminado'),
+                                    onError: () => toast.error('Error al eliminar'),
+                                  });
+                                }
+                              }}
+                              className="text-destructive"
+                            >
+                              <Trash2 /> Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

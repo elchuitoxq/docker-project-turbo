@@ -4,6 +4,7 @@ import { testDb, cleanDatabase, closeTestConnection } from '../../src/test/datab
 import { ALL_PERMISSIONS, ROLE_PERMISSIONS, seedRbac } from '../../src/scripts/seed-rbac';
 import { seedCoreData } from '../../src/scripts/seed-core';
 import { seedTestData } from '../../src/scripts/seed-test';
+import { auditIntegrity } from '../../src/scripts/seed-integrity';
 import * as bcrypt from 'bcryptjs';
 import {
   roles,
@@ -21,6 +22,7 @@ import {
   payments,
   invoices,
   permissions,
+  exchangeRates,
 } from '../../src/schema';
 
 describe('Seed scripts', () => {
@@ -51,10 +53,11 @@ describe('Seed scripts', () => {
     it('preserves existing grants unless reconciliation is requested', async () => {
       await seedRbac();
       const [managerRole] = await testDb.select().from(roles).where(eq(roles.name, 'MANAGER'));
+      // Permiso que MANAGER no tiene por matriz: sirve como grant "extra" hecho a mano.
       const [extraPermission] = await testDb
         .select()
         .from(permissions)
-        .where(eq(permissions.code, 'finance:invoices:create'));
+        .where(eq(permissions.code, 'hr:payroll:process'));
       await testDb.insert(rolesPermissions).values({
         roleId: managerRole.id,
         permissionId: extraPermission.id,
@@ -108,8 +111,11 @@ describe('Seed scripts', () => {
       expect(await testDb.select().from(partners).where(eq(partners.type, 'VENDOR'))).toHaveLength(
         2
       );
-      expect(await testDb.select().from(invoices)).toHaveLength(5);
-      expect(await testDb.select().from(payments)).toHaveLength(3);
+      // 5 facturas de venta + 3 facturas de compra (T-16-05): la compra también es un documento
+      // facturado y su cuenta por pagar se prueba en la misma suite.
+      // 5 pagos: 3 cobros (uno neto de la nota de crédito) y 2 pagos a proveedor (`S-17`).
+      expect(await testDb.select().from(invoices)).toHaveLength(8);
+      expect(await testDb.select().from(payments)).toHaveLength(5);
     });
 
     it('creates deterministic accounts, role grants, passwords, and branch access', async () => {
@@ -181,10 +187,11 @@ describe('Seed scripts', () => {
     it('reconciles stale role grants on repeated seed runs', async () => {
       await seedTestData();
       const [managerRole] = await testDb.select().from(roles).where(eq(roles.name, 'MANAGER'));
+      // Permiso que MANAGER no tiene por matriz: simula un grant viejo que la reconciliación limpia.
       const [extraPermission] = await testDb
         .select()
         .from(permissions)
-        .where(eq(permissions.code, 'finance:invoices:create'));
+        .where(eq(permissions.code, 'hr:payroll:process'));
 
       await testDb.insert(rolesPermissions).values({
         roleId: managerRole.id,
@@ -245,12 +252,17 @@ describe('Seed scripts', () => {
       expect(accounts.length).toBeGreaterThan(0);
       const postedPayments = await testDb.select().from(payments);
       for (const account of accounts) {
+        // Saldo = saldo inicial de apertura + movimientos confirmados en la moneda de la cuenta.
+        // Los pagos sembrados van a cuentas de su misma moneda, así que no hay conversión (`S-18`).
         const expectedBalance = postedPayments
           .filter(payment => payment.bankAccountId === account.id && payment.status === 'POSTED')
-          .reduce((total, payment) => {
-            const amountInCents = Math.round(Number(payment.amount) * 100);
-            return total + (payment.type === 'INCOME' ? amountInCents : -amountInCents);
-          }, 0);
+          .reduce(
+            (total, payment) => {
+              const amountInCents = Math.round(Number(payment.amount) * 100);
+              return total + (payment.type === 'INCOME' ? amountInCents : -amountInCents);
+            },
+            Math.round(Number(account.initialBalance) * 100)
+          );
 
         expect(Math.round(Number(account.currentBalance) * 100)).toBe(expectedBalance);
       }
@@ -270,6 +282,28 @@ describe('Seed scripts', () => {
         const expectedTaxInCents = Math.round(Number(invoice.totalBase) * 0.16 * 100);
         expect(Math.round(Number(invoice.totalTax) * 100)).toBe(expectedTaxInCents);
       }
+    });
+  });
+
+  describe('integrity gate (S-16)', () => {
+    it('leaves no orphan rows and no broken totals after seeding twice', async () => {
+      await seedTestData();
+      await seedTestData();
+
+      const report = await auditIntegrity();
+
+      expect(report.failures).toEqual([]);
+    });
+
+    it('deja la moneda funcional sin tasa y una sola moneda base', async () => {
+      await seedTestData();
+
+      const bases = await testDb.select().from(currencies).where(eq(currencies.isBase, true));
+      expect(bases).toHaveLength(1);
+
+      const rates = await testDb.select().from(exchangeRates);
+      const baseIds = new Set(bases.map(base => base.id));
+      expect(rates.filter(rate => baseIds.has(rate.currencyId))).toEqual([]);
     });
   });
 });

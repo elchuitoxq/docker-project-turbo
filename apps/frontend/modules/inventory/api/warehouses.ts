@@ -11,6 +11,11 @@ export type Warehouse = {
 
 export const warehousesApi = {
   list: () => apiClient.get<Warehouse[]>('/inventory/warehouses'),
+  /**
+   * Opciones para selectores (`{ id, name }`). Requiere `inventory:products:view` en lugar del permiso
+   * de administración de almacenes, para que ventas y pedidos puedan elegir depósito.
+   */
+  options: () => apiClient.get<{ id: string; name: string }[]>('/inventory/warehouses/options'),
   get: (id: string) => apiClient.get<Warehouse>(`/inventory/warehouses/${id}`),
   create: (data: Partial<Warehouse>) => apiClient.post<Warehouse>('/inventory/warehouses', data),
   update: (id: string, data: Partial<Warehouse>) =>

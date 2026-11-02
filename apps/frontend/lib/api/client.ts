@@ -13,6 +13,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Normaliza el mensaje del backend: NestJS devuelve `message` como string o como lista. */
+function messageFromBody(body: { message?: string | string[] } | null, fallback: string): string {
+  const message = body?.message;
+  if (Array.isArray(message)) return message.filter(Boolean).join(' · ') || fallback;
+  if (typeof message === 'string' && message.trim()) return message;
+  return fallback;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { currentBranchId } = useBranchStore.getState();
 
@@ -38,8 +46,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    throw new ApiError(res.status, body?.message ?? res.statusText, body);
+    const body = (await res.json().catch(() => null)) as {
+      message?: string | string[];
+      error?: string;
+    } | null;
+    throw new ApiError(res.status, messageFromBody(body, res.statusText), body);
   }
 
   if (res.status === 204) return undefined as T;
@@ -48,6 +59,22 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export const apiClient = {
   get: <T>(path: string) => request<T>(path),
+  /** Respuesta de texto plano (exportaciones CSV): no intenta parsear JSON. */
+  getText: async (path: string) => {
+    const { currentBranchId } = useBranchStore.getState();
+    const res = await fetch(`${env.NEXT_PUBLIC_API_URL}${env.NEXT_PUBLIC_API_PREFIX}${path}`, {
+      headers: currentBranchId ? { 'x-branch-id': currentBranchId } : {},
+      credentials: 'include',
+    });
+
+    if (res.status === 401) {
+      useAuthStore.getState().logout();
+      throw new ApiError(401, 'Unauthorized');
+    }
+    if (!res.ok) throw new ApiError(res.status, res.statusText);
+
+    return res.text();
+  },
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) =>

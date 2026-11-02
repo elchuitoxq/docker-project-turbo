@@ -230,7 +230,7 @@ export const partners = pgTable('partners', {
   taxId: text('tax_id').notNull().unique(), // RIF or CI
   address: text('address'),
   phone: text('phone'),
-  type: text('type').default('CUSTOMER'), // CUSTOMER, SUPPLIER, BOTH
+  type: text('type').default('CUSTOMER'), // CUSTOMER, VENDOR, BOTH
   taxpayerType: text('taxpayer_type').default('ORDINARY'), // ORDINARY, SPECIAL
   retentionRate: numeric('retention_rate', { precision: 3, scale: 0 }).default('0'),
   isSpecialTaxpayer: boolean('is_special_taxpayer').default(false),
@@ -1314,6 +1314,9 @@ PERMISSIONS = {
     TREASURY: {
       VIEW: 'finance:treasury:view',
       CREATE_ACCOUNT: 'finance:treasury:create_account',
+      RECONCILE: 'finance:treasury:reconcile',
+      PETTY_CASH: 'finance:treasury:petty-cash',
+      DAILY_CLOSE: 'finance:treasury:daily-close',
     },
     PAYMENTS: {
       VIEW: 'finance:payments:view',
@@ -1394,29 +1397,77 @@ ADMIN: [...ALL_PERMISSIONS]; // Todos los permisos
 
 ### 4.2 MANAGER
 
+> **Fuente de verdad:** [`packages/database/src/scripts/seed-rbac.ts`](../../packages/database/src/scripts/seed-rbac.ts)
+> es el catálogo ejecutable; el cargo (qué hace y qué no hace el gerente) está documentado en
+> [`S-14`](../sdd/specs/S-14-actuaciones-rol-manager.md) y se protege con
+> `packages/database/tests/unit/role-manager.test.ts`. La lista de abajo es su reflejo (48 permisos).
+
 ```typescript
 MANAGER: [
+  // Supervisión y maestros
   'dashboard:view',
+  'settings:companies:view',
+  'settings:branches:view',
+  'settings:banks:view',
+  'settings:taxes:view',
+  'settings:currencies:view',
+  // Terceros y su saldo
   'operations:view',
   'operations:partners:view',
   'operations:partners:create',
   'operations:partners:edit',
+  'operations:partners:statement',
+  // Venta: pedido -> confirmación -> factura
   'operations:sales:view',
   'operations:sales:create',
   'operations:sales:edit',
+  'operations:orders:view',
+  'operations:orders:create',
+  'operations:orders:edit',
+  'operations:orders:approve',
+  'finance:invoices:view',
+  'finance:invoices:create',
+  'finance:invoices:edit',
+  'finance:invoices:post', // no `:void`: anular una factura emitida es de ADMIN (S-14 D-10)
+  // Compra y pago (CxP necesita el origen)
+  'operations:purchases:view',
+  'finance:payments:view',
+  'finance:payments:create',
+  'finance:payments:void',
+  // Catálogo y stock
   'inventory:view',
   'inventory:products:view',
   'inventory:products:create',
   'inventory:products:edit',
+  'inventory:moves:view',
+  'inventory:moves:approve',
+  // Tesorería (conciliar, caja chica y cierre diario tienen permiso propio: S-14 D-08)
   'finance:view',
-  'finance:invoices:view',
   'finance:treasury:view',
-  'finance:payments:view',
+  'finance:treasury:create_account',
+  'finance:treasury:reconcile',
+  'finance:treasury:petty-cash',
+  'finance:treasury:daily-close',
+  // Cartera
+  'finance:credit-notes:view',
+  'finance:credit-notes:manage',
+  'finance:loans:view',
+  'finance:loans:manage',
+  // Lectura contable y reportes (no contabiliza ni cierra)
+  'finance:reports:view',
+  'finance:accounts:view',
+  'finance:entries:view',
+  'finance:close:view',
+  // Personal en lectura (sin nómina ni novedades)
   'hr:view',
   'hr:employees:view',
-  // NO payroll process
 ];
 ```
+
+**Fuera del cargo:** administración de usuarios/roles/auditoría, override de tasas, empresas,
+sucursales, bancos e impuestos (`:manage`), `finance:invoices:void`, contabilización
+(`entries:create/post`, `accounts:manage`, `close:manage`), libros fiscales (`retentions:view`),
+nómina y novedades (`hr:payroll:*`, `hr:incidents:*`) y modo consolidado (`core:branch:all`).
 
 ### 4.3 SELLER
 
@@ -1449,15 +1500,38 @@ WAREHOUSE: [
 ```typescript
 ACCOUNTANT: [
   'dashboard:view',
+  'settings:companies:view',
+  'settings:branches:view',
   'operations:view',
   'operations:partners:view',
+  'operations:purchases:view',
   'inventory:view',
+  'inventory:products:view',
   'finance:view',
   'finance:invoices:view',
   'finance:treasury:view',
+  'finance:treasury:create_account',
+  'finance:treasury:reconcile',
+  'finance:treasury:petty-cash',
+  'finance:treasury:daily-close',
   'finance:payments:view',
+  'finance:payments:create',
+  'finance:payments:void',
   'finance:retentions:view',
+  'finance:credit-notes:view',
+  'finance:credit-notes:manage',
+  'finance:loans:view',
   'finance:reports:view',
+  'finance:accounts:view',
+  'finance:accounts:manage',
+  'finance:entries:view',
+  'finance:entries:create',
+  'finance:entries:post',
+  'finance:close:view',
+  'finance:close:manage',
+  'settings:banks:view',
+  'settings:taxes:view',
+  'settings:currencies:view',
 ];
 ```
 

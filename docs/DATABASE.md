@@ -513,13 +513,14 @@ Notas de crédito.
 
 Registro de cómo se usan las notas de crédito.
 
-| Columna          | Tipo          | Descripción       |
-| ---------------- | ------------- | ----------------- |
-| `id`             | uuid          | PK                |
-| `credit_note_id` | uuid          | FK → credit_notes |
-| `payment_id`     | uuid          | FK → payments     |
-| `amount_applied` | decimal(20,2) | Monto cruzado     |
-| `created_at`     | timestamp     |                   |
+| Columna          | Tipo          | Descripción                                   |
+| ---------------- | ------------- | --------------------------------------------- |
+| `id`             | uuid          | PK                                            |
+| `credit_note_id` | uuid          | FK → credit_notes                             |
+| `payment_id`     | uuid          | FK → payments (nulo: aplicar no es un cobro)  |
+| `invoice_id`     | uuid          | FK → invoices: factura que recibió el crédito |
+| `amount`         | decimal(20,2) | Monto aplicado                                |
+| `created_at`     | timestamp     |                                               |
 
 ---
 
@@ -560,29 +561,29 @@ Cuentas bancarias de la empresa.
 
 Pagos registrados.
 
-| Columna             | Tipo          | Descripción              |
-| ------------------- | ------------- | ------------------------ |
-| `id`                | uuid          | PK                       |
-| `payment_number`    | varchar(50)   | Número de pago           |
-| `partner_id`        | uuid          | FK → partners            |
-| `branch_id`         | uuid          | FK → branches            |
-| `payment_method_id` | uuid          | FK → payment_methods     |
-| `bank_account_id`   | uuid          | FK → bank_accounts       |
-| `currency_id`       | uuid          | FK → currencies          |
-| `exchange_rate`     | decimal(20,4) | Tasa                     |
-| `amount`            | decimal(20,2) | Monto total              |
-| `amount_allocated`  | decimal(20,2) | Monto asignado           |
-| `reference`         | varchar(100)  | Referencia bancaria      |
-| `notes`             | text          | Observaciones            |
-| `status`            | varchar(20)   | PENDING, COMPLETED, VOID |
-| `processed_at`      | timestamp     |                          |
-| `void_reason`       | text          |                          |
-| `void_at`           | timestamp     |                          |
-| `void_by`           | uuid          | FK → users               |
-| `created_by`        | uuid          | FK → users               |
-| `created_at`        | timestamp     |                          |
+| Columna             | Tipo          | Descripción                                    |
+| ------------------- | ------------- | ---------------------------------------------- |
+| `id`                | uuid          | PK                                             |
+| `payment_number`    | varchar(50)   | Número de pago                                 |
+| `partner_id`        | uuid          | FK → partners                                  |
+| `branch_id`         | uuid          | FK → branches                                  |
+| `payment_method_id` | uuid          | FK → payment_methods                           |
+| `bank_account_id`   | uuid          | FK → bank_accounts                             |
+| `currency_id`       | uuid          | FK → currencies                                |
+| `exchange_rate`     | decimal(20,4) | Tasa                                           |
+| `amount`            | decimal(20,2) | Monto total                                    |
+| `amount_allocated`  | decimal(20,2) | Monto asignado                                 |
+| `reference`         | varchar(100)  | Referencia bancaria única entre pagos vigentes |
+| `notes`             | text          | Observaciones                                  |
+| `status`            | varchar(20)   | PENDING, COMPLETED, VOID                       |
+| `processed_at`      | timestamp     |                                                |
+| `void_reason`       | text          |                                                |
+| `void_at`           | timestamp     |                                                |
+| `void_by`           | uuid          | FK → users                                     |
+| `created_by`        | uuid          | FK → users                                     |
+| `created_at`        | timestamp     |                                                |
 
-**Índices:** `payment_number` (unique)
+**Índices:** `payment_number` (unique), `reference` (unique parcial: sólo pagos vigentes con referencia)
 
 ### `payment_allocations`
 

@@ -15,10 +15,11 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { usePositions } from '../hooks';
-import { formatCurrency } from '@/lib/utils';
-
+import { formatMoney } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 export function PositionsView() {
   const { data: positions = [], isLoading } = usePositions();
+  const { baseCode } = useCurrencyIndex();
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,34 +51,25 @@ export function PositionsView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cargo</TableHead>
-                  <TableHead className="hidden md:table-cell">Departamento</TableHead>
-                  <TableHead>Nivel</TableHead>
-                  <TableHead className="text-right">Salario base</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead className="hidden md:table-cell">Descripción</TableHead>
+                  <TableHead className="text-right">Rango salarial</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {positions.map(p => (
-                  <TableRow key={p.id}>
+                {positions.map(position => (
+                  <TableRow key={position.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Briefcase className="size-4 text-muted-foreground" />
-                        <span className="font-medium">{p.name}</span>
+                        <span className="font-medium">{position.name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
-                      {p.departmentName ?? '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{p.level}</Badge>
+                    <TableCell className="hidden text-muted-foreground md:table-cell">
+                      {position.description ?? '—'}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(p.baseSalary))}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={p.isActive ? 'default' : 'secondary'}>
-                        {p.isActive ? 'Activo' : 'Inactivo'}
-                      </Badge>
+                      {formatMoney(Number(position.baseSalaryMin), baseCode)} –{' '}
+                      {formatMoney(Number(position.baseSalaryMax), baseCode)}
                     </TableCell>
                   </TableRow>
                 ))}

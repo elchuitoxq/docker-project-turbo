@@ -35,13 +35,19 @@ import {
 } from '@/components/ui/table';
 import { pettyCashApi, type PettyCashFund } from '../api/treasury-operations';
 import { apiClient } from '@/lib/api/client';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDay } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 type Currency = { id: string; code: string; name: string };
 
 /** Caja chica de fondo fijo (`T-05-07`, HU-5 de `S-05`). */
 export function PettyCashView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const { codeOf } = useCurrencyIndex();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.TREASURY.CREATE_ACCOUNT);
   const [creating, setCreating] = React.useState(false);
   const [movementFor, setMovementFor] = React.useState<PettyCashFund | null>(null);
   const [closingFund, setClosingFund] = React.useState<PettyCashFund | null>(null);
@@ -59,10 +65,12 @@ export function PettyCashView() {
             Fondos fijos con rendiciones y reposición; el fondo nunca queda negativo
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus data-icon="inline-start" />
-          Nuevo fondo
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreating(true)}>
+            <Plus data-icon="inline-start" />
+            Nuevo fondo
+          </Button>
+        )}
       </div>
 
       {funds.isLoading ? (
@@ -90,8 +98,9 @@ export function PettyCashView() {
                   </Badge>
                 </CardTitle>
                 <CardDescription>
-                  Fondo {formatCurrency(fund.amount)} · saldo {formatCurrency(fund.balance)} ·
-                  gastado desde la última reposición {formatCurrency(fund.spentSinceReplenishment)}
+                  Fondo {formatMoney(fund.amount, codeOf(fund.currencyId))} · saldo{' '}
+                  {formatMoney(fund.balance, codeOf(fund.currencyId))} · gastado desde la última
+                  reposición {formatMoney(fund.spentSinceReplenishment, codeOf(fund.currencyId))}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
@@ -132,7 +141,7 @@ export function PettyCashView() {
                             {movement.receiptNumber ? ` · ${movement.receiptNumber}` : ''}
                           </TableCell>
                           <TableCell className="text-right tabular-nums">
-                            {formatCurrency(movement.amount)}
+                            {formatMoney(movement.amount, codeOf(fund.currencyId))}
                           </TableCell>
                         </TableRow>
                       ))
@@ -140,7 +149,7 @@ export function PettyCashView() {
                   </TableBody>
                 </Table>
 
-                {fund.status === 'OPEN' && (
+                {fund.status === 'OPEN' && canManage && (
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" onClick={() => setMovementFor(fund)}>
                       <Receipt data-icon="inline-start" />
@@ -304,6 +313,7 @@ function MovementDialog({
   const [description, setDescription] = React.useState('');
   const [receiptNumber, setReceiptNumber] = React.useState('');
   const date = new Date().toISOString().slice(0, 10);
+  const { codeOf } = useCurrencyIndex();
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -327,7 +337,9 @@ function MovementDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{fund.name}</DialogTitle>
-          <DialogDescription>Saldo disponible {formatCurrency(fund.balance)}</DialogDescription>
+          <DialogDescription>
+            Saldo disponible {formatMoney(fund.balance, codeOf(fund.currencyId))}
+          </DialogDescription>
         </DialogHeader>
 
         <FieldGroup>
@@ -403,6 +415,7 @@ function CloseFundDialog({
   onDone: () => Promise<void>;
 }) {
   const [returnedAmount, setReturnedAmount] = React.useState(String(fund.balance));
+  const { codeOf } = useCurrencyIndex();
 
   const mutation = useMutation({
     mutationFn: () => pettyCashApi.close(fund.id, Number(returnedAmount)),
@@ -420,7 +433,8 @@ function CloseFundDialog({
         <DialogHeader>
           <DialogTitle>Cerrar {fund.name}</DialogTitle>
           <DialogDescription>
-            Para cerrar hay que devolver el saldo completo ({formatCurrency(fund.balance)})
+            Para cerrar hay que devolver el saldo completo (
+            {formatMoney(fund.balance, codeOf(fund.currencyId))})
           </DialogDescription>
         </DialogHeader>
 

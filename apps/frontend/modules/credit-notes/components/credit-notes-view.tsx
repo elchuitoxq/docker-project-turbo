@@ -36,7 +36,10 @@ import {
 } from '@/components/ui/table';
 import { creditNotesApi, toCreditNoteList, type CreditNote, type CreditNoteStatus } from '../api';
 import { invoicesApi } from '@/modules/orders/api';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDual, formatDay } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 const STATUS_LABEL: Record<CreditNoteStatus, string> = {
   DRAFT: 'Borrador',
@@ -63,6 +66,9 @@ const STATUS_VARIANT: Record<
  */
 export function CreditNotesView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const { codeOf } = useCurrencyIndex();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.CREDIT_NOTES.MANAGE);
   const [status, setStatus] = React.useState<'ALL' | CreditNoteStatus>('ALL');
   const [creating, setCreating] = React.useState(false);
   const [applying, setApplying] = React.useState<CreditNote | null>(null);
@@ -119,10 +125,12 @@ export function CreditNotesView() {
               <SelectItem value="VOIDED">Anulada</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => setCreating(true)}>
-            <Plus data-icon="inline-start" />
-            Nueva nota
-          </Button>
+          {canManage && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus data-icon="inline-start" />
+              Nueva nota
+            </Button>
+          )}
         </div>
       </div>
 
@@ -172,10 +180,14 @@ export function CreditNotesView() {
                       {note.invoiceId ? note.invoiceId.slice(0, 8) : '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Number(note.total))}
+                      {formatDual(
+                        Number(note.total),
+                        codeOf(note.currencyId),
+                        Number(note.exchangeRate)
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
-                      {formatCurrency(Number(note.availableAmount))}
+                      {formatMoney(Number(note.availableAmount), codeOf(note.currencyId))}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[note.status]}>
@@ -183,37 +195,41 @@ export function CreditNotesView() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {note.status === 'DRAFT' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => post.mutate(note.id)}
-                            disabled={post.isPending}
-                          >
-                            <Send data-icon="inline-start" />
-                            Emitir
-                          </Button>
-                        )}
-                        {(note.status === 'POSTED' || note.status === 'APPLIED') &&
-                          Number(note.availableAmount) > 0 && (
-                            <Button size="sm" variant="outline" onClick={() => setApplying(note)}>
-                              <Link2 data-icon="inline-start" />
-                              Aplicar
+                      {canManage && (
+                        <div className="flex justify-end gap-1">
+                          {note.status === 'DRAFT' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => post.mutate(note.id)}
+                              disabled={post.isPending}
+                            >
+                              <Send data-icon="inline-start" />
+                              Emitir
                             </Button>
                           )}
-                        {(note.status === 'DRAFT' || note.status === 'POSTED') && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => voidNote.mutate(note.id)}
-                            disabled={voidNote.isPending}
-                          >
-                            <Ban data-icon="inline-start" />
-                            Anular
-                          </Button>
-                        )}
-                      </div>
+                          {(note.status === 'POSTED' || note.status === 'APPLIED') &&
+                            Number(note.availableAmount) > 0 && (
+                              <Button size="sm" variant="outline" onClick={() => setApplying(note)}>
+                                <Link2 data-icon="inline-start" />
+                                Aplicar
+                              </Button>
+                            )}
+                          {/* Una nota aplicada también se anula: es la forma de deshacer el
+                              crédito y de poder anular luego la factura (S-03 regla 5). */}
+                          {note.status !== 'VOIDED' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => voidNote.mutate(note.id)}
+                              disabled={voidNote.isPending}
+                            >
+                              <Ban data-icon="inline-start" />
+                              Anular
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -241,6 +257,8 @@ export function CreditNotesView() {
             setApplying(null);
             await queryClient.invalidateQueries({ queryKey: ['credit-notes'] });
             await queryClient.invalidateQueries({ queryKey: ['payables'] });
+            // El saldo de la factura cambió: la ficha y el listado tienen que releerlo.
+            await queryClient.invalidateQueries({ queryKey: ['invoices'] });
           }}
         />
       )}
@@ -258,6 +276,7 @@ function CreateNoteDialog({
   const [type, setType] = React.useState<'SALE' | 'PURCHASE'>('SALE');
   const [invoiceId, setInvoiceId] = React.useState('');
   const [quantities, setQuantities] = React.useState<Record<string, string>>({});
+  const { codeOf } = useCurrencyIndex();
 
   const invoices = useQuery({
     queryKey: ['invoices', type],
@@ -361,7 +380,7 @@ function CreateNoteDialog({
               <div key={item.id} className="flex items-center gap-3 text-sm">
                 <span className="flex-1 font-mono text-xs">{item.productId.slice(0, 8)}</span>
                 <span className="w-24 text-right tabular-nums">
-                  {formatCurrency(Number(item.price))}
+                  {formatMoney(Number(item.price), codeOf(detail.data?.currencyId))}
                 </span>
                 <Input
                   type="number"
@@ -379,7 +398,7 @@ function CreateNoteDialog({
               </div>
             ))}
             <p className="text-right text-sm font-medium">
-              Total estimado {formatCurrency(estimated)}
+              Total estimado {formatMoney(estimated, codeOf(detail.data?.currencyId))}
             </p>
           </div>
         )}
@@ -410,6 +429,7 @@ function ApplyDialog({
   onDone: () => Promise<void>;
 }) {
   const [amount, setAmount] = React.useState(String(note.availableAmount));
+  const { codeOf } = useCurrencyIndex();
 
   const invoiceId = note.invoiceId ?? '';
 
@@ -429,8 +449,8 @@ function ApplyDialog({
         <DialogHeader>
           <DialogTitle>Aplicar {note.code}</DialogTitle>
           <DialogDescription>
-            Disponible {formatCurrency(Number(note.availableAmount))} sobre la factura{' '}
-            {invoiceId ? invoiceId.slice(0, 8) : '—'}
+            Disponible {formatMoney(Number(note.availableAmount), codeOf(note.currencyId))} sobre la
+            factura {invoiceId ? invoiceId.slice(0, 8) : '—'}
           </DialogDescription>
         </DialogHeader>
 

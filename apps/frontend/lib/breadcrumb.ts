@@ -35,7 +35,7 @@ const LABELS: Record<string, string> = {
   reconciliation: 'Conciliación',
   'petty-cash': 'Caja chica',
   'daily-close': 'Cierre diario',
-  retentions: 'Retenciones',
+  retentions: 'Retenciones al proveedor',
   accounting: 'Contabilidad',
   entries: 'Asientos',
   periods: 'Cierre y reportes',

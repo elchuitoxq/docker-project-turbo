@@ -26,12 +26,13 @@ import {
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { rolesApi, type ManagedRole, type Permission } from '../api';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 export function RolesAdminView() {
   const queryClient = useQueryClient();
-  const userPermissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canManageRoles = userPermissions.includes('settings:roles:manage');
+  const { hasPermission } = usePermission();
+  const canManageRoles = hasPermission(PERMISSIONS.SETTINGS.ROLES.MANAGE);
   const rolesQuery = useQuery({ queryKey: ['settings', 'roles'], queryFn: rolesApi.list });
   const permissionsQuery = useQuery({
     queryKey: ['settings', 'roles', 'permissions'],

@@ -5,6 +5,8 @@ import {
   IsNumber,
   IsEnum,
   IsArray,
+  ArrayNotEmpty,
+  IsBoolean,
   ValidateNested,
   Min,
 } from 'class-validator';
@@ -119,16 +121,36 @@ export class InventoryMoveLineDto {
   batchId?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Número de lote. En una entrada, si el lote no existe se crea en ese momento (recepción); si existe se reutiliza.',
+    example: 'L-2026-001',
+  })
+  @IsOptional()
+  @IsString()
+  batchNumber?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha de vencimiento del lote (ISO). Sólo se usa cuando el lote se crea',
+    example: '2027-01-31T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsString()
+  batchExpirationDate?: string;
+
+  @ApiPropertyOptional({
     description: 'Quantity',
     example: 100,
   })
-  quantity?: string | null;
+  @IsString()
+  quantity: string;
 
   @ApiPropertyOptional({
     description: 'Cost',
     example: 25.5,
   })
-  cost: string | null;
+  @IsOptional()
+  @IsString()
+  cost?: string | null;
 }
 
 export class InventoryMoveLineResponseDto {
@@ -171,11 +193,12 @@ export class InventoryMoveLineResponseDto {
 
 export class CreateInventoryMoveDto {
   @ApiProperty({
-    description: 'Move type',
-    enum: ['ENTRADA', 'SALIDA', 'TRANSFERENCIA'],
+    description:
+      'Move type. `AJUSTE` sets the stock to the counted quantity (physical count adjustment)',
+    enum: ['ENTRADA', 'SALIDA', 'TRANSFERENCIA', 'AJUSTE'],
     example: 'ENTRADA',
   })
-  @IsEnum(['ENTRADA', 'SALIDA', 'TRANSFERENCIA'])
+  @IsEnum(['ENTRADA', 'SALIDA', 'TRANSFERENCIA', 'AJUSTE'])
   type: string;
 
   @ApiPropertyOptional({
@@ -211,6 +234,16 @@ export class CreateInventoryMoveDto {
   reasonId?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Motivo del ajuste. Obligatorio cuando `type` es `AJUSTE` (CONTEO, DAÑO, VENCIMIENTO, HURTO, ERROR_DIGITACION).',
+    enum: ['CONTEO', 'DAÑO', 'VENCIMIENTO', 'HURTO', 'ERROR_DIGITACION'],
+    example: 'CONTEO',
+  })
+  @IsOptional()
+  @IsString()
+  reasonCode?: string;
+
+  @ApiPropertyOptional({
     description: 'Reference number',
     example: 'REF-001',
   })
@@ -236,18 +269,48 @@ export class CreateInventoryMoveDto {
 
   @ApiPropertyOptional({
     description: 'Move lines',
-    type: [InventoryMoveLineResponseDto],
+    type: [InventoryMoveLineDto],
   })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => InventoryMoveLineResponseDto)
+  @Type(() => InventoryMoveLineDto)
   lines?: {
     productId: string;
     batchId?: string;
+    batchNumber?: string;
+    batchExpirationDate?: string;
     quantity: string;
     cost?: string;
   }[];
+
+  @ApiPropertyOptional({
+    description:
+      'Autoriza despachar un lote posterior al sugerido por FEFO. Exige `fefoOverrideReason` (S-26).',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  fefoOverride?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Motivo del despacho fuera de FEFO (obligatorio si `fefoOverride` es `true`)',
+    example: 'El cliente exige el lote de la orden de compra',
+  })
+  @IsOptional()
+  @IsString()
+  fefoOverrideReason?: string;
+}
+
+export class ApproveInventoryMovesBatchDto {
+  @ApiProperty({
+    description: 'IDs de los movimientos a aprobar',
+    example: ['550e8400-e29b-41d4-a716-446655440000'],
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID('all', { each: true })
+  ids: string[];
 }
 
 export class RejectInventoryMoveDto {
@@ -298,6 +361,36 @@ export class InventoryMoveResponseDto {
   })
   toWarehouseId: string | null;
 
+  @ApiPropertyOptional({ description: 'Almacén de referencia (origen, o destino en una entrada)' })
+  warehouseId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Nombre del almacén de referencia' })
+  warehouseName?: string | null;
+
+  @ApiPropertyOptional({ description: 'Almacén destino en transferencias' })
+  warehouseDestId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Nombre del almacén destino' })
+  warehouseDestName?: string | null;
+
+  @ApiPropertyOptional({ description: 'Producto de la primera línea' })
+  productId?: string | null;
+
+  @ApiPropertyOptional({ description: 'Nombre del producto de la primera línea' })
+  productName?: string | null;
+
+  @ApiPropertyOptional({ description: 'SKU del producto de la primera línea' })
+  productSku?: string | null;
+
+  @ApiPropertyOptional({ description: 'Cantidad de la primera línea' })
+  quantity?: string | null;
+
+  @ApiPropertyOptional({ description: 'Costo unitario de la primera línea' })
+  unitCost?: string | null;
+
+  @ApiPropertyOptional({ description: 'Costo total de la primera línea' })
+  totalCost?: string | null;
+
   @ApiPropertyOptional({
     description: 'Approved by user ID',
     example: '550e8400-e29b-41d4-a716-446655440003',
@@ -335,10 +428,93 @@ export class InventoryMoveResponseDto {
   userId: string | null;
 
   @ApiPropertyOptional({
+    description: 'Motivo del ajuste (`S-25`)',
+    enum: ['CONTEO', 'DAÑO', 'VENCIMIENTO', 'HURTO', 'ERROR_DIGITACION'],
+  })
+  reasonCode?: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'La diferencia superó la tolerancia: no puede aprobarla la misma persona que la registró (`S-25`)',
+  })
+  requiresSecondApproval?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'La salida despachó un lote posterior al sugerido por FEFO (`S-26`)',
+  })
+  fefoOverride?: boolean;
+
+  @ApiPropertyOptional({ description: 'Motivo del despacho fuera de FEFO (`S-26`)' })
+  fefoOverrideReason?: string | null;
+
+  @ApiPropertyOptional({
     description: 'Move lines',
     type: [InventoryMoveLineResponseDto],
   })
   lines?: InventoryMoveLineResponseDto[];
+}
+
+export class ApproveInventoryMovesBatchResponseDto {
+  @ApiProperty({ description: 'Códigos de los movimientos aprobados', type: [String] })
+  approved: string[];
+
+  @ApiProperty({
+    description: 'Movimientos que no se pudieron aprobar con el motivo',
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: { id: { type: 'string' }, message: { type: 'string' } },
+    },
+  })
+  failed: { id: string; message: string }[];
+}
+
+export class ProductBatchResponseDto {
+  @ApiProperty({ description: 'Batch ID' })
+  id: string;
+
+  @ApiProperty({ description: 'Product ID' })
+  productId: string;
+
+  @ApiProperty({ description: 'Número de lote' })
+  batchNumber: string;
+
+  @ApiPropertyOptional({ description: 'Fecha de vencimiento' })
+  expirationDate: Date | null;
+
+  @ApiPropertyOptional({ description: 'Costo del lote' })
+  cost: string | null;
+
+  @ApiPropertyOptional({
+    description:
+      'Cantidad disponible del lote en el almacén consultado, descontando las reservas activas',
+  })
+  availableQuantity?: string;
+
+  @ApiPropertyOptional({ description: 'Cantidad reservada por salidas en borrador (`S-26`)' })
+  reservedQuantity?: string;
+
+  @ApiPropertyOptional({ description: 'El lote está habilitado para recibir y despachar' })
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'El lote ya venció: no se puede despachar (`S-26`)' })
+  expired?: boolean;
+}
+
+export class CreateProductBatchDto {
+  @ApiProperty({ description: 'Número de lote', example: 'L-2026-001' })
+  @IsString()
+  batchNumber: string;
+
+  @ApiPropertyOptional({ description: 'Fecha de vencimiento (ISO)', example: '2027-01-31' })
+  @IsOptional()
+  @IsString()
+  expirationDate?: string;
+
+  @ApiPropertyOptional({ description: 'Costo del lote', example: '25.50' })
+  @IsOptional()
+  @IsString()
+  cost?: string;
 }
 
 export class StockResponseDto {
@@ -407,4 +583,23 @@ export class StockResponseDto {
     example: false,
   })
   belowMinimum: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'Costo promedio móvil del producto (área de valoración = empresa). Es el costo con el que se valúa el inventario, no el de cada almacén (`S-25`).',
+    example: '25.50',
+  })
+  averageCost?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Valor del inventario de esta fila: cantidad × costo promedio',
+    example: '2550.00',
+  })
+  totalValue?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'El producto maneja lotes: la salida debe elegir lote (FEFO)',
+    example: false,
+  })
+  hasBatches?: boolean;
 }

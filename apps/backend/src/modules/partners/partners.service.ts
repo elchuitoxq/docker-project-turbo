@@ -1,31 +1,29 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { db } from '../../database';
 import { partners, invoices, payments, orders } from '../../schema';
-import { eq, sql, like, or, ilike } from 'drizzle-orm';
+import { and, eq, sql, like, or } from 'drizzle-orm';
 import {
   CreatePartnerDto,
   UpdatePartnerDto,
   PartnerResponseDto,
   PartnerStatsResponseDto,
 } from './dto/partners.dto';
+import {
+  isCustomerType,
+  isVendorType,
+  normalizePartnerType,
+  partnerTypeCondition,
+} from './partner-type';
 
 @Injectable()
 export class PartnersService {
-  async findAll(search?: string): Promise<PartnerResponseDto[]> {
-    let query = db.select().from(partners);
+  async findAll(search?: string, type?: string): Promise<PartnerResponseDto[]> {
+    const where = this.buildWhere({ search, type });
+    const query = db.select().from(partners);
 
-    if (search) {
-      const searchLower = `%${search.toLowerCase()}%`;
-      query = db
-        .select()
-        .from(partners)
-        .where(
-          or(
-            like(sql`LOWER(${partners.name})`, searchLower),
-            like(sql`LOWER(${partners.email})`, searchLower),
-            like(sql`LOWER(${partners.taxId})`, searchLower)
-          )
-        ) as any;
+    if (where) {
+      const allPartners = await query.where(where);
+      return allPartners.map(this.toResponseDto);
     }
 
     const allPartners = await query;
@@ -166,18 +164,14 @@ export class PartnersService {
   /** Listado paginado en servidor (T-01-18). */
   async findPaginated(options: {
     search?: string;
+    type?: string;
     page?: number;
     limit?: number;
   }): Promise<{ data: PartnerResponseDto[]; total: number; page: number; limit: number }> {
     const page = Math.max(options.page ?? 1, 1);
     const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
 
-    const where = options.search
-      ? or(
-          ilike(partners.name, `%${options.search}%`),
-          ilike(partners.taxId, `%${options.search}%`)
-        )
-      : undefined;
+    const where = this.buildWhere({ search: options.search, type: options.type });
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -211,17 +205,35 @@ export class PartnersService {
     };
 
     for (const stat of stats) {
-      const type = (stat.type || 'CUSTOMER').toUpperCase();
-      if (type === 'CUSTOMER') {
-        formattedStats.customer = Number(stat.count);
-      } else if (type === 'VENDOR') {
-        formattedStats.vendor = Number(stat.count);
-      }
+      const count = Number(stat.count);
+      formattedStats.total += count;
+      if (isCustomerType(stat.type)) formattedStats.customer += count;
+      if (isVendorType(stat.type)) formattedStats.vendor += count;
     }
 
-    formattedStats.total = formattedStats.customer + formattedStats.vendor;
-
     return formattedStats;
+  }
+
+  /** Combinacion de busqueda y rol comercial; `CUSTOMER`/`VENDOR` incluyen a los `BOTH`. */
+  private buildWhere(options: { search?: string; type?: string }) {
+    const conditions = [];
+
+    if (options.search) {
+      const searchLower = `%${options.search.toLowerCase()}%`;
+      conditions.push(
+        or(
+          like(sql`LOWER(${partners.name})`, searchLower),
+          like(sql`LOWER(${partners.email})`, searchLower),
+          like(sql`LOWER(${partners.taxId})`, searchLower)
+        )
+      );
+    }
+
+    const typeCondition = partnerTypeCondition(options.type);
+    if (typeCondition) conditions.push(typeCondition);
+
+    if (conditions.length === 0) return undefined;
+    return conditions.length === 1 ? conditions[0] : and(...conditions);
   }
 
   private toResponseDto(partner: typeof partners.$inferSelect): PartnerResponseDto {
@@ -232,7 +244,7 @@ export class PartnersService {
       taxId: partner.taxId,
       address: partner.address,
       phone: partner.phone,
-      type: partner.type as 'CUSTOMER' | 'VENDOR',
+      type: normalizePartnerType(partner.type),
       taxpayerType: partner.taxpayerType as 'ORDINARY' | 'SPECIAL' | 'LEGAL',
       retentionRate: partner.retentionRate ? Number(partner.retentionRate) : 0,
       isSpecialTaxpayer: partner.isSpecialTaxpayer || false,

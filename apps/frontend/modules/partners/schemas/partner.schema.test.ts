@@ -46,6 +46,24 @@ describe('partnerSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts a partner that is both customer and vendor', () => {
+    const result = partnerSchema.safeParse({
+      name: 'Cliente y Proveedor C.A.',
+      taxId: 'J-99999999-9',
+      type: 'BOTH',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an unknown partner type', () => {
+    const result = partnerSchema.safeParse({
+      name: 'A',
+      taxId: 'J-1',
+      type: 'SUPPLIER',
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('applies defaults for retention and credit limit', () => {
     const result = partnerSchema.parse({
       name: 'A',

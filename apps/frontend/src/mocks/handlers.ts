@@ -212,6 +212,22 @@ export const handlers = [
         createdAt: '2026-01-01',
         updatedAt: '2026-01-01',
       },
+      {
+        id: 'p-4',
+        name: 'Comercial Mixta C.A.',
+        email: 'mixta@mixta.com',
+        taxId: 'J-44444444-4',
+        address: 'Av. Bolívar',
+        phone: '+58-212-4444444',
+        type: 'BOTH',
+        taxpayerType: 'ORDINARY',
+        retentionRate: '75',
+        isSpecialTaxpayer: false,
+        creditLimit: '7500',
+        islrConceptId: null,
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
     ];
     let filtered = all;
     if (search)

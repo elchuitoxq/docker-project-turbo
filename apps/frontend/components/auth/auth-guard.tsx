@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { isAuthUser } from '@/stores/use-auth-store';
 import { apiClient } from '@/lib/api/client';
@@ -10,15 +10,21 @@ import { useBranchStore } from '@/stores/use-branch-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCompanies } from '@/modules/branches/hooks';
 import { PERMISSIONS } from '@/lib/permissions';
+import { routeRequirement } from '@/lib/navigation';
+import { usePermission } from '@/hooks/use-permission';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { hasPermission, hasAnyPermission, hasAllPermissions } = usePermission();
+  const route = routeRequirement(pathname);
+  const lacksRoutePermission = route
+    ? !hasAllPermissions(route.all) || !hasAnyPermission(route.any)
+    : false;
   const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const hasHydratedAuth = useAuthStore(s => s.hasHydrated);
-  const canViewCompanies = useAuthStore(
-    s => s.user?.permissions.includes(PERMISSIONS.SETTINGS.COMPANIES.VIEW) ?? false
-  );
+  const canViewCompanies = hasPermission(PERMISSIONS.SETTINGS.COMPANIES.VIEW);
   const currentCompanyId = useCompanyStore(s => s.currentCompanyId);
   const hasHydratedCompany = useCompanyStore(s => s.hasHydrated);
   const currentBranchId = useBranchStore(s => s.currentBranchId);
@@ -29,6 +35,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const setBranch = useBranchStore(s => s.setBranch);
   const setUser = useAuthStore(s => s.setUser);
   const defaultBranchId = useAuthStore(s => s.user?.defaultBranchId ?? null);
+  // Evita redirigir por permisos persistidos obsoletos antes de refrescarlos con /auth/me.
+  const [profileChecked, setProfileChecked] = React.useState(false);
 
   // Refresca permisos/sucursales contra el backend usando la cookie httpOnly.
   React.useEffect(() => {
@@ -40,7 +48,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       .then(profile => {
         if (!cancelled && isAuthUser(profile)) setUser(profile);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setProfileChecked(true);
+      });
 
     return () => {
       cancelled = true;
@@ -119,6 +130,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    if (!profileChecked) return;
+
+    if (lacksRoutePermission) {
+      router.replace('/forbidden?reason=no-permission');
+      return;
+    }
+
     if (!canViewCompanies) {
       router.replace('/forbidden?reason=no-company');
       return;
@@ -144,6 +162,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     hasHydratedBranch,
     isAuthenticated,
     canViewCompanies,
+    lacksRoutePermission,
+    profileChecked,
     companiesQuery.isError,
     companiesLoaded,
     companies,
@@ -172,6 +192,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     !hasHydratedCompany ||
     !hasHydratedBranch ||
     !isAuthenticated ||
+    !profileChecked ||
+    lacksRoutePermission ||
     !canViewCompanies ||
     !companiesLoaded ||
     (companies.length > 0 && !contextReady)

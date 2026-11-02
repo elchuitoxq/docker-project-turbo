@@ -4,39 +4,62 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  ListCard,
+  ListEmptyRow,
+  ListFilters,
+  ListSkeletonRows,
+  ListTd,
+  ListTh,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Search, FileText } from 'lucide-react';
+} from '@/components/list/list-table';
+import { Search } from 'lucide-react';
 import { invoicesApi, type Invoice } from '../api';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 
-type Props = { type: 'SALE' | 'PURCHASE'; title: string; subtitle: string; newHref: string };
+type Props = {
+  type: 'SALE' | 'PURCHASE';
+  title: string;
+  subtitle: string;
+  /** Base de la ruta de detalle: el código de cada factura enlaza a su ficha (`S-10`). */
+  detailBasePath?: string;
+};
 
-const STATUS_LABEL: Record<Invoice['status'], string> = {
+const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Borrador',
   POSTED: 'Emitida',
   VOID: 'Anulada',
+  CANCELLED: 'Anulada',
 };
 
-const STATUS_VARIANT: Record<Invoice['status'], 'default' | 'secondary' | 'destructive'> = {
+const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive'> = {
   DRAFT: 'secondary',
   POSTED: 'default',
   VOID: 'destructive',
+  CANCELLED: 'destructive',
 };
 
-export function InvoicesView({ type, title, subtitle, newHref }: Props) {
+export function InvoicesView({
+  type,
+  title,
+  subtitle,
+  detailBasePath = '/dashboard/finance/invoices',
+}: Props) {
   const t = useTranslations('common');
+  const { codeOf } = useCurrencyIndex();
   const [search, setSearch] = React.useState('');
   const [status, setStatus] = React.useState<string>('');
   const { data, isLoading } = useQuery({
@@ -60,92 +83,81 @@ export function InvoicesView({ type, title, subtitle, newHref }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
-        <Button asChild>
-          <Link href={newHref}>
-            <FileText /> Nueva {type === 'SALE' ? 'venta' : 'compra'}
-          </Link>
-        </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar por código o partner…"
-                className="pl-8"
-              />
-            </div>
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="">Todos los estados</option>
-              <option value="DRAFT">Borrador</option>
-              <option value="POSTED">Emitida</option>
-              <option value="VOID">Anulada</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
+      <ListFilters>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por código o partner…"
+            className="pl-8"
+          />
+        </div>
+        <Select
+          value={status || 'ALL'}
+          onValueChange={value => setStatus(value === 'ALL' ? '' : value)}
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos los estados</SelectItem>
+            <SelectItem value="DRAFT">Borrador</SelectItem>
+            <SelectItem value="POSTED">Emitida</SelectItem>
+            <SelectItem value="VOID">Anulada</SelectItem>
+          </SelectContent>
+        </Select>
+      </ListFilters>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>
-            {isLoading
-              ? 'Cargando…'
-              : `${filtered.length} factura${filtered.length === 1 ? '' : 's'}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="space-y-2 p-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              No hay facturas para mostrar
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Partner</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+      <ListCard
+        title="Listado"
+        description={
+          isLoading ? 'Cargando…' : `${filtered.length} factura${filtered.length === 1 ? '' : 's'}`
+        }
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <ListTh>Código</ListTh>
+              <ListTh>Fecha</ListTh>
+              <ListTh>Partner</ListTh>
+              <ListTh>Moneda</ListTh>
+              <ListTh>Estado</ListTh>
+              <ListTh align="right">Total</ListTh>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <ListSkeletonRows cols={6} />
+            ) : filtered.length === 0 ? (
+              <ListEmptyRow cols={6} message="No hay facturas para mostrar." />
+            ) : (
+              filtered.map(inv => (
+                <TableRow key={inv.id}>
+                  <ListTd mono>
+                    <Link href={`${detailBasePath}/${inv.id}`} className="hover:underline">
+                      {inv.code}
+                    </Link>
+                  </ListTd>
+                  <ListTd className="text-xs">{formatDate(inv.date)}</ListTd>
+                  <ListTd>{inv.partnerName ?? '—'}</ListTd>
+                  <ListTd muted className="text-xs">
+                    {codeOf(inv.currencyId)}
+                  </ListTd>
+                  <ListTd>
+                    <Badge variant={STATUS_VARIANT[inv.status] ?? 'secondary'}>
+                      {STATUS_LABEL[inv.status] ?? inv.status}
+                    </Badge>
+                  </ListTd>
+                  <ListTd numeric>{formatMoney(Number(inv.total), codeOf(inv.currencyId))}</ListTd>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(inv => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-mono text-xs">{inv.code}</TableCell>
-                    <TableCell className="text-xs">{formatDate(inv.issueDate)}</TableCell>
-                    <TableCell>{inv.partnerName ?? '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[inv.status]}>{STATUS_LABEL[inv.status]}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(
-                        Number(inv.total),
-                        inv.currencyCode === 'VES' ? 'VES' : 'USD'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </ListCard>
 
       <div className="flex items-center justify-end text-xs text-muted-foreground">
         {t('next')} →

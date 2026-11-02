@@ -68,9 +68,21 @@ Reglas a partir de ahora (implementadas en `S-00`):
 
 ## 5. Auditoría
 
-- Toda escritura sobre dinero o stock deja registro en `audit_logs`
-  (`entityTable`, `entityId`, `action`, `changes`, `userId`, `ipAddress`).
+- Toda escritura sobre los recursos del catálogo (`apps/backend/src/common/audit/audit-catalog.ts`)
+  deja registro en `audit_logs`.
+- El registro responde **quién, cuándo, qué y desde dónde**:
+  - `actorName` / `actorEmail` / `actorRoles`: foto del autor en el momento del hecho. No se resuelve
+    por FK porque `user_id` pasa a `NULL` si el usuario se borra.
+  - `changes = { before, after, changedFields }`: el interceptor **relee la fila** de la tabla antes y
+    después del handler (`AuditWriteInterceptor`). Un `PATCH` sin cambios no deja fila.
+  - `module`, `entityLabel`, `actionLabel` y `description` generada ("Publicó la factura FAC-1 ·
+    estado: DRAFT → POSTED"): el visor nunca muestra una ruta HTTP cruda.
+  - `result` (`SUCCESS` / `DENIED` / `ERROR`), `durationMs`, `httpMethod`, `route`, IP y navegador.
+- Se auditan también las **altas** (el `id` se toma de la respuesta) y los **fallos**: login
+  (`LOGIN` / `LOGIN_FAILED`) y los `403` emitidos por `PermissionsGuard` (`DENIED`).
+- Si la auditoría falla, la operación de negocio continúa: el interceptor registra el error y sigue.
 - `audit_logs` es append-only: sin `UPDATE`/`DELETE` desde la aplicación.
+- Leer la bitácora exige `settings:audit:view`; exportarla, `settings:audit:export`.
 
 ## 6. Migraciones y datos
 

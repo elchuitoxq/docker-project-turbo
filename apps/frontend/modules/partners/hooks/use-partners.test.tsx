@@ -35,14 +35,25 @@ describe('partners hooks', () => {
   it('usePartners() filters by type', async () => {
     const { result } = renderHook(() => usePartners({ type: 'CUSTOMER' }), { wrapper });
     await waitFor(() =>
-      expect(result.current.data?.data.every(p => p.type === 'CUSTOMER')).toBe(true)
+      expect(result.current.data?.data.every(p => p.type === 'CUSTOMER' || p.type === 'BOTH')).toBe(
+        true
+      )
     );
+    expect(result.current.data?.data).toHaveLength(2);
   });
 
   it('usePartners() filters vendors against the backend list', async () => {
     const { result } = renderHook(() => usePartners({ type: 'VENDOR' }), { wrapper });
-    await waitFor(() => expect(result.current.data?.data).toHaveLength(2));
-    expect(result.current.data?.data.every(p => p.type === 'VENDOR')).toBe(true);
+    await waitFor(() => expect(result.current.data?.data).toHaveLength(3));
+    expect(result.current.data?.data.every(p => p.type === 'VENDOR' || p.type === 'BOTH')).toBe(
+      true
+    );
+  });
+
+  it('usePartners() filters partners that are both customer and vendor', async () => {
+    const { result } = renderHook(() => usePartners({ type: 'BOTH' }), { wrapper });
+    await waitFor(() => expect(result.current.data?.data).toHaveLength(1));
+    expect(result.current.data?.data[0].type).toBe('BOTH');
   });
 
   it('usePartnerStatement() uses the treasury statement contract', async () => {

@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { DocumentEventDto } from '../../documents/dto/document-event.dto';
 
 export enum OrderStatus {
   DRAFT = 'DRAFT',
@@ -49,12 +50,21 @@ export class CreateOrderItemDto {
   quantity: number;
 
   @ApiProperty({
-    description: 'Price per unit',
+    description: 'Price per unit, expressed in the order currency',
     example: 25.5,
   })
   @IsNumber()
   @Min(0)
   price: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Currency of `price`. Omit it when the price is already in the order currency; when present the API converts it before storing the line.',
+    example: '550e8400-e29b-41d4-a716-446655440006',
+  })
+  @IsOptional()
+  @IsUUID()
+  priceCurrencyId?: string;
 }
 
 export class CreateOrderDto {
@@ -72,12 +82,13 @@ export class CreateOrderDto {
   @IsUUID()
   partnerId: string;
 
-  @ApiProperty({
-    description: 'Branch ID',
+  @ApiPropertyOptional({
+    description: 'Sucursal del pedido; si no se envía se toma de la cabecera `x-branch-id`',
     example: '550e8400-e29b-41d4-a716-446655440003',
   })
+  @IsOptional()
   @IsUUID()
-  branchId: string;
+  branchId?: string;
 
   @ApiPropertyOptional({
     description: 'Warehouse ID',
@@ -138,6 +149,47 @@ export class CreateOrderDto {
   items: CreateOrderItemDto[];
 }
 
+export class UpdateOrderItemDto {
+  @ApiProperty({
+    description: 'Product ID',
+    example: '550e8400-e29b-41d4-a716-446655440001',
+  })
+  @IsUUID()
+  productId: string;
+
+  @ApiPropertyOptional({
+    description: 'Batch ID',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+  })
+  @IsOptional()
+  @IsUUID()
+  batchId?: string;
+
+  @ApiProperty({
+    description: 'Quantity',
+    example: 15,
+  })
+  @IsNumber()
+  @Min(0.0001)
+  quantity: number;
+
+  @ApiProperty({
+    description: 'Price per unit, expressed in the order currency',
+    example: 30.0,
+  })
+  @IsNumber()
+  @Min(0)
+  price: number;
+
+  @ApiPropertyOptional({
+    description: 'Currency of `price`; omit it when it is already the order currency',
+    example: '550e8400-e29b-41d4-a716-446655440006',
+  })
+  @IsOptional()
+  @IsUUID()
+  priceCurrencyId?: string;
+}
+
 export class UpdateOrderDto {
   @ApiPropertyOptional({
     description: 'Warehouse ID',
@@ -180,34 +232,16 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   date?: string;
-}
-
-export class UpdateOrderItemDto {
-  @ApiPropertyOptional({
-    description: 'Batch ID',
-    example: '550e8400-e29b-41d4-a716-446655440002',
-  })
-  @IsOptional()
-  @IsUUID()
-  batchId?: string;
 
   @ApiPropertyOptional({
-    description: 'Quantity',
-    example: 15,
+    description: 'Order lines (replaces all lines); used when the rate or the currency changes',
+    type: [UpdateOrderItemDto],
   })
   @IsOptional()
-  @IsNumber()
-  @Min(0.0001)
-  quantity?: number;
-
-  @ApiPropertyOptional({
-    description: 'Price per unit',
-    example: 30.0,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  price?: number;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => UpdateOrderItemDto)
+  items?: UpdateOrderItemDto[];
 }
 
 export class OrderItemResponseDto {
@@ -228,6 +262,12 @@ export class OrderItemResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440001',
   })
   productId: string;
+
+  @ApiPropertyOptional({ example: 'ELEC-001', description: 'SKU del producto (ficha)' })
+  productSku?: string | null;
+
+  @ApiPropertyOptional({ example: 'Cable HDMI 2 m', description: 'Nombre del producto (ficha)' })
+  productName?: string | null;
 
   @ApiPropertyOptional({
     description: 'Batch ID',
@@ -266,6 +306,12 @@ export class OrderResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   partnerId: string;
+
+  @ApiPropertyOptional({
+    description: 'Nombre del tercero (el listado lo resuelve para la UI)',
+    example: 'Cliente Ejemplo C.A.',
+  })
+  partnerName?: string | null;
 
   @ApiProperty({
     description: 'Branch ID',
@@ -334,6 +380,39 @@ export class OrderResponseDto {
     example: '2026-06-01T12:00:00.000Z',
   })
   updatedAt: Date | null;
+
+  @ApiPropertyOptional({ example: 'J-12345678-9', description: 'RIF del tercero (ficha)' })
+  partnerTaxId?: string | null;
+
+  @ApiPropertyOptional({ example: 'USD', description: 'Código de la moneda del pedido' })
+  currencyCode?: string | null;
+
+  @ApiPropertyOptional({ example: 'Test Branch' })
+  branchName?: string | null;
+
+  @ApiPropertyOptional({ example: 'Almacén Principal' })
+  warehouseName?: string | null;
+
+  @ApiPropertyOptional({ example: 'Test Manager', description: 'Usuario que creó el pedido' })
+  createdByName?: string | null;
+
+  @ApiPropertyOptional({
+    example: '550e8400-e29b-41d4-a716-446655440099',
+    description: 'Factura generada por el pedido, si existe',
+  })
+  invoiceId?: string | null;
+
+  @ApiPropertyOptional({ example: 'A-00021' })
+  invoiceCode?: string | null;
+
+  @ApiPropertyOptional({ example: 'DRAFT' })
+  invoiceStatus?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Histórico de procesos del pedido y de su factura, en orden cronológico (`S-12`)',
+    type: [DocumentEventDto],
+  })
+  history?: DocumentEventDto[];
 
   @ApiPropertyOptional({
     description: 'Order items',

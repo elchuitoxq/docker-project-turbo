@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -35,7 +36,9 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { reconciliationApi, treasuryAccountsApi } from '../api/treasury-operations';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDay } from '@/lib/utils';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 /**
  * Conciliación bancaria (`T-05-04`, `T-05-05`, `T-05-08`).
@@ -45,6 +48,8 @@ import { formatCurrency, formatDay } from '@/lib/utils';
  */
 export function ReconciliationView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.TREASURY.CREATE_ACCOUNT);
   const [selectedAccountId, setSelectedAccountId] = React.useState('');
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
@@ -90,10 +95,12 @@ export function ReconciliationView() {
             Extracto contra pagos y cobros del sistema, con sugerencias por monto y fecha
           </p>
         </div>
-        <Button onClick={() => setImporting(true)} disabled={!activeAccountId}>
-          <Upload data-icon="inline-start" />
-          Importar extracto
-        </Button>
+        {canManage && (
+          <Button onClick={() => setImporting(true)} disabled={!activeAccountId}>
+            <Upload data-icon="inline-start" />
+            Importar extracto
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -115,20 +122,24 @@ export function ReconciliationView() {
           </Field>
           <Field className="w-44">
             <FieldLabel htmlFor="recon-from">Desde</FieldLabel>
-            <Input
+            <DatePicker
               id="recon-from"
-              type="date"
               value={from}
-              onChange={event => setFrom(event.target.value)}
+              onChange={setFrom}
+              placeholder="Desde"
+              toDate={to || undefined}
+              clearable
             />
           </Field>
           <Field className="w-44">
             <FieldLabel htmlFor="recon-to">Hasta</FieldLabel>
-            <Input
+            <DatePicker
               id="recon-to"
-              type="date"
               value={to}
-              onChange={event => setTo(event.target.value)}
+              onChange={setTo}
+              placeholder="Hasta"
+              fromDate={from || undefined}
+              clearable
             />
           </Field>
         </CardContent>
@@ -193,7 +204,7 @@ export function ReconciliationView() {
                     <TableRow key={line.id}>
                       <TableCell>{formatDay(line.date)}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCurrency(line.amount, 'USD')}
+                        {formatMoney(line.amount, 'USD')}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {line.reference ?? '—'}
@@ -216,7 +227,7 @@ export function ReconciliationView() {
                             size="sm"
                             variant="outline"
                             onClick={() => unmatch.mutate(line.id)}
-                            disabled={unmatch.isPending}
+                            disabled={!canManage || unmatch.isPending}
                           >
                             <Unlink data-icon="inline-start" />
                             Desconciliar
@@ -229,7 +240,7 @@ export function ReconciliationView() {
                               suggestion &&
                               match.mutate({ lineId: line.id, paymentId: suggestion.paymentId })
                             }
-                            disabled={!suggestion || match.isPending}
+                            disabled={!canManage || !suggestion || match.isPending}
                           >
                             <Link2 data-icon="inline-start" />
                             {suggestion ? `Conciliar ${suggestion.code}` : 'Sin sugerencia'}

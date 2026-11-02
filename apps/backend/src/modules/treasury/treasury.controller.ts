@@ -54,6 +54,7 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('treasury')
+@ApiBearerAuth()
 @Controller('v1/treasury')
 @RequirePermissions('finance:view')
 export class TreasuryController {
@@ -64,6 +65,7 @@ export class TreasuryController {
     private readonly pettyCash: PettyCashService = new PettyCashService()
   ) {}
 
+  @RequirePermissions('finance:payments:view')
   @Get('payments')
   @ApiOperation({
     summary: 'Get all payments',
@@ -82,6 +84,7 @@ export class TreasuryController {
     return this.treasuryService.findAll(branchId, status);
   }
 
+  @RequirePermissions('finance:payments:view')
   @Get('payments/:id')
   @ApiOperation({
     summary: 'Get payment by ID',
@@ -111,6 +114,10 @@ export class TreasuryController {
     status: 201,
     description: 'Payment created successfully',
     type: PaymentResponseDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'La referencia de la transacción ya está registrada en otro pago',
   })
   async createPayment(
     @Body() createPaymentDto: CreatePaymentDto,
@@ -143,6 +150,7 @@ export class TreasuryController {
     return this.treasuryService.voidPayment(id, userId, branchId);
   }
 
+  @RequirePermissions('finance:retentions:view')
   @Get('retentions')
   @ApiOperation({
     summary: 'Comprobantes de retención emitidos',
@@ -152,7 +160,25 @@ export class TreasuryController {
   @ApiQuery({ name: 'type', required: false, enum: ['IVA', 'ISLR'] })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Comprobantes de retención' })
+  @ApiResponse({
+    status: 200,
+    description: 'Comprobantes de retención',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          type: 'IVA',
+          voucherNumber: '2026100000123',
+          partnerId: '550e8400-e29b-41d4-a716-446655440001',
+          invoiceId: '550e8400-e29b-41d4-a716-446655440002',
+          date: '2026-10-20',
+          baseAmount: 500,
+          retentionRate: 75,
+          retainedAmount: 60,
+        },
+      ],
+    },
+  })
   async findRetentions(
     @CurrentBranch() branchId: string,
     @Query('partnerId') partnerId?: string,
@@ -220,6 +246,7 @@ export class TreasuryController {
     return this.treasuryService.createMethod(createMethodDto);
   }
 
+  @RequirePermissions('finance:treasury:view')
   @Get('bank-accounts')
   @ApiOperation({
     summary: 'Get bank accounts',
@@ -247,9 +274,10 @@ export class TreasuryController {
     type: BankAccountResponseDto,
   })
   async createBankAccount(
-    @Body() createBankAccountDto: CreateBankAccountDto
+    @Body() createBankAccountDto: CreateBankAccountDto,
+    @CurrentBranch() branchId?: string
   ): Promise<BankAccountResponseDto> {
-    return this.treasuryService.createBankAccount(createBankAccountDto);
+    return this.treasuryService.createBankAccount(createBankAccountDto, branchId);
   }
 
   @RequirePermissions('finance:treasury:create_account')
@@ -268,6 +296,7 @@ export class TreasuryController {
     return this.treasuryService.updateBankAccount(id, branchId, dto);
   }
 
+  @RequirePermissions('operations:partners:statement')
   @Get('statements/:partnerId')
   @ApiOperation({
     summary: 'Get partner statement',
@@ -288,6 +317,7 @@ export class TreasuryController {
     return this.treasuryService.getPartnerStatement(partnerId, branchId, { from, to });
   }
 
+  @RequirePermissions('finance:treasury:daily-close')
   @Get('daily-close/:date')
   @ApiOperation({
     summary: 'Cierre diario de una fecha',
@@ -302,7 +332,7 @@ export class TreasuryController {
     return this.dailyClose.summary(branchId, date);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:daily-close')
   @Post('daily-close/:date/close')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -321,7 +351,7 @@ export class TreasuryController {
     return this.dailyClose.close(branchId, date, user?.id ?? null, dto);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:daily-close')
   @Post('daily-close/:date/reopen')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -339,6 +369,7 @@ export class TreasuryController {
     return this.dailyClose.reopen(branchId, date, user?.id ?? null, dto.reason);
   }
 
+  @RequirePermissions('finance:treasury:daily-close')
   @Get('daily-close')
   @ApiOperation({
     summary: 'Cierre diario (compatibilidad)',
@@ -355,14 +386,24 @@ export class TreasuryController {
 
   // -- Conciliación bancaria (T-05-04, T-05-05)
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:reconcile')
   @Post('reconciliation/import')
   @ApiOperation({
     summary: 'Importar extracto bancario (CSV)',
     description: 'Formato fecha,monto,referencia,descripción. Es idempotente por hash del archivo',
   })
   @ApiBody({ type: ImportStatementDto })
-  @ApiResponse({ status: 201, description: 'Líneas importadas' })
+  @ApiResponse({
+    status: 201,
+    description: 'Líneas importadas',
+    schema: {
+      example: {
+        importId: '550e8400-e29b-41d4-a716-446655440000',
+        linesCount: 24,
+        duplicated: false,
+      },
+    },
+  })
   async importStatement(
     @CurrentBranch() branchId: string,
     @CurrentUser() user: CurrentUserData,
@@ -386,7 +427,7 @@ export class TreasuryController {
     return this.reconciliation.report(branchId, bankAccountId, { from, to });
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:reconcile')
   @Post('reconciliation/:lineId/match')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
@@ -404,10 +445,13 @@ export class TreasuryController {
     return this.reconciliation.match(branchId, lineId, dto.paymentId, user?.id ?? null);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:reconcile')
   @Post('reconciliation/:lineId/unmatch')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Desconciliar una línea' })
+  @ApiOperation({
+    summary: 'Desconciliar una línea',
+    description: 'Deshace el vínculo entre una línea del extracto y su pago',
+  })
   @ApiResponse({ status: 200, type: StatementLineDto })
   async unmatchLine(
     @Param('lineId') lineId: string,
@@ -419,15 +463,21 @@ export class TreasuryController {
   // -- Caja chica (T-05-07)
 
   @Get('petty-cash')
-  @ApiOperation({ summary: 'Fondos de caja chica de la sucursal' })
+  @ApiOperation({
+    summary: 'Fondos de caja chica de la sucursal',
+    description: 'Lista los fondos de caja chica con su saldo disponible',
+  })
   @ApiResponse({ status: 200, type: [PettyCashFundResponseDto] })
   async listPettyCash(@CurrentBranch() branchId: string): Promise<PettyCashFundResponseDto[]> {
     return this.pettyCash.list(branchId);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:petty-cash')
   @Post('petty-cash')
-  @ApiOperation({ summary: 'Crear un fondo de caja chica' })
+  @ApiOperation({
+    summary: 'Crear un fondo de caja chica',
+    description: 'Crea un fondo con un monto asignado y su responsable',
+  })
   @ApiBody({ type: CreatePettyCashFundDto })
   @ApiResponse({ status: 201, type: PettyCashFundResponseDto })
   async createPettyCash(
@@ -438,7 +488,10 @@ export class TreasuryController {
   }
 
   @Get('petty-cash/:id')
-  @ApiOperation({ summary: 'Detalle de un fondo' })
+  @ApiOperation({
+    summary: 'Detalle de un fondo',
+    description: 'Devuelve el fondo con sus movimientos y saldo actual',
+  })
   @ApiResponse({ status: 200, type: PettyCashFundResponseDto })
   async getPettyCash(
     @Param('id') id: string,
@@ -447,7 +500,7 @@ export class TreasuryController {
     return this.pettyCash.findOne(branchId, id);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:petty-cash')
   @Post('petty-cash/:id/movements')
   @ApiOperation({
     summary: 'Registrar gasto o reposición',
@@ -464,10 +517,14 @@ export class TreasuryController {
     return this.pettyCash.addMovement(branchId, id, dto, user?.id ?? null);
   }
 
-  @RequirePermissions('finance:treasury:create_account')
+  @RequirePermissions('finance:treasury:petty-cash')
   @Post('petty-cash/:id/close')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cerrar el fondo devolviendo el saldo' })
+  @ApiOperation({
+    summary: 'Cerrar el fondo devolviendo el saldo',
+    description:
+      'Cierra el fondo y registra la devolución del saldo restante a la cuenta de origen',
+  })
   @ApiBody({ type: ClosePettyCashFundDto })
   @ApiResponse({ status: 200, type: PettyCashFundResponseDto })
   async closePettyCash(
@@ -485,7 +542,22 @@ export class TreasuryController {
     description: 'Retrieves credit notes with unused balance for a partner',
   })
   @ApiQuery({ name: 'partnerId', required: true })
-  @ApiResponse({ status: 200, description: 'List of available credit notes' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of available credit notes',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          code: 'NC-000012',
+          date: '2026-10-15',
+          total: 500,
+          usedAmount: 150,
+          availableAmount: 350,
+        },
+      ],
+    },
+  })
   async getAvailableCreditNotes(@Query('partnerId') partnerId: string): Promise<any[]> {
     return this.treasuryService.getAvailableCreditNotes(partnerId);
   }

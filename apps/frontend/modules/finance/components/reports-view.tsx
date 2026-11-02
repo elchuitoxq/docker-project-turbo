@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, CircleAlert, Download, FileSpreadsheet } f
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -23,15 +24,17 @@ import {
 import { reportsApi, type FiscalBook } from '../api/reports';
 import { ApiError } from '@/lib/api/client';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
+import { PermissionsGate } from '@/components/auth/permissions-gate';
 
 function money(value: number): string {
   return value.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function ReportsView() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canExport = permissions.includes(PERMISSIONS.FINANCE.REPORTS.VIEW);
+  const { hasPermission } = usePermission();
+  const canExport = hasPermission(PERMISSIONS.FINANCE.REPORTS.VIEW);
+  const canReadBooks = hasPermission(PERMISSIONS.FINANCE.RETENTIONS.VIEW);
 
   const [from, setFrom] = React.useState('2026-10-01');
   const [to, setTo] = React.useState('2026-10-31');
@@ -40,14 +43,17 @@ export function ReportsView() {
   const sales = useQuery({
     queryKey: ['fiscal', 'sales', from, to],
     queryFn: () => reportsApi.salesBook(from, to),
+    enabled: canReadBooks,
   });
   const purchases = useQuery({
     queryKey: ['fiscal', 'purchases', from, to],
     queryFn: () => reportsApi.purchaseBook(from, to),
+    enabled: canReadBooks,
   });
   const validation = useQuery({
     queryKey: ['fiscal', 'validation', from, to],
     queryFn: () => reportsApi.validation(from, to),
+    enabled: canReadBooks,
   });
   const summary = useQuery({
     queryKey: ['fiscal', 'summary', from, to],
@@ -110,16 +116,25 @@ export function ReportsView() {
           <div className="flex flex-wrap items-end gap-3">
             <Field className="w-40">
               <FieldLabel htmlFor="from">Desde</FieldLabel>
-              <Input
+              <DatePicker
                 id="from"
-                type="date"
                 value={from}
-                onChange={event => setFrom(event.target.value)}
+                onChange={setFrom}
+                placeholder="Desde"
+                toDate={to || undefined}
+                clearable
               />
             </Field>
             <Field className="w-40">
               <FieldLabel htmlFor="to">Hasta</FieldLabel>
-              <Input id="to" type="date" value={to} onChange={event => setTo(event.target.value)} />
+              <DatePicker
+                id="to"
+                value={to}
+                onChange={setTo}
+                placeholder="Hasta"
+                fromDate={from || undefined}
+                clearable
+              />
             </Field>
           </div>
         </CardContent>
@@ -142,7 +157,12 @@ export function ReportsView() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {validation.isLoading ? (
+          {!canReadBooks ? (
+            <p className="text-muted-foreground text-sm">
+              Necesitas el permiso {PERMISSIONS.FINANCE.RETENTIONS.VIEW} para consultar la
+              validación fiscal.
+            </p>
+          ) : validation.isLoading ? (
             <Skeleton className="h-16 w-full" />
           ) : findings.length === 0 ? (
             <p className="text-muted-foreground text-sm">
@@ -192,31 +212,41 @@ export function ReportsView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="sales">
-            <TabsList>
-              <TabsTrigger value="sales">Libro de ventas</TabsTrigger>
-              <TabsTrigger value="purchases">Libro de compras</TabsTrigger>
-            </TabsList>
+          <PermissionsGate
+            permission={PERMISSIONS.FINANCE.RETENTIONS.VIEW}
+            fallback={
+              <p className="text-muted-foreground text-sm">
+                Necesitas el permiso {PERMISSIONS.FINANCE.RETENTIONS.VIEW} para consultar los libros
+                fiscales.
+              </p>
+            }
+          >
+            <Tabs defaultValue="sales">
+              <TabsList>
+                <TabsTrigger value="sales">Libro de ventas</TabsTrigger>
+                <TabsTrigger value="purchases">Libro de compras</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="sales">
-              <BookTable
-                book={sales.data}
-                loading={sales.isLoading}
-                onExport={() => download('LIBRO_VENTAS')}
-                busy={busy === 'LIBRO_VENTAS'}
-                disabled={blocked}
-              />
-            </TabsContent>
-            <TabsContent value="purchases">
-              <BookTable
-                book={purchases.data}
-                loading={purchases.isLoading}
-                onExport={() => download('LIBRO_COMPRAS')}
-                busy={busy === 'LIBRO_COMPRAS'}
-                disabled={blocked}
-              />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="sales">
+                <BookTable
+                  book={sales.data}
+                  loading={sales.isLoading}
+                  onExport={() => download('LIBRO_VENTAS')}
+                  busy={busy === 'LIBRO_VENTAS'}
+                  disabled={blocked}
+                />
+              </TabsContent>
+              <TabsContent value="purchases">
+                <BookTable
+                  book={purchases.data}
+                  loading={purchases.isLoading}
+                  onExport={() => download('LIBRO_COMPRAS')}
+                  busy={busy === 'LIBRO_COMPRAS'}
+                  disabled={blocked}
+                />
+              </TabsContent>
+            </Tabs>
+          </PermissionsGate>
 
           <Separator className="my-4" />
 

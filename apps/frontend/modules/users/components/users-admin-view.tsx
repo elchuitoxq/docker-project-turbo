@@ -44,7 +44,8 @@ import {
 import { branchesApi } from '@/modules/branches/api';
 import type { Branch } from '@/modules/branches/api';
 import { rolesApi, type ManagedRole } from '@/modules/roles/api';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 import { usersApi, type ManagedUser, type UserInput } from '../api';
 
 type UserFormProps = {
@@ -55,6 +56,7 @@ type UserFormProps = {
   onOpenChange: (open: boolean) => void;
   onSave: (user: ManagedUser | null, body: UserInput) => void;
   pending: boolean;
+  canEditProfile: boolean;
   canManageRoleAssignments: boolean;
   canManageBranchAssignments: boolean;
 };
@@ -64,11 +66,12 @@ export function UsersAdminView() {
   const [search, setSearch] = useState('');
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canCreateUsers = permissions.includes('settings:users:create');
-  const canManageUsers = permissions.includes('settings:users:manage');
-  const canViewRoles = permissions.includes('settings:roles:view');
-  const canManageBranches = permissions.includes('settings:branches:manage');
+  const { hasPermission } = usePermission();
+  const canCreateUsers = hasPermission(PERMISSIONS.SETTINGS.USERS.CREATE);
+  const canEditUsers = hasPermission(PERMISSIONS.SETTINGS.USERS.EDIT);
+  const canManageUsers = hasPermission(PERMISSIONS.SETTINGS.USERS.MANAGE);
+  const canViewRoles = hasPermission(PERMISSIONS.SETTINGS.ROLES.VIEW);
+  const canManageBranches = hasPermission(PERMISSIONS.SETTINGS.BRANCHES.MANAGE);
   const canManageRoleAssignments = canManageUsers && canViewRoles;
   const canManageBranchAssignments = canManageUsers && canManageBranches;
 
@@ -104,11 +107,13 @@ export function UsersAdminView() {
         await Promise.all(assignments);
         return created;
       }
-      await usersApi.update(user.id, {
-        name: body.name,
-        email: body.email,
-        ...(body.password ? { password: body.password } : {}),
-      });
+      if (canEditUsers) {
+        await usersApi.update(user.id, {
+          name: body.name,
+          email: body.email,
+          ...(body.password ? { password: body.password } : {}),
+        });
+      }
       const assignments = [];
       if (canManageRoleAssignments) {
         assignments.push(usersApi.assignRoles(user.id, body.roleIds ?? []));
@@ -292,29 +297,31 @@ export function UsersAdminView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-end gap-1">
+                        {(canEditUsers ||
+                          canManageRoleAssignments ||
+                          canManageBranchAssignments) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Editar ${user.name}`}
+                            onClick={() => openEdit(user)}
+                          >
+                            <UserRoundPen />
+                          </Button>
+                        )}
                         {canManageUsers && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Editar ${user.name}`}
-                              onClick={() => openEdit(user)}
-                            >
-                              <UserRoundPen />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Eliminar ${user.name}`}
-                              disabled={deleteMutation.isPending}
-                              onClick={() => {
-                                if (window.confirm(`¿Eliminar la cuenta de ${user.name}?`))
-                                  deleteMutation.mutate(user.id);
-                              }}
-                            >
-                              <Trash2 />
-                            </Button>
-                          </>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Eliminar ${user.name}`}
+                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              if (window.confirm(`¿Eliminar la cuenta de ${user.name}?`))
+                                deleteMutation.mutate(user.id);
+                            }}
+                          >
+                            <Trash2 />
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -334,6 +341,7 @@ export function UsersAdminView() {
         onOpenChange={setDialogOpen}
         onSave={saveUser}
         pending={saveMutation.isPending}
+        canEditProfile={canEditUsers}
         canManageRoleAssignments={canManageRoleAssignments}
         canManageBranchAssignments={canManageBranchAssignments}
       />
@@ -395,6 +403,7 @@ function UserForm({
   onSave,
   onCancel,
   pending,
+  canEditProfile,
   canManageRoleAssignments,
   canManageBranchAssignments,
 }: Omit<UserFormProps, 'open' | 'onOpenChange'> & { onCancel: () => void }) {
@@ -428,6 +437,7 @@ function UserForm({
   }
 
   const availableAssignedBranches = branches.filter(branch => branchIds.includes(branch.id));
+  const profileReadOnly = Boolean(user) && !canEditProfile;
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-6">
@@ -439,6 +449,7 @@ function UserForm({
             value={name}
             onChange={event => setName(event.target.value)}
             required
+            disabled={profileReadOnly}
           />
         </Field>
         <Field>
@@ -449,6 +460,7 @@ function UserForm({
             value={email}
             onChange={event => setEmail(event.target.value)}
             required
+            disabled={profileReadOnly}
           />
         </Field>
         <Field className="sm:col-span-2">
@@ -462,8 +474,14 @@ function UserForm({
             value={password}
             onChange={event => setPassword(event.target.value)}
             required={!user}
+            disabled={profileReadOnly}
             autoComplete="new-password"
           />
+          {profileReadOnly && (
+            <FieldDescription>
+              Tu permiso permite asignar roles y sucursales, pero no editar los datos de la cuenta.
+            </FieldDescription>
+          )}
         </Field>
       </FieldGroup>
 

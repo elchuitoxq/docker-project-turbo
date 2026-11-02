@@ -12,7 +12,8 @@ import {
   exchangeRates,
   currencies,
 } from '../../schema';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, gte, inArray, lte, desc } from 'drizzle-orm';
+import { ISSUED_INVOICE_STATUSES } from '../billing/issued-status';
 
 interface DateRangeParams {
   dateFrom?: string;
@@ -417,7 +418,8 @@ export class ReportsService {
 
   async getLibroVentas(dateFrom?: string, dateTo?: string, branchId?: string): Promise<string> {
     const conditions = [
-      eq(invoices.status, 'POSTED'),
+      // El libro de ventas incluye lo cobrado: una factura `PARTIAL`/`PAID` sigue siendo una venta.
+      inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]),
       ...(branchId ? [eq(invoices.branchId, branchId)] : []),
       ...(dateFrom ? [gte(invoices.date, new Date(dateFrom))] : []),
       ...(dateTo ? [lte(invoices.date, new Date(dateTo + 'T23:59:59'))] : []),

@@ -24,7 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { biApi, type MonthlyData } from '../api';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDay } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Borrador',
@@ -32,9 +33,25 @@ const STATUS_LABEL: Record<string, string> = {
   PAID: 'Pagada',
   PARTIAL: 'Abonada',
   VOID: 'Anulada',
+  CANCELLED: 'Anulada',
   PENDING: 'Pendiente',
   CONFIRMED: 'Confirmada',
+  PROCESSING: 'En proceso',
+  COMPLETED: 'Completado',
 };
+
+/**
+ * Etiqueta del estado según el tipo de fila: un pago `POSTED` está **registrado**, no "emitido".
+ */
+function statusLabel(status: string | undefined, kind: 'invoice' | 'payment'): string {
+  if (!status) return '—';
+  if (kind === 'payment') {
+    if (status === 'POSTED') return 'Registrado';
+    if (status === 'VOID' || status === 'CANCELLED') return 'Anulado';
+    if (status === 'PENDING') return 'Pendiente';
+  }
+  return STATUS_LABEL[status] ?? status;
+}
 
 /**
  * Panel de inicio (`T-07-05`).
@@ -46,6 +63,7 @@ const STATUS_LABEL: Record<string, string> = {
 export function DashboardHome() {
   const year = new Date().getFullYear();
   const [chartType, setChartType] = React.useState<'sales' | 'payments'>('sales');
+  const { baseCode } = useCurrencyIndex();
 
   const kpis = useQuery({ queryKey: ['bi', 'kpis'], queryFn: biApi.kpis });
   const chart = useQuery({
@@ -67,15 +85,15 @@ export function DashboardHome() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Facturación emitida"
-          value={data ? formatCurrency(Number(data.totalInvoicesPosted.sum)) : null}
+          label={`Facturación emitida (${baseCode})`}
+          value={data ? formatMoney(Number(data.totalInvoicesPosted.sum), baseCode) : null}
           hint={data ? `${data.totalInvoicesPosted.count} documentos` : undefined}
           icon={<Receipt className="size-4 text-muted-foreground" />}
           href="/dashboard/finance/invoices"
         />
         <KpiCard
-          label="Cobros y pagos"
-          value={data ? formatCurrency(Number(data.totalPaymentsPosted.sum)) : null}
+          label={`Cobros y pagos (${baseCode})`}
+          value={data ? formatMoney(Number(data.totalPaymentsPosted.sum), baseCode) : null}
           hint={data ? `${data.totalPaymentsPosted.count} movimientos` : undefined}
           icon={<Wallet className="size-4 text-muted-foreground" />}
           href="/dashboard/finance/treasury"
@@ -90,7 +108,7 @@ export function DashboardHome() {
         <KpiCard
           label="Nóminas pendientes"
           value={data ? String(data.pendingPayrollRuns.count) : null}
-          hint={data ? `${data.totalCreditNotes.count} notas de crédito` : undefined}
+          hint={data ? `${data.totalCreditNotes.count} notas de crédito emitidas` : undefined}
           icon={<Banknote className="size-4 text-muted-foreground" />}
           href="/dashboard/hr/payroll"
         />
@@ -145,7 +163,7 @@ export function DashboardHome() {
                   <TableRow>
                     <TableHead>Documento</TableHead>
                     <TableHead>Partner</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead className="text-right">Monto ({baseCode})</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead>Fecha</TableHead>
                   </TableRow>
@@ -158,6 +176,7 @@ export function DashboardHome() {
                       amount: row.total,
                       status: row.status,
                       date: row.date,
+                      kind: 'invoice' as const,
                     })),
                     ...(activity.data?.recentPayments ?? []).map(row => ({
                       code: row.code,
@@ -165,6 +184,7 @@ export function DashboardHome() {
                       amount: row.amount,
                       status: row.status,
                       date: row.date,
+                      kind: 'payment' as const,
                     })),
                   ]
                     .slice(0, 8)
@@ -173,12 +193,10 @@ export function DashboardHome() {
                         <TableCell className="font-mono text-xs">{row.code}</TableCell>
                         <TableCell className="text-xs">{row.partner ?? '—'}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {formatCurrency(Number(row.amount ?? 0))}
+                          {formatMoney(Number(row.amount ?? 0), baseCode)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-                            {row.status ? (STATUS_LABEL[row.status] ?? row.status) : '—'}
-                          </Badge>
+                          <Badge variant="outline">{statusLabel(row.status, row.kind)}</Badge>
                         </TableCell>
                         <TableCell className="text-xs">
                           {row.date ? formatDay(row.date.slice(0, 10)) : '—'}
@@ -243,6 +261,7 @@ function KpiCard({
 
 function MonthlyBars({ data }: { data: MonthlyData[] }) {
   const max = Math.max(1, ...data.map(row => Number(row.total ?? 0)));
+  const { baseCode } = useCurrencyIndex();
 
   return (
     <div className="flex h-44 items-end gap-1">
@@ -255,7 +274,7 @@ function MonthlyBars({ data }: { data: MonthlyData[] }) {
               <div
                 className="w-full rounded-t bg-primary/70"
                 style={{ height: `${Math.max(height, 2)}%` }}
-                title={`${row.monthName}: ${formatCurrency(Number(row.total ?? 0))}`}
+                title={`${row.monthName}: ${formatMoney(Number(row.total ?? 0), baseCode)}`}
               />
             </div>
             <span className="text-[10px] text-muted-foreground">{row.monthName.slice(0, 3)}</span>

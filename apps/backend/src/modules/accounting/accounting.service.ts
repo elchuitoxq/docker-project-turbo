@@ -18,7 +18,9 @@ import {
   users,
   invoices,
   payments,
+  paymentAllocations,
   currencies,
+  bankAccounts,
 } from '../../schema';
 import { eq, and, gte, lte, sql, or, asc } from 'drizzle-orm';
 import {
@@ -776,6 +778,38 @@ export class AccountingService {
     return entry ? this.toEntryResponseDto(entry, true) : null;
   }
 
+  /**
+   * Anula el asiento de un documento anulado (`S-18`).
+   *
+   * El asiento se marca `CANCELLED` en vez de borrarse: se conserva la traza y las consultas de
+   * mayor y de reportes —que filtran por `POSTED`— dejan de sumarlo. Sin esto, anular un cobro
+   * devolvía el saldo a la factura y al banco pero dejaba el ingreso contabilizado.
+   */
+  async cancelEntryBySource(sourceType: string, sourceId: string, userId?: string): Promise<void> {
+    const [entry] = await db
+      .select({ id: accountingEntries.id, status: accountingEntries.status })
+      .from(accountingEntries)
+      .where(
+        and(eq(accountingEntries.sourceType, sourceType), eq(accountingEntries.sourceId, sourceId))
+      )
+      .limit(1);
+
+    if (!entry || entry.status === EntryStatus.CANCELLED) return;
+
+    await db
+      .update(accountingEntries)
+      .set({ status: EntryStatus.CANCELLED })
+      .where(eq(accountingEntries.id, entry.id));
+
+    await this.audit.record({
+      entityTable: 'accounting_entries',
+      entityId: entry.id,
+      action: 'CANCEL',
+      userId: userId ?? null,
+      description: `Anulación del asiento de ${sourceType} ${sourceId}`,
+    });
+  }
+
   async createEntryFromInvoice(invoiceId: string, userId?: string): Promise<EntryResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1);
 
@@ -804,28 +838,113 @@ export class AccountingService {
     const baseTotal = Number(this.money.round(this.money.toBase(invoice.total ?? 0, rate)));
     const originalAmount = Number(invoice.total ?? 0);
 
-    const lines: CreateEntryLineDto[] = [];
+    // Desglose fiscal (`S-19`): el asiento no puede llevar el IVA y el IGTF a ingresos. La base va a
+    // la cuenta del mapeo (ingreso en la venta, inventario en la compra), el IVA a su cuenta de
+    // impuesto y el IGTF a la suya. El residuo del redondeo se ajusta en la línea principal para que
+    // la partida doble cuadre al céntimo.
+    const toBase = (value: string | number | null | undefined): number =>
+      Number(this.money.round(this.money.toBase(Number(value ?? 0), rate)));
 
-    if (map.debitAccountId) {
-      lines.push({
-        accountId: map.debitAccountId,
-        debit: baseTotal,
-        credit: 0,
-        description: `Invoice ${invoice.code}`,
-        originalAmount,
-        originalCurrencyId: invoice.currencyId,
-      });
+    const baseAmount = toBase(invoice.totalBase);
+    const taxAmount = toBase(invoice.totalTax);
+    const igtfAmount = toBase(invoice.totalIgtf);
+    const residual = Number(this.money.round(baseTotal - baseAmount - taxAmount - igtfAmount));
+
+    const isSale = (invoice.type || 'SALE') === 'SALE';
+    const taxAccountId =
+      taxAmount !== 0 ? await this.findAccountIdByCode(isSale ? '2.1.1.002' : '1.1.2.002') : null;
+    const igtfAccountId = igtfAmount !== 0 ? await this.findAccountIdByCode('2.1.1.007') : null;
+
+    if (taxAmount !== 0 && !taxAccountId) {
+      throw new BadRequestException(
+        `No se puede contabilizar ${invoice.code}: falta la cuenta de IVA ${isSale ? '2.1.1.002' : '1.1.2.002'}`
+      );
     }
 
-    if (map.creditAccountId) {
-      lines.push({
-        accountId: map.creditAccountId,
-        debit: 0,
-        credit: baseTotal,
-        description: `Invoice ${invoice.code}`,
-        originalAmount,
-        originalCurrencyId: invoice.currencyId,
-      });
+    const lines: CreateEntryLineDto[] = [];
+    const original = { originalAmount, originalCurrencyId: invoice.currencyId };
+
+    if (isSale) {
+      // Cliente debe el total; los ingresos se reconocen netos de impuestos.
+      if (map.debitAccountId) {
+        lines.push({
+          accountId: map.debitAccountId,
+          debit: baseTotal,
+          credit: 0,
+          description: `Invoice ${invoice.code}`,
+          ...original,
+        });
+      }
+
+      if (map.creditAccountId) {
+        lines.push({
+          accountId: map.creditAccountId,
+          debit: 0,
+          credit: Number(this.money.round(baseAmount + residual)),
+          description: `Invoice ${invoice.code}`,
+          ...original,
+        });
+      }
+
+      if (taxAccountId) {
+        lines.push({
+          accountId: taxAccountId,
+          debit: 0,
+          credit: taxAmount,
+          description: `IVA ${invoice.code}`,
+          ...original,
+        });
+      }
+
+      if (igtfAccountId) {
+        lines.push({
+          accountId: igtfAccountId,
+          debit: 0,
+          credit: igtfAmount,
+          description: `IGTF ${invoice.code}`,
+          ...original,
+        });
+      } else if (igtfAmount !== 0 && map.creditAccountId) {
+        // Sin cuenta de IGTF el importe se queda en la línea principal: suma igual, pero sin desglose.
+        const revenueLine = lines.find(line => line.accountId === map.creditAccountId);
+        if (revenueLine) {
+          revenueLine.credit = Number(
+            this.money.round(Number(revenueLine.credit ?? 0) + igtfAmount)
+          );
+        }
+      }
+    } else {
+      // Compra: entra la mercancía por la base (más el IGTF, que no es crédito fiscal) y el IVA se
+      // acumula como crédito fiscal.
+      if (map.debitAccountId) {
+        lines.push({
+          accountId: map.debitAccountId,
+          debit: Number(this.money.round(baseAmount + igtfAmount + residual)),
+          credit: 0,
+          description: `Invoice ${invoice.code}`,
+          ...original,
+        });
+      }
+
+      if (taxAccountId) {
+        lines.push({
+          accountId: taxAccountId,
+          debit: taxAmount,
+          credit: 0,
+          description: `IVA ${invoice.code}`,
+          ...original,
+        });
+      }
+
+      if (map.creditAccountId) {
+        lines.push({
+          accountId: map.creditAccountId,
+          debit: 0,
+          credit: baseTotal,
+          description: `Invoice ${invoice.code}`,
+          ...original,
+        });
+      }
     }
 
     return this.createEntry({
@@ -881,10 +1000,63 @@ export class AccountingService {
 
     const lines: CreateEntryLineDto[] = [];
 
-    if (map.debitAccountId) {
+    // Diferencia cambiaria acumulada de las imputaciones: si el cobro/pago se valoró a una tasa
+    // distinta de la congelada en la factura, esa diferencia no puede desaparecer del libro (`S-18`).
+    const allocations = await db
+      .select({
+        amountBase: paymentAllocations.amountBase,
+        exchangeDifferenceBase: paymentAllocations.exchangeDifferenceBase,
+      })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.paymentId, payment.id));
+
+    const exchangeDifference = Number(
+      this.money.round(
+        allocations.reduce((sum, row) => sum + Number(row.exchangeDifferenceBase ?? 0), 0)
+      )
+    );
+    const settledBase = Number(this.money.round(baseTotal - exchangeDifference));
+    const fxAccountId =
+      exchangeDifference !== 0 ? await this.findAccountIdByCode('6.1.3.001') : null;
+
+    // Sin la cuenta de resultado cambiario el asiento no cuadra (débito ≠ crédito) y no se postea.
+    // Es preferible decirlo con nombre y apellido a dejar un error de partida doble sin contexto.
+    if (exchangeDifference !== 0 && !fxAccountId) {
+      throw new BadRequestException(
+        `No se puede contabilizar ${payment.code}: falta la cuenta 6.1.3.001 de diferencia cambiaria`
+      );
+    }
+
+    const isCollection = payment.type === 'INCOME';
+
+    // La cuenta contable del banco manda (`S-19`): cada cuenta bancaria tiene la suya, así el mayor
+    // se puede conciliar banco por banco. Sin vínculo se cae al mapeo, que apunta al banco genérico.
+    const [bankAccount] = payment.bankAccountId
+      ? await db
+          .select({
+            id: bankAccounts.id,
+            accountingAccountId: bankAccounts.accountingAccountId,
+          })
+          .from(bankAccounts)
+          .where(eq(bankAccounts.id, payment.bankAccountId))
+          .limit(1)
+      : [];
+
+    const bankLedgerAccountId = bankAccount?.accountingAccountId ?? null;
+    const debitAccountId =
+      isCollection && bankLedgerAccountId ? bankLedgerAccountId : map.debitAccountId;
+    const creditAccountId =
+      !isCollection && bankLedgerAccountId ? bankLedgerAccountId : map.creditAccountId;
+
+    // En un cobro el banco recibe `baseTotal` y la cuenta por cobrar se cancela por su valor en
+    // libros (`settledBase`); en un pago, al revés. La diferencia va a resultado cambiario.
+    const debitAmount = debitAccountId ? (isCollection ? baseTotal : settledBase) : 0;
+    const creditAmount = creditAccountId ? (isCollection ? settledBase : baseTotal) : 0;
+
+    if (debitAccountId) {
       lines.push({
-        accountId: map.debitAccountId,
-        debit: baseTotal,
+        accountId: debitAccountId,
+        debit: debitAmount,
         credit: 0,
         description: `Payment ${payment.code}`,
         originalAmount,
@@ -892,13 +1064,26 @@ export class AccountingService {
       });
     }
 
-    if (map.creditAccountId) {
+    if (creditAccountId) {
       lines.push({
-        accountId: map.creditAccountId,
+        accountId: creditAccountId,
         debit: 0,
-        credit: baseTotal,
+        credit: creditAmount,
         description: `Payment ${payment.code}`,
         originalAmount,
+        originalCurrencyId: payment.currencyId,
+      });
+    }
+
+    if (fxAccountId) {
+      // Ganancia: se acredita el gasto por diferencia cambiaria. Pérdida: se debita.
+      const gain = exchangeDifference > 0;
+      lines.push({
+        accountId: fxAccountId,
+        debit: gain ? 0 : Math.abs(exchangeDifference),
+        credit: gain ? exchangeDifference : 0,
+        description: `Diferencia cambiaria ${payment.code}`,
+        originalAmount: Math.abs(exchangeDifference),
         originalCurrencyId: payment.currencyId,
       });
     }
@@ -913,6 +1098,17 @@ export class AccountingService {
       sourceId: payment.id,
       lines,
     });
+  }
+
+  /** Id de una cuenta del plan por su código; `null` si no existe. */
+  private async findAccountIdByCode(code: string): Promise<string | null> {
+    const [row] = await db
+      .select({ id: accountingAccounts.id })
+      .from(accountingAccounts)
+      .where(eq(accountingAccounts.code, code))
+      .limit(1);
+
+    return row?.id ?? null;
   }
 
   private async findBestAccountingMap(

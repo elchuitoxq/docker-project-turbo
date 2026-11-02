@@ -1,9 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '../../../database';
 import { MoneyService } from '../../../common/money/money.service';
-import { creditNotes, currencies, invoices, partners, taxRetentions } from '../../../schema';
-import { computeInvoiceBalance, summarizeBalance } from './invoice-balance';
+import {
+  creditNotes,
+  creditNoteUsages,
+  currencies,
+  invoices,
+  partners,
+  taxRetentions,
+} from '../../../schema';
+import {
+  computeInvoiceBalance,
+  summarizeBalance,
+  ACTIVE_CREDIT_NOTE_STATUSES,
+} from './invoice-balance';
+import { ISSUED_INVOICE_STATUSES } from '../issued-status';
 
 export type PayableStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
 
@@ -168,7 +180,7 @@ export class PayablesService {
         and(
           eq(invoices.branchId, branchId),
           eq(invoices.type, 'PURCHASE'),
-          inArray(invoices.status, ['POSTED', 'PARTIAL', 'PAID'])
+          inArray(invoices.status, [...ISSUED_INVOICE_STATUSES])
         )
       );
 
@@ -197,12 +209,36 @@ export class PayablesService {
         and(
           inArray(creditNotes.invoiceId, ids),
           eq(creditNotes.type, 'PURCHASE'),
-          eq(creditNotes.status, 'POSTED')
+          inArray(creditNotes.status, ACTIVE_CREDIT_NOTE_STATUSES)
         )
       )
       .groupBy(creditNotes.invoiceId);
 
     const notesByInvoice = new Map(notes.map(row => [row.invoiceId ?? '', Number(row.total)]));
+
+    // Notas de crédito sin factura de origen aplicadas a estas compras: se descuentan por su uso,
+    // igual que en `computeInvoiceBalance`, para que CxP y la ficha de la factura cuadren.
+    const appliedNotes = await db
+      .select({
+        invoiceId: creditNoteUsages.invoiceId,
+        total: sql<string>`coalesce(sum(${creditNoteUsages.amount}), 0)`,
+      })
+      .from(creditNoteUsages)
+      .innerJoin(creditNotes, eq(creditNotes.id, creditNoteUsages.creditNoteId))
+      .where(
+        and(
+          inArray(creditNoteUsages.invoiceId, ids),
+          eq(creditNotes.type, 'PURCHASE'),
+          inArray(creditNotes.status, ACTIVE_CREDIT_NOTE_STATUSES),
+          or(isNull(creditNotes.invoiceId), ne(creditNotes.invoiceId, creditNoteUsages.invoiceId))
+        )
+      )
+      .groupBy(creditNoteUsages.invoiceId);
+
+    for (const row of appliedNotes) {
+      const invoiceId = row.invoiceId ?? '';
+      notesByInvoice.set(invoiceId, (notesByInvoice.get(invoiceId) ?? 0) + Number(row.total));
+    }
 
     const retentions = await db
       .select({

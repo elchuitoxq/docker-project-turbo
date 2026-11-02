@@ -2,7 +2,12 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { beforeAll, describe, expect, it } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { testDb } from './database';
-import { createTestBranch, createTestUser, ensureTestBaseCurrency } from './factories';
+import {
+  createTestBranch,
+  createTestEmployee,
+  createTestUser,
+  ensureTestBaseCurrency,
+} from './factories';
 import { branches, currencies, payrollItemLines, payrollItems } from '../schema';
 import { HrService } from '../modules/hr/services/hr.service';
 import { PayrollConceptCategory, PayrollConceptKind } from '../modules/hr/dto/hr.dto';
@@ -262,11 +267,13 @@ describe('Conceptos de nómina declarativos (T-02-02)', () => {
     );
 
     const run = await createPayrollRun(hr, branchId, '2026-04-01', '2026-04-30');
+    // `payroll_items.employee_id` es FK desde `S-17`.
+    const employee = await createTestEmployee({ branchId });
     const [item] = await testDb
       .insert(payrollItems)
       .values({
         runId: run.id,
-        employeeId: crypto.randomUUID(),
+        employeeId: employee.id,
         baseAmount: '0.00',
         netTotal: '0.00',
       })

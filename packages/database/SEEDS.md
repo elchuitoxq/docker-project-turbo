@@ -59,7 +59,7 @@ Las seeds son scripts que populan la base de datos con datos iniciales necesario
 | **Sucursales**        | 2                    | Caracas, Maracaibo                          |
 | **Almacenes**         | 5                    | Repartidos entre sucursales                 |
 | **Usuarios**          | 5                    | Uno por cada rol                            |
-| **Partners**          | 5                    | Mezcla de CUSTOMER y SUPPLIER               |
+| **Partners**          | 5                    | Mezcla de CUSTOMER, VENDOR y BOTH           |
 | **Categorías**        | 3                    | Electrónica, Alimentos, Hogar               |
 | **Productos**         | 10                   | Con precios y costos variados               |
 | **Stock**             | 10                   | Entradas de inventario                      |

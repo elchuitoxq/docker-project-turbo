@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Plus, Building2, MoreHorizontal, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -25,26 +24,22 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { useDepartments, useCreateDepartment } from '../hooks';
 import { useEmployees } from '../hooks';
 import { toast } from 'sonner';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 export function DepartmentsView() {
+  const { hasPermission } = usePermission();
   const { data: departments = [], isLoading } = useDepartments();
   const { data: employeesData } = useEmployees({ limit: 100 });
   const create = useCreateDepartment();
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState('');
-  const [description, setDescription] = React.useState('');
-  const [isActive, setIsActive] = React.useState(true);
-
   function reset() {
     setName('');
-    setDescription('');
-    setIsActive(true);
   }
 
   return (
@@ -61,11 +56,13 @@ export function DepartmentsView() {
             setOpen(v);
           }}
         >
-          <SheetTrigger asChild>
-            <Button>
-              <Plus /> Nuevo
-            </Button>
-          </SheetTrigger>
+          {hasPermission(PERMISSIONS.HR.DEPARTMENTS.MANAGE) && (
+            <SheetTrigger asChild>
+              <Button>
+                <Plus /> Nuevo
+              </Button>
+            </SheetTrigger>
+          )}
           <SheetContent className="w-full sm:max-w-md">
             <SheetHeader>
               <SheetTitle>Nuevo departamento</SheetTitle>
@@ -75,7 +72,7 @@ export function DepartmentsView() {
               onSubmit={async e => {
                 e.preventDefault();
                 try {
-                  await create.mutateAsync({ name, description, isActive });
+                  await create.mutateAsync({ name });
                   toast.success('Departamento creado');
                   setOpen(false);
                   reset();
@@ -94,25 +91,6 @@ export function DepartmentsView() {
                     onChange={e => setName(e.target.value)}
                     required
                   />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="dep-desc">Descripción</FieldLabel>
-                  <Textarea
-                    id="dep-desc"
-                    value={description}
-                    onChange={e => setDescription(e.target.value)}
-                    rows={3}
-                  />
-                </Field>
-                <Field orientation="horizontal" className="items-center gap-2 space-y-0">
-                  <Checkbox
-                    id="dep-active"
-                    checked={isActive}
-                    onCheckedChange={v => setIsActive(!!v)}
-                  />
-                  <FieldLabel htmlFor="dep-active" className="cursor-pointer">
-                    Activo
-                  </FieldLabel>
                 </Field>
               </FieldGroup>
               <SheetFooter className="flex-col gap-2 sm:flex-row">
@@ -153,10 +131,7 @@ export function DepartmentsView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nombre</TableHead>
-                  <TableHead className="hidden md:table-cell">Descripción</TableHead>
-                  <TableHead className="hidden md:table-cell">Gerente</TableHead>
                   <TableHead>Empleados</TableHead>
-                  <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -172,22 +147,11 @@ export function DepartmentsView() {
                           <span className="font-medium">{d.name}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {d.description ?? '—'}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                        {d.managerName ?? '—'}
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Users className="size-3.5 text-muted-foreground" />
                           <span className="tabular-nums">{count}</span>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={d.isActive ? 'default' : 'secondary'}>
-                          {d.isActive ? 'Activo' : 'Inactivo'}
-                        </Badge>
                       </TableCell>
                     </TableRow>
                   );

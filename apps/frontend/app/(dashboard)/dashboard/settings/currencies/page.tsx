@@ -1,10 +1,5 @@
-import { ModuleStub } from '@/components/layout/module-stub';
+import { CurrenciesView } from '@/modules/settings/currencies/components/currencies-view';
+
 export default function Page() {
-  return (
-    <ModuleStub
-      title="Monedas"
-      description="Monedas y tasas de cambio"
-      endpoint="GET /settings/currencies"
-    />
-  );
+  return <CurrenciesView />;
 }

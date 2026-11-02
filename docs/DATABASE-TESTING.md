@@ -128,6 +128,10 @@ a las dos sucursales sembradas (`Sucursal Caracas` y `Sucursal Maracaibo`):
 | `test-warehouse@test.local`   | WAREHOUSE   | Inventario              |
 | `test-accountant@test.local`  | ACCOUNTANT  | Finanzas y reportes     |
 
+El detalle del cargo MANAGER (qué puede y qué no puede hacer, y con qué permiso) está en
+[`sdd/specs/S-14-actuaciones-rol-manager.md`](./sdd/specs/S-14-actuaciones-rol-manager.md) y se protege
+con `packages/database/tests/unit/role-manager.test.ts`.
+
 Las dos sucursales comparten una entidad `companies` con RIF
 `J-12345678-9`; el selector agrupa por el ID de esa empresa y permite probar el
 cambio entre Caracas y Maracaibo. Al repetir la seed, se reconcilian los datos

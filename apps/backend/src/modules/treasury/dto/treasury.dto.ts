@@ -7,6 +7,7 @@ import {
   IsArray,
   ValidateNested,
   Min,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -94,11 +95,13 @@ export class CreatePaymentDto {
   bankAccountId?: string;
 
   @ApiPropertyOptional({
-    description: 'Reference number',
+    description:
+      'Número de referencia de la transacción (transferencia, Zelle, cheque). Se normaliza y no puede repetirse entre pagos vigentes',
     example: 'ZELLE-123456',
   })
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   reference?: string;
 
   @ApiPropertyOptional({
@@ -261,11 +264,24 @@ export class BankAccountResponseDto {
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440003' })
   bankId?: string | null;
 
+  /** Cuenta del plan contable que recibe los movimientos de esta cuenta (`S-19`). */
+  @ApiPropertyOptional({
+    example: '550e8400-e29b-41d4-a716-446655440009',
+    description: 'Cuenta contable del activo donde se imputan los cobros y pagos',
+  })
+  accountingAccountId?: string | null;
+
   @ApiPropertyOptional({ example: 'Cuenta operativa' })
   notes?: string | null;
 
   @ApiPropertyOptional({ example: true })
   isActive?: boolean | null;
+
+  @ApiPropertyOptional({ example: 'Banesco', description: 'Banco de la cuenta (S-16 M-18)' })
+  bankName?: string | null;
+
+  @ApiPropertyOptional({ example: 'VES', description: 'Código ISO de la moneda de la cuenta' })
+  currencyCode?: string | null;
 }
 
 export class CreatePaymentMethodDto {
@@ -347,6 +363,12 @@ export class CreateBankAccountDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** Cuenta contable a la que se imputan los movimientos de esta cuenta bancaria (`S-19`). */
+  @ApiPropertyOptional({ description: 'Cuenta del plan contable (activo)' })
+  @IsOptional()
+  @IsUUID()
+  accountingAccountId?: string;
 }
 
 export class PartnerStatementDto {

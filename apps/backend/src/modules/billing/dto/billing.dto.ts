@@ -11,6 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DocumentEventDto } from '../../documents/dto/document-event.dto';
 
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
@@ -49,12 +50,21 @@ export class InvoiceItemDto {
   quantity: number;
 
   @ApiProperty({
-    description: 'Unit price',
+    description: 'Unit price, expressed in the document currency',
     example: 100.0,
   })
   @IsNumber()
   @Min(0)
   price: number;
+
+  @ApiPropertyOptional({
+    description:
+      'Currency of `price`. Omit it when the price is already in the document currency; when present the API converts it before storing the line.',
+    example: '550e8400-e29b-41d4-a716-446655440006',
+  })
+  @IsOptional()
+  @IsUUID()
+  priceCurrencyId?: string;
 
   @ApiPropertyOptional({
     description: 'Tax rate (default 16 for IVA)',
@@ -74,15 +84,16 @@ export class CreateInvoiceDto {
   @IsUUID()
   partnerId: string;
 
-  @ApiProperty({
-    description: 'Branch ID',
+  @ApiPropertyOptional({
+    description: 'Sucursal del documento; si no se envía se toma de la cabecera `x-branch-id`',
     example: '550e8400-e29b-41d4-a716-446655440002',
   })
+  @IsOptional()
   @IsUUID()
-  branchId: string;
+  branchId?: string;
 
   @ApiPropertyOptional({
-    description: 'Currency ID (default USD)',
+    description: 'Moneda del documento; por defecto, la moneda funcional (VES)',
     example: '550e8400-e29b-41d4-a716-446655440003',
   })
   @IsOptional()
@@ -165,6 +176,16 @@ export class CreateInvoiceDto {
   items: InvoiceItemDto[];
 }
 
+export class VoidInvoiceDto {
+  @ApiPropertyOptional({
+    description: 'Motivo de la anulación: queda en el histórico del documento (`S-12`)',
+    example: 'Error en el precio del servicio',
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 export class UpdateInvoiceDto {
   @ApiPropertyOptional({
     description: 'Partner ID',
@@ -202,6 +223,101 @@ export class UpdateInvoiceDto {
   items?: InvoiceItemDto[];
 }
 
+/** Pago aplicado a la factura, para la ficha del documento. */
+export class InvoicePaymentSummaryDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440010' })
+  id: string;
+
+  @ApiProperty({ example: 'PAY-00012' })
+  code: string;
+
+  @ApiPropertyOptional({ example: '2026-10-30T00:00:00.000Z' })
+  date?: Date | null;
+
+  @ApiProperty({ example: 1825.0, description: 'Importe del pago en su propia moneda' })
+  amount: number;
+
+  @ApiProperty({ example: 'VES' })
+  currencyCode: string | null;
+
+  @ApiPropertyOptional({ example: 36.5 })
+  exchangeRate?: number | null;
+
+  @ApiPropertyOptional({
+    example: 'ZELLE-123456',
+    description: 'Referencia de la transacción con la que se cobró/pagó',
+  })
+  reference?: string | null;
+
+  @ApiProperty({ example: 'POSTED' })
+  status: string | null;
+}
+
+/** Nota de crédito aplicada o emitida contra la factura. */
+export class InvoiceCreditNoteSummaryDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440020' })
+  id: string;
+
+  @ApiProperty({ example: 'NC-00003' })
+  code: string;
+
+  @ApiProperty({ example: 100.0 })
+  total: number;
+
+  @ApiProperty({ example: 'POSTED' })
+  status: string | null;
+}
+
+/** Comprobante de retención asociado a una factura de compra. */
+export class InvoiceRetentionSummaryDto {
+  @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440030' })
+  id: string;
+
+  @ApiProperty({ example: 'IVA-2026-0007' })
+  code: string;
+
+  @ApiProperty({ example: 'IVA' })
+  type: string;
+
+  @ApiProperty({ example: 1000.0 })
+  totalBase: number;
+
+  @ApiProperty({ example: 120.0 })
+  totalRetained: number;
+
+  @ApiPropertyOptional({ example: '0007' })
+  voucherNumber?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-10-30T00:00:00.000Z' })
+  date?: Date | null;
+}
+
+/**
+ * Saldo de la factura en **la moneda del documento** (ver `summarizeBalance`).
+ *
+ * Se expone como objeto para no repetir la ambigüedad de `total_base`: aquí todo está en la moneda
+ * del documento, y el equivalente en moneda funcional se calcula con `exchangeRate`.
+ */
+export class InvoiceSettlementDto {
+  @ApiProperty({ example: 1000.0 })
+  total: number;
+
+  @ApiProperty({ example: 400.0 })
+  paid: number;
+
+  @ApiProperty({ example: 100.0 })
+  credited: number;
+
+  @ApiProperty({ example: 120.0 })
+  retained: number;
+
+  @ApiProperty({ example: 620.0 })
+  settled: number;
+
+  @ApiProperty({ example: 380.0 })
+  balance: number;
+}
+
 export class InvoiceResponseDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   id: string;
@@ -211,6 +327,9 @@ export class InvoiceResponseDto {
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440001' })
   partnerId: string;
+
+  @ApiPropertyOptional({ example: 'Cliente Ejemplo C.A.' })
+  partnerName?: string | null;
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440002' })
   branchId: string;
@@ -257,11 +376,53 @@ export class InvoiceResponseDto {
   @ApiPropertyOptional({ example: '550e8400-e29b-41d4-a716-446655440005' })
   orderId?: string | null;
 
+  @ApiPropertyOptional({ example: 'PED-00012', description: 'Pedido que originó la factura' })
+  orderCode?: string | null;
+
+  @ApiPropertyOptional({ example: 'USD', description: 'Código de la moneda del documento' })
+  currencyCode?: string | null;
+
+  @ApiPropertyOptional({ example: 'Test Branch' })
+  branchName?: string | null;
+
+  @ApiPropertyOptional({ example: 'Almacén Principal' })
+  warehouseName?: string | null;
+
+  @ApiPropertyOptional({ example: 'Test Manager', description: 'Usuario que emitió el documento' })
+  createdByName?: string | null;
+
+  @ApiPropertyOptional({
+    example: 12,
+    description: 'Días vencidos respecto de `dueDate`; 0 si está vigente o sin vencimiento',
+  })
+  daysOverdue?: number;
+
+  @ApiPropertyOptional({
+    type: InvoiceSettlementDto,
+    description: 'Total, pagado, acreditado, retenido y saldo en la moneda del documento',
+  })
+  settlement?: InvoiceSettlementDto;
+
+  @ApiPropertyOptional({ type: [InvoicePaymentSummaryDto], description: 'Pagos aplicados' })
+  payments?: InvoicePaymentSummaryDto[];
+
+  @ApiPropertyOptional({ type: [InvoiceCreditNoteSummaryDto], description: 'Notas de crédito' })
+  creditNotes?: InvoiceCreditNoteSummaryDto[];
+
+  @ApiPropertyOptional({ type: [InvoiceRetentionSummaryDto], description: 'Retenciones (compras)' })
+  retentions?: InvoiceRetentionSummaryDto[];
+
   @ApiPropertyOptional({ example: '2026-06-01T12:00:00.000Z' })
   createdAt?: Date | null;
 
   @ApiPropertyOptional({ example: '2026-06-01T12:00:00.000Z' })
   updatedAt?: Date | null;
+
+  @ApiPropertyOptional({
+    description: 'Histórico de procesos de la factura y de su pedido de origen (`S-12`)',
+    type: [DocumentEventDto],
+  })
+  history?: DocumentEventDto[];
 
   @ApiPropertyOptional({ type: Object, description: 'Invoice items' })
   items?: InvoiceItemResponseDto[];
@@ -273,6 +434,15 @@ export class InvoiceItemResponseDto {
 
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440001' })
   productId: string;
+
+  @ApiPropertyOptional({
+    example: 'ELEC-001',
+    description: 'SKU del producto (ficha del documento)',
+  })
+  productSku?: string | null;
+
+  @ApiPropertyOptional({ example: 'Cable HDMI 2 m', description: 'Nombre del producto' })
+  productName?: string | null;
 
   @ApiPropertyOptional({ example: 10 })
   quantity?: number | string;

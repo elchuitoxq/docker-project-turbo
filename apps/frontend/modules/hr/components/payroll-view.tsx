@@ -6,6 +6,7 @@ import { Coins, CalendarDays, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -35,9 +36,11 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useGeneratePayroll, usePayrolls } from '../hooks';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 import type { PayrollRun, PayrollRunStatus } from '../api';
 import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 import { useAuthStore } from '@/stores/use-auth-store';
 
 const STATUS_LABEL: Record<PayrollRunStatus, string> = {
@@ -61,9 +64,10 @@ export function PayrollView() {
   const [status, setStatus] = React.useState<string>('ALL');
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
+  const { hasPermission } = usePermission();
+  const { baseCode } = useCurrencyIndex();
   const branchId = useAuthStore(state => state.user?.defaultBranchId ?? '');
-  const canProcess = permissions.includes(PERMISSIONS.HR.PAYROLL.PROCESS);
+  const canProcess = hasPermission(PERMISSIONS.HR.PAYROLL.PROCESS);
 
   const { data, isLoading } = usePayrolls({ ...(status !== 'ALL' && { status }) });
   const generate = useGeneratePayroll();
@@ -101,8 +105,8 @@ export function PayrollView() {
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-muted-foreground text-xs">Neto acumulado</p>
-              <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalNet)}</p>
+              <p className="text-muted-foreground text-xs">Neto acumulado ({baseCode})</p>
+              <p className="text-2xl font-bold tabular-nums">{formatMoney(totalNet, baseCode)}</p>
             </div>
             <Coins className="text-primary size-5" />
           </CardContent>
@@ -171,7 +175,7 @@ export function PayrollView() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">{run.frequency}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(run.totalAmount ?? 0))}
+                      {formatMoney(Number(run.totalAmount ?? 0), baseCode)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[run.status]}>{STATUS_LABEL[run.status]}</Badge>
@@ -202,13 +206,22 @@ export function PayrollView() {
             onSubmit={event => {
               event.preventDefault();
               const form = new FormData(event.currentTarget);
+              const startDate = String(form.get('startDate') ?? '');
+              const endDate = String(form.get('endDate') ?? '');
+
+              // El selector de fecha no es un control nativo: la validación de obligatorios va aquí.
+              if (!startDate || !endDate) {
+                toast.error('Indica el período de la nómina');
+                return;
+              }
+
               generate.mutate(
                 {
                   branchId,
                   frequency: String(form.get('frequency') ?? 'MONTHLY'),
                   currencyId: String(form.get('currencyId') ?? '').trim(),
-                  startDate: String(form.get('startDate') ?? ''),
-                  endDate: String(form.get('endDate') ?? ''),
+                  startDate,
+                  endDate,
                 },
                 {
                   onSuccess: () => {
@@ -226,11 +239,16 @@ export function PayrollView() {
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="startDate">Desde</FieldLabel>
-                <Input id="startDate" name="startDate" type="date" required />
+                <DatePicker
+                  id="startDate"
+                  name="startDate"
+                  placeholder="Inicio del período"
+                  required
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="endDate">Hasta</FieldLabel>
-                <Input id="endDate" name="endDate" type="date" required />
+                <DatePicker id="endDate" name="endDate" placeholder="Fin del período" required />
               </Field>
               <Field>
                 <FieldLabel htmlFor="frequency">Frecuencia</FieldLabel>

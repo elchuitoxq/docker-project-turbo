@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, lte } from 'drizzle-orm';
 import { db } from '../../../database';
 import { MoneyService } from '../../../common/money/money.service';
 import {
@@ -7,7 +7,9 @@ import {
   invoices,
   partners,
   supplierRetentionSettings,
+  taxConcepts,
   taxRetentionLines,
+  taxUnits,
   taxRetentions,
 } from '../../../schema';
 import { FiscalSequenceService } from '../../reports/fiscal/fiscal-sequence.service';
@@ -29,9 +31,32 @@ export type RetentionResult = {
   islrRetentionId: string | null;
   islrVoucherNumber: string | null;
   islrRetained: number;
+  /** Porcentaje de ISLR realmente aplicado (`null` si no se retuvo nada). */
+  islrRate: number | null;
+  /** De dónde salió ese porcentaje (`S-21`). */
+  islrRuleSource: IslrRuleSource | null;
+  islrConceptId: string | null;
   totalRetained: number;
   /** Lo que efectivamente se le paga al proveedor: total de la factura − retenciones. */
   netPayable: number;
+};
+
+/**
+ * De dónde sale el porcentaje de ISLR (`S-21`).
+ *
+ * - `CONCEPT`: el proveedor tiene un concepto habilitado en `tax_concepts` (manda la ley).
+ * - `PARTNER`: no tiene concepto pero sí una tasa propia en su ficha (excepción negociada).
+ * - `SETTINGS`: no tiene ni concepto ni tasa; aplican los parámetros de la empresa.
+ */
+export type IslrRuleSource = 'CONCEPT' | 'PARTNER' | 'SETTINGS';
+
+export type IslrRule = {
+  rate: number;
+  threshold: number;
+  sustraendo: number;
+  conceptId: string | null;
+  conceptCode: string | null;
+  source: IslrRuleSource;
 };
 
 /**
@@ -119,6 +144,100 @@ export class SupplierRetentionService {
   }
 
   /**
+   * Valor de la unidad tributaria vigente a una fecha (`S-22`).
+   *
+   * La ley expresa los sustraendos del ISLR en UT; el monto en bolívares sale de multiplicar por el
+   * valor vigente. Se toma la última fila con `effectiveFrom <= fecha`; si todavía no hay ninguna
+   * cargada se devuelve `null` y el sustraendo en UT no se aplica (mejor no retener de menos que
+   * inventar un valor).
+   */
+  async resolveUnitValue(date: Date): Promise<number | null> {
+    const [row] = await db
+      .select({ value: taxUnits.value })
+      .from(taxUnits)
+      .where(lte(taxUnits.effectiveFrom, date))
+      .orderBy(desc(taxUnits.effectiveFrom))
+      .limit(1);
+
+    const value = Number(row?.value ?? 0);
+    return value > 0 ? value : null;
+  }
+
+  /**
+   * Regla de ISLR aplicable al proveedor (`S-21`, `S-22`).
+   *
+   * Antes el porcentaje salía siempre de los parámetros de la empresa y el concepto del proveedor era
+   * decorativo. El orden es: **concepto habilitado** → tasa propia del partner → parámetros de la
+   * empresa. La base mínima y el sustraendo viajan con la regla que ganó, para que el comprobante se
+   * pueda recalcular sin adivinar. Si el concepto expresa el sustraendo en UT, se convierte con la UT
+   * vigente a la fecha del documento.
+   */
+  async resolveIslrRule(
+    partnerId: string,
+    companyId: string,
+    date = new Date()
+  ): Promise<IslrRule> {
+    const settings = await this.getSettings(companyId);
+
+    const [partner] = await db
+      .select({
+        retentionRate: partners.retentionRate,
+        islrConceptId: partners.islrConceptId,
+      })
+      .from(partners)
+      .where(eq(partners.id, partnerId))
+      .limit(1);
+
+    if (partner?.islrConceptId) {
+      const [concept] = await db
+        .select()
+        .from(taxConcepts)
+        .where(eq(taxConcepts.id, partner.islrConceptId))
+        .limit(1);
+
+      if (concept && concept.isEnabled) {
+        const unitValue =
+          concept.sustraendoUnit === 'UT' ? await this.resolveUnitValue(date) : null;
+        const sustraendo =
+          concept.sustraendoUnit === 'UT'
+            ? Number(this.money.round(Number(concept.sustraendo ?? 0) * (unitValue ?? 0)))
+            : Number(concept.sustraendo ?? 0);
+
+        return {
+          rate: Number(concept.retentionPercentage),
+          threshold: Number(concept.baseMin ?? 0),
+          sustraendo,
+          conceptId: concept.id,
+          conceptCode: concept.code,
+          source: 'CONCEPT',
+        };
+      }
+    }
+
+    const ownRate = Number(partner?.retentionRate ?? 0);
+
+    if (ownRate > 0) {
+      return {
+        rate: ownRate,
+        threshold: settings.islrThreshold,
+        sustraendo: settings.islrSustraendo,
+        conceptId: partner?.islrConceptId ?? null,
+        conceptCode: null,
+        source: 'PARTNER',
+      };
+    }
+
+    return {
+      rate: settings.islrRate,
+      threshold: settings.islrThreshold,
+      sustraendo: settings.islrSustraendo,
+      conceptId: null,
+      conceptCode: null,
+      source: 'SETTINGS',
+    };
+  }
+
+  /**
    * Calcula y registra los comprobantes de retención de una factura de compra.
    * Idempotente por `(invoiceId, type)`: republicar no duplica comprobantes.
    */
@@ -159,12 +278,17 @@ export class SupplierRetentionService {
       : settings.ivaRetentionRate;
 
     const ivaRetained = Number(this.money.round((tax * rate) / 100));
+
+    // La regla de ISLR sale del concepto del proveedor, de su tasa propia o de la empresa (`S-21`);
+    // si el concepto trae el sustraendo en UT, se convierte con la UT vigente a la fecha (`S-22`).
+    const islrRule = await this.resolveIslrRule(
+      invoice.partnerId,
+      branch.companyId,
+      invoice.date ? new Date(invoice.date) : new Date()
+    );
     const islrRetained =
-      base >= settings.islrThreshold && settings.islrRate > 0
-        ? Math.max(
-            0,
-            Number(this.money.round((base * settings.islrRate) / 100 - settings.islrSustraendo))
-          )
+      base >= islrRule.threshold && islrRule.rate > 0
+        ? Math.max(0, Number(this.money.round((base * islrRule.rate) / 100 - islrRule.sustraendo)))
         : 0;
 
     // Una compra exenta o alícuota 0 no genera comprobante: un retenido de 0 no es una obligación
@@ -178,6 +302,9 @@ export class SupplierRetentionService {
             base,
             tax,
             retained: ivaRetained,
+            appliedRate: rate,
+            ruleSource: 'SETTINGS',
+            conceptId: null,
             userId,
             companyId: branch.companyId,
             year,
@@ -193,6 +320,9 @@ export class SupplierRetentionService {
             base,
             tax: 0,
             retained: islrRetained,
+            appliedRate: islrRule.rate,
+            ruleSource: islrRule.source,
+            conceptId: islrRule.conceptId,
             userId,
             companyId: branch.companyId,
             year,
@@ -206,6 +336,9 @@ export class SupplierRetentionService {
       islrRetentionId: islr?.id ?? null,
       islrVoucherNumber: islr?.voucherNumber ?? null,
       islrRetained,
+      islrRate: islrRetained > 0 ? islrRule.rate : null,
+      islrRuleSource: islrRetained > 0 ? islrRule.source : null,
+      islrConceptId: islrRetained > 0 ? islrRule.conceptId : null,
       totalRetained: Number(this.money.round(ivaRetained + islrRetained)),
       netPayable: Number(this.money.round(Number(invoice.total ?? 0) - ivaRetained - islrRetained)),
     };
@@ -218,6 +351,9 @@ export class SupplierRetentionService {
     base: number;
     tax: number;
     retained: number;
+    appliedRate: number;
+    ruleSource: IslrRuleSource;
+    conceptId: string | null;
     userId?: string;
     companyId: string;
     year: number;
@@ -257,6 +393,8 @@ export class SupplierRetentionService {
         exchangeRate: input.invoice.exchangeRate,
         invoiceId: input.invoice.id,
         voucherNumber,
+        appliedRate: String(input.appliedRate),
+        ruleSource: input.ruleSource,
         userId: input.userId ?? null,
       })
       .returning();
@@ -267,7 +405,8 @@ export class SupplierRetentionService {
       baseAmount: String(input.base),
       taxAmount: String(input.tax),
       retainedAmount: String(input.retained),
-      conceptId: null,
+      // El concepto queda en la línea: es lo que exporta el XML de ISLR y lo que explica el importe.
+      conceptId: input.conceptId,
     });
 
     return { id: created.id, voucherNumber };

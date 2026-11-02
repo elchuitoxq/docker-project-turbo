@@ -408,18 +408,21 @@ describe('BillingService - Invoice Totals Calculation', () => {
       expect(canVoid).toBe(false);
     });
 
-    it('should allow void on POSTED invoices', () => {
+    it('should allow void on POSTED invoices without payments', () => {
       const invoiceStatus: string = InvoiceStatus.POSTED;
-      const canVoid = invoiceStatus !== InvoiceStatus.VOID;
+      const paidAmount = 0;
+      // La regla real del servicio: emitida y sin pagos aplicados (regla 5 de `S-03`).
+      const canVoid = invoiceStatus !== InvoiceStatus.VOID && paidAmount === 0;
 
       expect(canVoid).toBe(true);
     });
 
-    it('should allow void on PAID invoices', () => {
-      const invoiceStatus: string = InvoiceStatus.PAID;
-      const canVoid = invoiceStatus !== InvoiceStatus.VOID;
+    it('should NOT allow void on an invoice with applied payments', () => {
+      const invoiceStatus = 'PARTIAL';
+      const paidAmount = 250;
+      const canVoid = invoiceStatus !== InvoiceStatus.VOID && paidAmount === 0;
 
-      expect(canVoid).toBe(true);
+      expect(canVoid).toBe(false);
     });
 
     it('should NOT allow void on DRAFT invoices (business rule)', () => {

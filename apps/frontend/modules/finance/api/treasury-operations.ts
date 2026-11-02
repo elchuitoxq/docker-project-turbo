@@ -21,6 +21,8 @@ export type BankAccountAdmin = {
   currencyId: string;
   branchId?: string | null;
   bankId?: string | null;
+  /** Cuenta del plan contable donde se imputan sus movimientos (`S-19`). */
+  accountingAccountId?: string | null;
   initialBalance?: number;
   currentBalance: number;
   isActive?: boolean | null;

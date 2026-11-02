@@ -16,14 +16,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +61,22 @@ import {
   type ProductFormInput,
   type ProductFormValues,
 } from '../schemas/product.schema';
-import { formatCurrency } from '@/lib/utils';
+import { formatMoney } from '@/lib/utils';
+import { useCurrencies, useCurrencyIndex } from '@/lib/currency';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  ListCard,
+  ListEmptyRow,
+  ListFilters,
+  ListRowActions,
+  ListSkeletonRows,
+  ListTd,
+  ListTh,
+  Table,
+  TableBody,
+  TableHeader,
+  TableRow,
+} from '@/components/list/list-table';
 import type { Product, ProductType } from '../types';
 
 const TYPE_LABEL: Record<ProductType, string> = {
@@ -87,6 +95,7 @@ export function ProductsView() {
   const t = useTranslations('common');
   const isMobile = useIsMobile();
   const { hasPermission } = usePermission();
+  const { codeOf } = useCurrencyIndex();
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState<ProductType | 'ALL'>('ALL');
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('table');
@@ -107,6 +116,7 @@ export function ProductsView() {
   );
 
   const { data, isLoading } = useProducts(filters);
+  const categoriesQuery = useProductCategories();
   const create = useCreateProduct();
   const update = useUpdateProduct(editing?.id ?? '');
   const del = useDeleteProduct();
@@ -114,6 +124,8 @@ export function ProductsView() {
   const products = data?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / 20));
+  const categoryName = (id: string | null) =>
+    (id && categoriesQuery.data?.find(category => category.id === id)?.name) || '—';
 
   function handleEdit(p: Product) {
     setEditing(p);
@@ -165,121 +177,125 @@ export function ProductsView() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Buscar por SKU o nombre…"
-                className="pl-8"
-              />
-            </div>
-            <Select value={type} onValueChange={v => setType(v as ProductType | 'ALL')}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los tipos</SelectItem>
-                <SelectItem value="PHYSICAL">Físicos</SelectItem>
-                <SelectItem value="SERVICE">Servicios</SelectItem>
-                <SelectItem value="DIGITAL">Digitales</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <ListFilters>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Buscar por SKU o nombre…"
+            className="pl-8"
+          />
+        </div>
+        <Select value={type} onValueChange={v => setType(v as ProductType | 'ALL')}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">Todos los tipos</SelectItem>
+            <SelectItem value="PHYSICAL">Físicos</SelectItem>
+            <SelectItem value="SERVICE">Servicios</SelectItem>
+            <SelectItem value="DIGITAL">Digitales</SelectItem>
+          </SelectContent>
+        </Select>
+      </ListFilters>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="hidden md:table-cell">Categoría</TableHead>
-              <TableHead className="text-right">Costo</TableHead>
-              <TableHead className="text-right">Precio</TableHead>
-              <TableHead className="hidden lg:table-cell text-right">Stock mín.</TableHead>
-              {view !== 'cards' && <TableHead className="w-12" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={8} className="h-12 animate-pulse bg-muted/30" />
-                </TableRow>
-              ))
-            ) : products.length === 0 ? (
+      <ListCard
+        title="Catálogo"
+        description={
+          isLoading
+            ? 'Cargando…'
+            : `${products.length} producto${products.length === 1 ? '' : 's'} en esta página`
+        }
+      >
+        {view === 'cards' ? (
+          isLoading ? (
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-32 w-full" />
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <p className="p-10 text-center text-sm text-muted-foreground">
+              No se encontraron productos.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+              {products.map(p => (
+                <ProductCard key={p.id} product={p} onEdit={handleEdit} onDelete={handleDelete} />
+              ))}
+            </div>
+          )
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-sm text-muted-foreground">
-                  No se encontraron productos
-                </TableCell>
+                <ListTh>SKU</ListTh>
+                <ListTh>Nombre</ListTh>
+                <ListTh>Tipo</ListTh>
+                <ListTh hide="md">Categoría</ListTh>
+                <ListTh align="right">Costo</ListTh>
+                <ListTh align="right">Precio</ListTh>
+                <ListTh align="right" hide="lg">
+                  Stock mín.
+                </ListTh>
+                <ListTh className="w-12" />
               </TableRow>
-            ) : view === 'cards' ? (
-              products.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell colSpan={8} className="p-2">
-                    <ProductCard product={p} onEdit={handleEdit} onDelete={handleDelete} />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              products.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs">{p.sku}</TableCell>
-                  <TableCell className="font-medium">
-                    <Link href={`/dashboard/inventory/products`} className="hover:underline">
-                      {p.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={TYPE_VARIANT[p.type]}>{TYPE_LABEL[p.type]}</Badge>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
-                    {p.categoryId ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(Number(p.cost))}
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    {formatCurrency(Number(p.price))}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-right tabular-nums text-muted-foreground">
-                    {p.minStock}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(p)}>
-                          <Pencil /> Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(p)}
-                          className="text-destructive"
-                        >
-                          <Trash2 /> Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <ListSkeletonRows cols={8} />
+              ) : products.length === 0 ? (
+                <ListEmptyRow cols={8} message="No se encontraron productos." />
+              ) : (
+                products.map(p => (
+                  <TableRow key={p.id}>
+                    <ListTd mono>{p.sku}</ListTd>
+                    <ListTd className="font-medium">
+                      <Link href={`/dashboard/inventory/products`} className="hover:underline">
+                        {p.name}
+                      </Link>
+                    </ListTd>
+                    <ListTd>
+                      <Badge variant={TYPE_VARIANT[p.type]}>{TYPE_LABEL[p.type]}</Badge>
+                    </ListTd>
+                    <ListTd hide="md" muted>
+                      {categoryName(p.categoryId)}
+                    </ListTd>
+                    <ListTd numeric>{formatMoney(Number(p.cost), codeOf(p.currencyId))}</ListTd>
+                    <ListTd numeric className="font-semibold">
+                      {formatMoney(Number(p.price), codeOf(p.currencyId))}
+                    </ListTd>
+                    <ListTd numeric muted hide="lg">
+                      {p.minStock}
+                    </ListTd>
+                    <ListTd className="w-12">
+                      <ListRowActions label={`Acciones de ${p.name}`}>
+                        {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT) && (
+                          <DropdownMenuItem onClick={() => handleEdit(p)}>
+                            <Pencil /> Editar
+                          </DropdownMenuItem>
+                        )}
+                        {hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE) && (
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(p)}
+                            className="text-destructive"
+                          >
+                            <Trash2 /> Eliminar
+                          </DropdownMenuItem>
+                        )}
+                      </ListRowActions>
+                    </ListTd>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
+      </ListCard>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
@@ -314,11 +330,8 @@ export function ProductsView() {
         onSubmit={async values => {
           const payload = {
             ...values,
-            cost: String(values.cost),
-            price: String(values.price),
-            taxRate: String(values.taxRate),
-            minStock: String(values.minStock),
             categoryId: values.categoryId || null,
+            currencyId: values.currencyId || null,
             description: values.description || null,
           };
           try {
@@ -331,7 +344,7 @@ export function ProductsView() {
             }
             setDialogOpen(false);
           } catch {
-            toast.error('Error al guardar');
+            // El mensaje del backend lo muestra `useCreateProduct`/`useUpdateProduct`.
           }
         }}
         submitting={create.isPending || update.isPending}
@@ -349,6 +362,11 @@ function ProductCard({
   onEdit: (p: Product) => void;
   onDelete: (p: Product) => void;
 }) {
+  const { hasPermission } = usePermission();
+  const { codeOf } = useCurrencyIndex();
+  const canEdit = hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.EDIT);
+  const canDelete = hasPermission(PERMISSIONS.INVENTORY.PRODUCTS.DELETE);
+
   return (
     <Card>
       <CardContent className="flex flex-col gap-2 p-4">
@@ -365,26 +383,41 @@ function ProductCard({
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Costo</p>
-            <p className="tabular-nums">{formatCurrency(Number(product.cost))}</p>
+            <p className="tabular-nums">
+              {formatMoney(Number(product.cost), codeOf(product.currencyId))}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Precio</p>
-            <p className="font-semibold tabular-nums">{formatCurrency(Number(product.price))}</p>
+            <p className="font-semibold tabular-nums">
+              {formatMoney(Number(product.price), codeOf(product.currencyId))}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2 pt-2">
-          <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(product)}>
-            <Pencil /> Editar
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive"
-            onClick={() => onDelete(product)}
-          >
-            <Trash2 />
-          </Button>
-        </div>
+        {(canEdit || canDelete) && (
+          <div className="flex gap-2 pt-2">
+            {canEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onEdit(product)}
+              >
+                <Pencil /> Editar
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive"
+                onClick={() => onDelete(product)}
+              >
+                <Trash2 />
+              </Button>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -402,6 +435,8 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
   const t = useTranslations('common');
   const isEdit = !!product;
   const { data: categories = [] } = useProductCategories();
+  const { data: currencies = [] } = useCurrencies();
+  const { codeOf } = useCurrencyIndex();
   const {
     register,
     handleSubmit,
@@ -416,6 +451,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
       name: '',
       description: '',
       categoryId: '',
+      currencyId: '',
       cost: 0,
       price: 0,
       isExempt: false,
@@ -433,6 +469,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
         name: product.name,
         description: product.description ?? '',
         categoryId: product.categoryId ?? '',
+        currencyId: product.currencyId ?? '',
         cost: Number(product.cost),
         price: Number(product.price),
         isExempt: product.isExempt,
@@ -447,6 +484,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
         name: '',
         description: '',
         categoryId: '',
+        currencyId: '',
         cost: 0,
         price: 0,
         isExempt: false,
@@ -460,8 +498,10 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
 
   const typeValue = useWatch({ control, name: 'type' });
   const categoryId = useWatch({ control, name: 'categoryId' });
+  const currencyValue = useWatch({ control, name: 'currencyId' });
   const isExempt = useWatch({ control, name: 'isExempt' });
   const hasBatches = useWatch({ control, name: 'hasBatches' });
+  const priceCode = codeOf(currencyValue || null);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -526,7 +566,27 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
               </Select>
             </Field>
             <Field>
-              <FieldLabel htmlFor="cost">Costo</FieldLabel>
+              <FieldLabel htmlFor="currencyId">Moneda *</FieldLabel>
+              <Select value={currencyValue || ''} onValueChange={v => setValue('currencyId', v)}>
+                <SelectTrigger id="currencyId">
+                  <SelectValue placeholder="Moneda funcional" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(currencies ?? []).map(currency => (
+                    <SelectItem key={currency.id} value={currency.id}>
+                      {currency.code} · {currency.name}
+                      {currency.isBase ? ' (funcional)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                El costo y el precio se registran en esta moneda; las facturas y pedidos los
+                convierten a la suya.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="cost">Costo ({priceCode})</FieldLabel>
               <Input
                 id="cost"
                 type="number"
@@ -536,7 +596,7 @@ function ProductDialog({ open, onOpenChange, product, onSubmit, submitting }: Pr
               />
             </Field>
             <Field>
-              <FieldLabel htmlFor="price">Precio</FieldLabel>
+              <FieldLabel htmlFor="price">Precio ({priceCode})</FieldLabel>
               <Input
                 id="price"
                 type="number"

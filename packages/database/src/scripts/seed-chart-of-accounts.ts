@@ -63,6 +63,8 @@ const CHART: AccountSeed[] = [
     type: 'LIABILITY',
     parentCode: '2.1',
   },
+  // IGTF del 3 % cobrado en la factura: es un impuesto por enterar, no un ingreso (`S-19`).
+  { code: '2.1.1.007', name: 'IGTF por pagar', type: 'LIABILITY', parentCode: '2.1' },
 
   { code: '3', name: 'Patrimonio', type: 'EQUITY', isPostable: false },
   { code: '3.1.1.001', name: 'Capital social', type: 'EQUITY', parentCode: '3' },

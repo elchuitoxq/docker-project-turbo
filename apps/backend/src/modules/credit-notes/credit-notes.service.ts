@@ -4,11 +4,12 @@ import {
   creditNotes,
   creditNoteItems,
   creditNoteUsages,
+  documentLinks,
   invoices,
-  payments,
-  uuidv7,
 } from '../../schema';
 import { eq, and, sql, desc } from 'drizzle-orm';
+import { computeInvoiceBalance } from '../billing/purchasing/invoice-balance';
+import { InventoryService } from '../inventory/inventory.service';
 import {
   CreateCreditNoteDto,
   UpdateCreditNoteDto,
@@ -25,6 +26,8 @@ import {
 
 @Injectable()
 export class CreditNotesService {
+  constructor(private readonly inventory: InventoryService = new InventoryService()) {}
+
   /** R2: valida que la nota pertenezca a la sucursal activa (404 si no). */
   private async assertBranch(id: string, branchId?: string): Promise<void> {
     if (!branchId) return;
@@ -82,6 +85,8 @@ export class CreditNotesService {
       result.push({
         id: cn.id,
         code: cn.code,
+        type: cn.type,
+        invoiceId: cn.invoiceId,
         partnerId: cn.partnerId,
         status: cn.status as CreditNoteStatus,
         total: Number(cn.total),
@@ -146,6 +151,13 @@ export class CreditNotesService {
     branchId?: string
   ): Promise<CreditNoteResponseDto> {
     const creditNoteBranchId = branchId ?? createCreditNoteDto.branchId;
+
+    if (!creditNoteBranchId) {
+      throw new BadRequestException(
+        'La sucursal activa es obligatoria para crear la nota de crédito'
+      );
+    }
+
     const code = await this.generateCode();
 
     let totalBase = 0;
@@ -235,7 +247,14 @@ export class CreditNotesService {
     return this.findOne(id);
   }
 
-  async post(id: string, branchId?: string): Promise<PostCreditNoteResponseDto> {
+  /**
+   * Emite la nota de crédito (`DRAFT → POSTED`).
+   *
+   * Si es una devolución a cliente, aquí es cuando la mercancía vuelve: se crea el movimiento de
+   * `ENTRADA` en el almacén de la nota y se vincula al documento. El movimiento queda en borrador
+   * para que el almacén lo apruebe, y la anulación de la nota lo revierte.
+   */
+  async post(id: string, branchId?: string, userId?: string): Promise<PostCreditNoteResponseDto> {
     await this.assertBranch(id, branchId);
     const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
@@ -247,13 +266,53 @@ export class CreditNotesService {
       throw new BadRequestException('Only DRAFT credit notes can be posted');
     }
 
-    await db
-      .update(creditNotes)
-      .set({
-        status: 'POSTED',
-        updatedAt: new Date(),
-      })
-      .where(eq(creditNotes.id, id));
+    const items = await db
+      .select()
+      .from(creditNoteItems)
+      .where(eq(creditNoteItems.creditNoteId, id));
+
+    const isCustomerReturn = existing.type === 'SALE' && items.length > 0;
+
+    if (isCustomerReturn && !existing.warehouseId) {
+      throw new BadRequestException(
+        'La devolución de cliente necesita el almacén que recibe la mercancía: indícalo en la nota antes de emitirla'
+      );
+    }
+
+    await db.transaction(async tx => {
+      if (isCustomerReturn) {
+        const move = await this.inventory.createReturnEntry(
+          {
+            branchId: existing.branchId,
+            warehouseId: existing.warehouseId!,
+            note: `Devolución por nota de crédito ${existing.code}`,
+            userId,
+            lines: items.map(item => ({
+              productId: item.productId,
+              quantity: Number(item.quantity),
+            })),
+          },
+          tx
+        );
+
+        await tx.insert(documentLinks).values({
+          sourceId: id,
+          sourceTable: 'CREDIT_NOTE',
+          targetId: move.id,
+          targetTable: 'INVENTORY_MOVE',
+          type: 'RETURN',
+          userId: userId ?? null,
+        });
+      }
+
+      await tx
+        .update(creditNotes)
+        .set({
+          status: 'POSTED',
+          updatedAt: new Date(),
+        })
+        .where(eq(creditNotes.id, id));
+    });
 
     return {
       id,
@@ -262,7 +321,15 @@ export class CreditNotesService {
     };
   }
 
-  async void(id: string, branchId?: string): Promise<VoidCreditNoteResponseDto> {
+  /**
+   * Anula la nota de crédito.
+   *
+   * Se permite anular una nota ya aplicada: es la única forma de deshacer el crédito y de poder
+   * anular después la factura (regla 5 de `S-03`). El saldo de la factura vuelve a subir solo,
+   * porque el crédito cuenta únicamente mientras la nota está `POSTED`. La devolución de inventario
+   * asociada se rechaza si sigue en borrador o se compensa si el almacén ya la aprobó.
+   */
+  async void(id: string, branchId?: string, userId?: string): Promise<VoidCreditNoteResponseDto> {
     await this.assertBranch(id, branchId);
     const [existing] = await db.select().from(creditNotes).where(eq(creditNotes.id, id)).limit(1);
 
@@ -274,17 +341,30 @@ export class CreditNotesService {
       throw new BadRequestException('Credit note is already voided');
     }
 
-    if (existing.status === 'APPLIED') {
-      throw new BadRequestException('Cannot void an APPLIED credit note.要先 applied credit note.');
-    }
+    const [returnLink] = await db
+      .select({ targetId: documentLinks.targetId })
+      .from(documentLinks)
+      .where(and(eq(documentLinks.sourceId, id), eq(documentLinks.sourceTable, 'CREDIT_NOTE')))
+      .limit(1);
 
-    await db
-      .update(creditNotes)
-      .set({
-        status: 'VOIDED',
-        updatedAt: new Date(),
-      })
-      .where(eq(creditNotes.id, id));
+    await db.transaction(async tx => {
+      await tx.delete(creditNoteUsages).where(eq(creditNoteUsages.creditNoteId, id));
+      await tx
+        .update(creditNotes)
+        .set({
+          status: 'VOIDED',
+          updatedAt: new Date(),
+        })
+        .where(eq(creditNotes.id, id));
+    });
+
+    if (returnLink) {
+      await this.inventory.revertReturnEntry(
+        returnLink.targetId,
+        userId,
+        `Anulación de la nota de crédito ${existing.code}`
+      );
+    }
 
     return {
       id,
@@ -293,6 +373,14 @@ export class CreditNotesService {
     };
   }
 
+  /**
+   * Aplica el saldo disponible de la nota contra una factura del mismo tercero.
+   *
+   * El uso queda registrado con la factura (`credit_note_usages.invoice_id`) y **sin pago**: una
+   * nota de crédito no es un cobro, no entra a ninguna cuenta bancaria y no debe aparecer en
+   * tesorería. Antes se insertaba un pago con `method_id` igual al id de la moneda, lo que chocaba
+   * con la FK de `payment_methods` y rompía la aplicación con un 500.
+   */
   async apply(
     creditNoteId: string,
     invoiceId: string,
@@ -324,12 +412,18 @@ export class CreditNotesService {
       throw new NotFoundException(`Invoice with ID ${invoiceId} not found`);
     }
 
-    if (invoice.status === 'VOIDED') {
+    if (invoice.status === 'VOID' || invoice.status === 'VOIDED') {
       throw new BadRequestException('Cannot apply credit note to a voided invoice');
     }
 
     if (creditNote.partnerId !== invoice.partnerId) {
       throw new BadRequestException('Credit note and invoice must belong to the same partner');
+    }
+
+    if (creditNote.currencyId !== invoice.currencyId) {
+      throw new BadRequestException(
+        'La nota de crédito y la factura deben estar en la misma moneda para imputar el saldo'
+      );
     }
 
     const usages = await db
@@ -346,26 +440,21 @@ export class CreditNotesService {
       );
     }
 
-    const [payment] = await db
-      .insert(payments)
-      .values({
-        code: await this.generatePaymentCode(),
-        invoiceId,
-        partnerId: creditNote.partnerId,
-        branchId: creditNote.branchId,
-        methodId: creditNote.currencyId,
-        status: 'POSTED',
-        type: 'CREDIT_NOTE',
-        amount: applyDto.amount.toString(),
-        currencyId: creditNote.currencyId,
-        exchangeRate: creditNote.exchangeRate,
-        date: new Date(),
-      })
-      .returning();
+    // Si el crédito ya lo descontó esta factura al emitirse la nota, aplicarlo no vuelve a bajar el
+    // saldo: sólo se registra el consumo. Cuando la nota viene de otra factura (o no tiene factura de
+    // origen), el uso sí acredita esta factura y no puede dejarla en negativo.
+    const creditsThroughUsage = creditNote.invoiceId !== invoiceId;
+    const balance = creditsThroughUsage ? await computeInvoiceBalance(invoiceId) : null;
+
+    if (creditsThroughUsage && applyDto.amount > (balance?.balance ?? 0)) {
+      throw new BadRequestException(
+        `La aplicación (${applyDto.amount}) supera el saldo de la factura (${balance?.balance ?? 0})`
+      );
+    }
 
     await db.insert(creditNoteUsages).values({
       creditNoteId,
-      paymentId: payment.id,
+      invoiceId,
       amount: applyDto.amount.toString(),
     });
 
@@ -411,26 +500,6 @@ export class CreditNotesService {
     return `${prefix}${nextNum.toString().padStart(4, '0')}`;
   }
 
-  private async generatePaymentCode(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `PAY-${year}-`;
-
-    const [latest] = await db
-      .select({ code: payments.code })
-      .from(payments)
-      .where(sql`${payments.code} LIKE ${prefix + '%'}`)
-      .orderBy(desc(payments.createdAt))
-      .limit(1);
-
-    let nextNum = 1;
-    if (latest) {
-      const lastNum = parseInt(latest.code.replace(prefix, ''), 10);
-      nextNum = lastNum + 1;
-    }
-
-    return `${prefix}${nextNum.toString().padStart(4, '0')}`;
-  }
-
   private toItemResponseDto(item: typeof creditNoteItems.$inferSelect): CreditNoteItemResponseDto {
     return {
       id: item.id,
@@ -449,6 +518,7 @@ export class CreditNotesService {
       id: usage.id,
       creditNoteId: usage.creditNoteId,
       paymentId: usage.paymentId,
+      invoiceId: usage.invoiceId,
       amount: Number(usage.amount),
       createdAt: usage.createdAt,
     };

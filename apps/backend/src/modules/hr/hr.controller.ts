@@ -55,12 +55,17 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 
 @ApiTags('hr')
+@ApiBearerAuth()
 @Controller('v1/hr')
 export class HrController {
   constructor(private readonly hrService: HrService) {}
 
   @Get('employees')
-  @ApiOperation({ summary: 'Get all employees' })
+  @RequirePermissions('hr:employees:view')
+  @ApiOperation({
+    summary: 'Get all employees',
+    description: 'Empleados de la sucursal activa (o de `branchId` si se indica)',
+  })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of employees', type: [EmployeeResponseDto] })
   async findAllEmployees(@CurrentBranch() branchId: string): Promise<EmployeeResponseDto[]> {
@@ -68,7 +73,11 @@ export class HrController {
   }
 
   @Get('employees/:id')
-  @ApiOperation({ summary: 'Get employee by ID' })
+  @RequirePermissions('hr:employees:view')
+  @ApiOperation({
+    summary: 'Get employee by ID',
+    description: 'Ficha del empleado con su cargo, departamento y datos laborales',
+  })
   @ApiResponse({ status: 200, description: 'Employee details', type: EmployeeResponseDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
   async findOneEmployee(
@@ -79,7 +88,11 @@ export class HrController {
   }
 
   @Post('employees')
-  @ApiOperation({ summary: 'Create a new employee' })
+  @RequirePermissions('hr:employees:create')
+  @ApiOperation({
+    summary: 'Create a new employee',
+    description: 'Alta del empleado con sus datos personales, salario y fecha de ingreso',
+  })
   @ApiBody({ type: CreateEmployeeDto })
   @ApiResponse({ status: 201, description: 'Employee created', type: EmployeeResponseDto })
   async createEmployee(@Body() createEmployeeDto: CreateEmployeeDto): Promise<EmployeeResponseDto> {
@@ -87,7 +100,11 @@ export class HrController {
   }
 
   @Patch('employees/:id')
-  @ApiOperation({ summary: 'Update an employee' })
+  @RequirePermissions('hr:employees:edit')
+  @ApiOperation({
+    summary: 'Update an employee',
+    description: 'Actualiza los datos del empleado; no cambia su estado laboral',
+  })
   @ApiBody({ type: UpdateEmployeeDto })
   @ApiResponse({ status: 200, description: 'Employee updated', type: EmployeeResponseDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
@@ -104,7 +121,7 @@ export class HrController {
     summary: 'Terminate an employee',
     description: 'Sets status TERMINATED and the termination date',
   })
-  @ApiResponse({ status: 200, description: 'Employee terminated' })
+  @ApiResponse({ status: 200, description: 'Employee terminated', type: EmployeeResponseDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
   @ApiResponse({ status: 409, description: 'Employee already terminated' })
   async terminateEmployee(
@@ -115,54 +132,156 @@ export class HrController {
     return this.hrService.terminateEmployee(id, dto, branchId);
   }
   @Get('departments')
-  @ApiOperation({ summary: 'Get all departments' })
+  @RequirePermissions('hr:view')
+  @ApiOperation({
+    summary: 'Get all departments',
+    description: 'Departamentos de la sucursal, con su jerarquía mediante `parentId`',
+  })
   @ApiQuery({ name: 'branchId', required: false })
-  @ApiResponse({ status: 200, description: 'List of departments' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of departments',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'Administración',
+          parentId: null,
+          branchId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      ],
+    },
+  })
   async findAllDepartments(@CurrentBranch() branchId: string) {
     return this.hrService.findAllDepartments(branchId);
   }
 
   @Patch('departments/:id')
   @RequirePermissions('hr:departments:manage')
-  @ApiOperation({ summary: 'Update a department' })
-  @ApiResponse({ status: 200, description: 'Department updated' })
+  @ApiOperation({
+    summary: 'Update a department',
+    description: 'Actualiza nombre o departamento padre',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Department updated',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Administración',
+        parentId: null,
+        branchId: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    },
+  })
   async updateDepartment(@Param('id') id: string, @Body() dto: UpdateDepartmentDto) {
     return this.hrService.updateDepartment(id, dto);
   }
 
   @Post('departments')
-  @ApiOperation({ summary: 'Create a department' })
+  @RequirePermissions('hr:departments:manage')
+  @ApiOperation({
+    summary: 'Create a department',
+    description: 'Crea un departamento en la sucursal, opcionalmente dentro de otro',
+  })
   @ApiBody({ type: CreateDepartmentDto })
-  @ApiResponse({ status: 201, description: 'Department created' })
+  @ApiResponse({
+    status: 201,
+    description: 'Department created',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Administración',
+        parentId: null,
+        branchId: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    },
+  })
   async createDepartment(@Body() createDepartmentDto: CreateDepartmentDto) {
     return this.hrService.createDepartment(createDepartmentDto);
   }
 
   @Get('positions')
-  @ApiOperation({ summary: 'Get all job positions' })
-  @ApiResponse({ status: 200, description: 'List of positions' })
+  @RequirePermissions('hr:view')
+  @ApiOperation({
+    summary: 'Get all job positions',
+    description: 'Cargos disponibles con su rango salarial de referencia',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of positions',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          name: 'Analista de nómina',
+          description: 'Cálculo y control de la nómina mensual',
+          currencyId: '550e8400-e29b-41d4-a716-446655440001',
+          baseSalaryMin: '400.00',
+          baseSalaryMax: '800.00',
+        },
+      ],
+    },
+  })
   async findAllPositions() {
     return this.hrService.findAllPositions();
   }
 
   @Patch('positions/:id')
   @RequirePermissions('hr:positions:manage')
-  @ApiOperation({ summary: 'Update a position' })
-  @ApiResponse({ status: 200, description: 'Position updated' })
+  @ApiOperation({
+    summary: 'Update a position',
+    description: 'Actualiza la descripción o el rango salarial del cargo',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Position updated',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Analista de nómina',
+        description: 'Cálculo y control de la nómina mensual',
+        currencyId: '550e8400-e29b-41d4-a716-446655440001',
+        baseSalaryMin: '400.00',
+        baseSalaryMax: '800.00',
+      },
+    },
+  })
   async updatePosition(@Param('id') id: string, @Body() dto: UpdatePositionDto) {
     return this.hrService.updatePosition(id, dto);
   }
 
   @Post('positions')
-  @ApiOperation({ summary: 'Create a job position' })
+  @RequirePermissions('hr:positions:manage')
+  @ApiOperation({
+    summary: 'Create a job position',
+    description: 'Crea un cargo con su rango salarial y moneda',
+  })
   @ApiBody({ type: CreatePositionDto })
-  @ApiResponse({ status: 201, description: 'Position created' })
+  @ApiResponse({
+    status: 201,
+    description: 'Position created',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Analista de nómina',
+        description: 'Cálculo y control de la nómina mensual',
+        currencyId: '550e8400-e29b-41d4-a716-446655440001',
+        baseSalaryMin: '400.00',
+        baseSalaryMax: '800.00',
+      },
+    },
+  })
   async createPosition(@Body() createPositionDto: CreatePositionDto) {
     return this.hrService.createPosition(createPositionDto);
   }
 
   @Get('payroll')
-  @ApiOperation({ summary: 'Get all payroll runs' })
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({
+    summary: 'Get all payroll runs',
+    description: 'Runs de nómina de la sucursal con su estado y totales',
+  })
   @ApiQuery({ name: 'branchId', required: false })
   @ApiResponse({ status: 200, description: 'List of payroll runs', type: [PayrollRunResponseDto] })
   async findAllPayrollRuns(@CurrentBranch() branchId: string): Promise<PayrollRunResponseDto[]> {
@@ -170,7 +289,11 @@ export class HrController {
   }
 
   @Get('payroll/:id')
-  @ApiOperation({ summary: 'Get payroll run by ID' })
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({
+    summary: 'Get payroll run by ID',
+    description: 'Detalle del run con sus conceptos, deducciones y aportes patronales',
+  })
   @ApiResponse({ status: 200, description: 'Payroll run details', type: PayrollRunResponseDto })
   @ApiResponse({ status: 404, description: 'Payroll run not found' })
   async findOnePayrollRun(
@@ -182,7 +305,10 @@ export class HrController {
 
   @Get('payroll/:id/parameters')
   @RequirePermissions('hr:payroll:view')
-  @ApiOperation({ summary: 'Get frozen payroll parameters of a run' })
+  @ApiOperation({
+    summary: 'Get frozen payroll parameters of a run',
+    description: 'Parámetros legales congelados al generar el run (salario mínimo, UT, tasas)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Parameters snapshot taken when the run was created',
@@ -194,6 +320,7 @@ export class HrController {
   }
 
   @Post('payroll/generate')
+  @RequirePermissions('hr:payroll:process')
   @ApiOperation({
     summary: 'Generate payroll',
     description:
@@ -210,7 +337,11 @@ export class HrController {
 
   @Post('payroll/:id/process')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Process payroll run' })
+  @RequirePermissions('hr:payroll:process')
+  @ApiOperation({
+    summary: 'Process payroll run',
+    description: 'Recalcula y fija los importes del run en borrador dejándolo listo para pagar',
+  })
   @ApiResponse({ status: 200, description: 'Payroll processed', type: PayrollRunResponseDto })
   @ApiResponse({ status: 400, description: 'Already processed' })
   async processPayrollRun(@Param('id') id: string): Promise<PayrollRunResponseDto> {
@@ -222,6 +353,8 @@ export class HrController {
   @RequirePermissions('hr:payroll:process')
   @ApiOperation({
     summary: 'Pay the payroll run through treasury (idempotent: one payment per run)',
+    description:
+      'Registra el pago en tesorería desde la cuenta bancaria indicada; sólo un pago por run',
   })
   @ApiBody({ type: PayPayrollRunDto })
   @ApiResponse({ status: 200, description: 'Payment registered', type: PayrollPaymentResponseDto })
@@ -241,8 +374,22 @@ export class HrController {
   @RequirePermissions('hr:payroll:process')
   @ApiOperation({
     summary: 'Post the payroll run to accounting by concept (RN-25, idempotent per run)',
+    description:
+      'Genera el asiento contable agrupado por concepto usando los mapas contables configurados',
   })
-  @ApiResponse({ status: 200, description: 'Accounting entry created or reused' })
+  @ApiResponse({
+    status: 200,
+    description: 'Accounting entry created or reused',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        code: 'ASI-000123',
+        status: 'POSTED',
+        totalDebit: 15000,
+        totalCredit: 15000,
+      },
+    },
+  })
   @ApiResponse({ status: 400, description: 'Run in draft or concept without accounting map' })
   async postPayrollRun(
     @Param('id') id: string,
@@ -253,7 +400,11 @@ export class HrController {
   }
 
   @Get('payroll/:runId/payslip/:itemId')
-  @ApiOperation({ summary: 'Get payslip for employee' })
+  @RequirePermissions('hr:payroll:view')
+  @ApiOperation({
+    summary: 'Get payslip for employee',
+    description: 'Recibo de pago con conceptos, deducciones y neto a pagar',
+  })
   @ApiResponse({ status: 200, description: 'Payslip data', type: PayslipDto })
   async getPayslip(
     @Param('runId') runId: string,
@@ -263,17 +414,57 @@ export class HrController {
   }
 
   @Get('incidents')
-  @ApiOperation({ summary: 'Get payroll incidents' })
+  @RequirePermissions('hr:incidents:view')
+  @ApiOperation({
+    summary: 'Get payroll incidents',
+    description: 'Incidencias de nómina (horas extra, ausencias, bonos) y su estado',
+  })
   @ApiQuery({ name: 'employeeId', required: false })
-  @ApiResponse({ status: 200, description: 'List of incidents' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of incidents',
+    schema: {
+      example: [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          employeeId: '550e8400-e29b-41d4-a716-446655440001',
+          conceptId: '550e8400-e29b-41d4-a716-446655440002',
+          date: '2026-10-15',
+          quantity: '1',
+          amount: '150.00',
+          status: 'PENDING',
+          notes: null,
+        },
+      ],
+    },
+  })
   async findAllIncidents(@Query('employeeId') employeeId?: string) {
     return this.hrService.findAllIncidents(employeeId);
   }
 
   @Post('incidents')
-  @ApiOperation({ summary: 'Create a payroll incident' })
+  @RequirePermissions('hr:incidents:create')
+  @ApiOperation({
+    summary: 'Create a payroll incident',
+    description: 'Registra una incidencia pendiente de aprobación para el empleado',
+  })
   @ApiBody({ type: CreateIncidentDto })
-  @ApiResponse({ status: 201, description: 'Incident created' })
+  @ApiResponse({
+    status: 201,
+    description: 'Incident created',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        employeeId: '550e8400-e29b-41d4-a716-446655440001',
+        conceptId: '550e8400-e29b-41d4-a716-446655440002',
+        date: '2026-10-15',
+        quantity: '1',
+        amount: '150.00',
+        status: 'PENDING',
+        notes: null,
+      },
+    },
+  })
   async createIncident(@Body() createIncidentDto: CreateIncidentDto) {
     return this.hrService.createIncident(createIncidentDto);
   }
@@ -281,8 +472,15 @@ export class HrController {
   @Post('incidents/:id/approve')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('hr:incidents:approve')
-  @ApiOperation({ summary: 'Approve a pending incident' })
-  @ApiResponse({ status: 200, description: 'Incident approved' })
+  @ApiOperation({
+    summary: 'Approve a pending incident',
+    description: 'Aprueba la incidencia para que entre en el próximo run de nómina',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Incident approved',
+    schema: { example: { id: '550e8400-e29b-41d4-a716-446655440000', status: 'APPROVED' } },
+  })
   @ApiResponse({ status: 409, description: 'Incident is not pending' })
   async approveIncident(@Param('id') id: string) {
     return this.hrService.setIncidentStatus(id, 'APPROVED');
@@ -291,8 +489,15 @@ export class HrController {
   @Post('incidents/:id/reject')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('hr:incidents:approve')
-  @ApiOperation({ summary: 'Reject a pending incident' })
-  @ApiResponse({ status: 200, description: 'Incident rejected' })
+  @ApiOperation({
+    summary: 'Reject a pending incident',
+    description: 'Rechaza la incidencia; no se incluirá en la nómina',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Incident rejected',
+    schema: { example: { id: '550e8400-e29b-41d4-a716-446655440000', status: 'REJECTED' } },
+  })
   @ApiResponse({ status: 409, description: 'Incident is not pending' })
   async rejectIncident(@Param('id') id: string) {
     return this.hrService.setIncidentStatus(id, 'REJECTED');
@@ -300,7 +505,11 @@ export class HrController {
 
   @Get('settings')
   @RequirePermissions('hr:settings:view')
-  @ApiOperation({ summary: 'List payroll settings' })
+  @ApiOperation({
+    summary: 'List payroll settings',
+    description:
+      'Parámetros legales vigentes a la fecha indicada (salario mínimo, UT, IVSS, FAOV, PIE)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Payroll settings',
@@ -315,8 +524,15 @@ export class HrController {
 
   @Patch('settings')
   @RequirePermissions('hr:settings:manage')
-  @ApiOperation({ summary: 'Create or update a payroll setting' })
-  @ApiResponse({ status: 200, description: 'Payroll setting stored' })
+  @ApiOperation({
+    summary: 'Create or update a payroll setting',
+    description: 'Alta o actualización de un parámetro legal con su fecha de vigencia',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payroll setting stored',
+    type: PayrollSettingResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Invalid value for the parameter type' })
   async updatePayrollSetting(
     @Body() dto: UpdatePayrollSettingDto,
@@ -348,15 +564,33 @@ export class HrController {
   @RequirePermissions('hr:settings:view')
   @ApiOperation({
     summary: 'Current ISLR bracket table and tax unit value (RN-09)',
+    description: 'Tramos de ISLR vigentes, valor de la unidad tributaria y descuento único',
   })
-  @ApiResponse({ status: 200, description: 'Brackets effective today' })
+  @ApiResponse({
+    status: 200,
+    description: 'Brackets effective today',
+    schema: {
+      example: {
+        effectiveFrom: '2026-01-01',
+        utValue: 9,
+        singleDiscount: 774,
+        brackets: [
+          { fromUt: 0, toUt: 1000, rate: 6, discountUt: 0 },
+          { fromUt: 1000.01, toUt: 1500, rate: 9, discountUt: 30 },
+        ],
+      },
+    },
+  })
   async getIncomeTaxTable(@Query('asOf') asOf?: string) {
     return this.hrService.getIncomeTaxTable(asOf ? new Date(asOf) : new Date());
   }
 
   @Get('concept-types')
   @RequirePermissions('hr:concepts:view')
-  @ApiOperation({ summary: 'Get payroll concept types' })
+  @ApiOperation({
+    summary: 'Get payroll concept types',
+    description: 'Conceptos de nómina (asignaciones y deducciones) con su expresión de cálculo',
+  })
   @ApiResponse({
     status: 200,
     description: 'List of concept types',
@@ -370,7 +604,10 @@ export class HrController {
 
   @Post('concept-types')
   @RequirePermissions('hr:concepts:manage')
-  @ApiOperation({ summary: 'Create a payroll concept type' })
+  @ApiOperation({
+    summary: 'Create a payroll concept type',
+    description: 'Crea un concepto con su expresión de cálculo y mapa contable',
+  })
   @ApiBody({ type: CreatePayrollConceptDto })
   @ApiResponse({ status: 201, description: 'Concept created', type: PayrollConceptResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid expression' })
@@ -384,7 +621,10 @@ export class HrController {
 
   @Patch('concept-types/:id')
   @RequirePermissions('hr:concepts:manage')
-  @ApiOperation({ summary: 'Update a payroll concept type' })
+  @ApiOperation({
+    summary: 'Update a payroll concept type',
+    description: 'Actualiza el concepto; los runs ya procesados conservan sus importes',
+  })
   @ApiBody({ type: UpdatePayrollConceptDto })
   @ApiResponse({ status: 200, description: 'Concept updated', type: PayrollConceptResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid expression' })
@@ -399,8 +639,15 @@ export class HrController {
 
   @Delete('concept-types/:id')
   @RequirePermissions('hr:concepts:manage')
-  @ApiOperation({ summary: 'Delete a payroll concept type' })
-  @ApiResponse({ status: 200, description: 'Concept deleted' })
+  @ApiOperation({
+    summary: 'Delete a payroll concept type',
+    description: 'Elimina el concepto si no es de sistema ni se usó en una nómina',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Concept deleted',
+    schema: { example: { deleted: true } },
+  })
   @ApiResponse({ status: 404, description: 'Concept not found' })
   @ApiResponse({ status: 409, description: 'System concept or already used in a payroll' })
   async deletePayrollConcept(
@@ -412,7 +659,10 @@ export class HrController {
 
   @Get('employees/:id/vacations')
   @RequirePermissions('hr:employees:view')
-  @ApiOperation({ summary: 'Get vacation entitlement and pending days' })
+  @ApiOperation({
+    summary: 'Get vacation entitlement and pending days',
+    description: 'Días de vacaciones causados, disfrutados y pendientes según LOTTT',
+  })
   @ApiQuery({ name: 'asOf', required: false })
   @ApiResponse({ status: 200, description: 'Vacation summary', type: VacationSummaryDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
@@ -426,9 +676,17 @@ export class HrController {
 
   @Post('employees/:id/vacations')
   @RequirePermissions('hr:payroll:process')
-  @ApiOperation({ summary: 'Register a vacation period and compute vacation and bonus pay' })
+  @ApiOperation({
+    summary: 'Register a vacation period and compute vacation and bonus pay',
+    description:
+      'Registra el período disfrutado y calcula el pago de vacaciones y el bono vacacional',
+  })
   @ApiBody({ type: RegisterVacationDto })
-  @ApiResponse({ status: 201, description: 'Vacation registered' })
+  @ApiResponse({
+    status: 201,
+    description: 'Vacation registered',
+    type: VacationSummaryDto,
+  })
   @ApiResponse({ status: 400, description: 'More days than entitled' })
   @ApiResponse({ status: 409, description: 'Vacation period already registered for that year' })
   async registerVacation(
@@ -441,7 +699,11 @@ export class HrController {
 
   @Get('employees/:id/benefits')
   @RequirePermissions('hr:payroll:view')
-  @ApiOperation({ summary: 'Get severance benefits: both modalities and the payable one' })
+  @ApiOperation({
+    summary: 'Get severance benefits: both modalities and the payable one',
+    description:
+      'Prestaciones acumuladas en ambas modalidades (garantía y retroactivo) e indica la pagadera',
+  })
   @ApiQuery({ name: 'asOf', required: false })
   @ApiResponse({ status: 200, description: 'Benefits summary', type: BenefitsSummaryDto })
   @ApiResponse({ status: 404, description: 'Employee not found' })
@@ -455,7 +717,10 @@ export class HrController {
 
   @Post('employees/:id/benefits/deposit')
   @RequirePermissions('hr:payroll:process')
-  @ApiOperation({ summary: 'Deposit the quarterly severance guarantee' })
+  @ApiOperation({
+    summary: 'Deposit the quarterly severance guarantee',
+    description: 'Registra el depósito trimestral de la garantía de prestaciones',
+  })
   @ApiBody({ type: DepositBenefitDto })
   @ApiResponse({ status: 201, description: 'Deposit registered', type: BenefitsSummaryDto })
   @ApiResponse({ status: 409, description: 'Quarter already deposited' })
@@ -469,9 +734,23 @@ export class HrController {
 
   @Post('employees/:id/profit-sharing')
   @RequirePermissions('hr:payroll:process')
-  @ApiOperation({ summary: 'Register annual profit sharing (utilidades)' })
+  @ApiOperation({
+    summary: 'Register annual profit sharing (utilidades)',
+    description: 'Registra las utilidades del ejercicio con los días a pagar',
+  })
   @ApiBody({ type: RegisterProfitSharingDto })
-  @ApiResponse({ status: 201, description: 'Profit sharing registered' })
+  @ApiResponse({
+    status: 201,
+    description: 'Profit sharing registered',
+    schema: {
+      example: {
+        employeeId: '550e8400-e29b-41d4-a716-446655440000',
+        year: 2025,
+        days: 30,
+        amount: 1200.5,
+      },
+    },
+  })
   @ApiResponse({ status: 409, description: 'Profit sharing already registered for that year' })
   async registerProfitSharing(
     @Param('id') id: string,
@@ -483,7 +762,10 @@ export class HrController {
 
   @Get('employees/:id/settlement')
   @RequirePermissions('hr:payroll:view')
-  @ApiOperation({ summary: 'Get the registered settlement of an employee' })
+  @ApiOperation({
+    summary: 'Get the registered settlement of an employee',
+    description: 'Liquidación registrada: prestaciones, vacaciones, utilidades e indemnización',
+  })
   @ApiResponse({ status: 200, description: 'Settlement', type: SettlementResponseDto })
   @ApiResponse({ status: 404, description: 'Employee not found or not settled' })
   async getSettlement(
@@ -497,6 +779,8 @@ export class HrController {
   @RequirePermissions('hr:payroll:process')
   @ApiOperation({
     summary: 'Settle the employee termination: benefits, vacations, profit sharing and indemnity',
+    description:
+      'Calcula y registra la liquidación final según el motivo de terminación, y la contabiliza',
   })
   @ApiBody({ type: SettleEmployeeDto })
   @ApiResponse({ status: 201, description: 'Settlement registered', type: SettlementResponseDto })

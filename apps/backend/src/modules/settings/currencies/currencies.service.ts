@@ -70,6 +70,7 @@ export class CurrenciesService {
         currencyCode: currencies.code,
         currencyName: currencies.name,
         currencySymbol: currencies.symbol,
+        isBase: currencies.isBase,
       })
       .from(exchangeRates)
       .innerJoin(currencies, eq(exchangeRates.currencyId, currencies.id))
@@ -78,6 +79,8 @@ export class CurrenciesService {
     const latestByCurrency = new Map<string, LatestRatesResponseDto>();
 
     for (const rate of latestRates) {
+      // La moneda funcional no se convierte contra sí misma: si quedó una fila vieja, no se expone.
+      if (rate.isBase) continue;
       if (!latestByCurrency.has(rate.currencyId)) {
         latestByCurrency.set(rate.currencyId, {
           id: rate.id,

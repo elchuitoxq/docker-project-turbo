@@ -43,7 +43,7 @@ import {
 } from '@/modules/accounting/hooks';
 import type { AccountNode, AccountType } from '@/modules/accounting/api';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 import { useBranchStore } from '@/stores/use-branch-store';
 
 const TYPE_LABEL: Record<AccountType, string> = {
@@ -73,9 +73,9 @@ function flatten(nodes: AccountNode[], depth = 0): FlatAccount[] {
 }
 
 export default function AccountsPage() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
+  const { hasPermission } = usePermission();
   const currentBranchId = useBranchStore(state => state.currentBranchId);
-  const canManage = permissions.includes(PERMISSIONS.FINANCE.ACCOUNTS.MANAGE);
+  const canManage = hasPermission(PERMISSIONS.FINANCE.ACCOUNTS.MANAGE);
 
   const accounts = useAccounts();
   const createAccount = useCreateAccount();

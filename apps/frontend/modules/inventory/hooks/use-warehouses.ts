@@ -14,6 +14,21 @@ export function useWarehouses() {
   });
 }
 
+/**
+ * Almacenes para un selector (`GET /inventory/warehouses/options`).
+ *
+ * El catálogo completo exige `inventory:warehouses:view`, permiso que los roles operativos no tienen;
+ * esta variante sólo pide `inventory:products:view`, que sí tienen, y devuelve id y nombre.
+ */
+export function useWarehouseOptions(enabled = true) {
+  return useQuery({
+    queryKey: [...warehousesKeys.all, 'options'],
+    queryFn: () => warehousesApi.options(),
+    enabled,
+    staleTime: 10 * 60_000,
+  });
+}
+
 export function useCreateWarehouse() {
   const qc = useQueryClient();
   return useMutation({

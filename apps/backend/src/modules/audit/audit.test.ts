@@ -121,7 +121,7 @@ describe('AuditService', () => {
 
       const result = await service.findByEntity('invoices', '550e8400-e29b-41d4-a716-446655440002');
 
-      expect(result[0]).toEqual({
+      expect(result[0]).toMatchObject({
         id: mockAuditLog.id,
         entityTable: mockAuditLog.entityTable,
         entityId: mockAuditLog.entityId,

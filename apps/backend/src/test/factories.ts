@@ -77,6 +77,36 @@ export async function ensureTestBaseCurrency() {
   return created;
 }
 
+/**
+ * Usuario real para los flujos que registran autor (`payments.user_id`, `document_events.user_id`,
+ * `daily_closes.closed_by`…).
+ *
+ * Desde `S-17` esas columnas son FK: un uuid inventado ya no vale. Se reutiliza por email porque los
+ * archivos corren en paralelo contra la misma base y cualquiera puede haber truncado antes.
+ */
+export async function ensureTestUser() {
+  const email = 'actor@backend.test';
+
+  const [existing] = await testDb.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existing) return existing;
+
+  const [created] = await testDb
+    .insert(users)
+    .values({
+      name: 'Usuario de pruebas',
+      email,
+      password: '$2a$10$testhashedpasswordfortesting',
+    })
+    .onConflictDoNothing({ target: users.email })
+    .returning();
+
+  if (created) return created;
+
+  const [row] = await testDb.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!row) throw new Error('No se pudo crear el usuario de pruebas');
+  return row;
+}
+
 export async function createTestPartner(data?: Partial<typeof partners.$inferInsert>) {
   const partner = {
     name: `Partner ${faker.company.name()}`,

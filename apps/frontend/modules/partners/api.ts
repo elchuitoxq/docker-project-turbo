@@ -1,18 +1,26 @@
 import { apiClient } from '@/lib/api/client';
 import type { Partner, PartnerFilters, PartnerStatement } from './types';
+import { matchesPartnerType } from './types';
 
-function buildSearchQuery(search?: string): string {
+function buildQuery(filters: PartnerFilters): string {
   const params = new URLSearchParams();
-  if (search) params.set('search', search);
+  if (filters.search) params.set('search', filters.search);
+  if (filters.type) params.set('type', filters.type);
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }
 
+export type PartnerPayload = Omit<Partial<Partner>, 'retentionRate' | 'creditLimit'> & {
+  /** El API espera números: `retentionRate`/`creditLimit` llegan como texto del formulario. */
+  retentionRate?: number;
+  creditLimit?: number;
+};
+
 export const partnersApi = {
   list: async (filters: PartnerFilters = {}) => {
-    const partners = await apiClient.get<Partner[]>(`/partners${buildSearchQuery(filters.search)}`);
+    const partners = await apiClient.get<Partner[]>(`/partners${buildQuery(filters)}`);
     const filtered = filters.type
-      ? partners.filter(partner => partner.type === filters.type)
+      ? partners.filter(partner => matchesPartnerType(partner.type, filters.type))
       : partners;
     const page = filters.page ?? 1;
     const limit = filters.limit ?? Math.max(filtered.length, 1);
@@ -26,8 +34,8 @@ export const partnersApi = {
     };
   },
   get: (id: string) => apiClient.get<Partner>(`/partners/${id}`),
-  create: (data: Partial<Partner>) => apiClient.post<Partner>('/partners', data),
-  update: (id: string, data: Partial<Partner>) => apiClient.patch<Partner>(`/partners/${id}`, data),
+  create: (data: PartnerPayload) => apiClient.post<Partner>('/partners', data),
+  update: (id: string, data: PartnerPayload) => apiClient.patch<Partner>(`/partners/${id}`, data),
   remove: (id: string) => apiClient.delete<{ message: string }>(`/partners/${id}`),
   statement: (id: string, range: { from?: string; to?: string } = {}) => {
     const params = new URLSearchParams();

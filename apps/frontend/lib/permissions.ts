@@ -63,6 +63,9 @@ export const PERMISSIONS = {
     TREASURY: {
       VIEW: 'finance:treasury:view',
       CREATE_ACCOUNT: 'finance:treasury:create_account',
+      RECONCILE: 'finance:treasury:reconcile',
+      PETTY_CASH: 'finance:treasury:petty-cash',
+      DAILY_CLOSE: 'finance:treasury:daily-close',
     },
     PAYMENTS: {
       VIEW: 'finance:payments:view',
@@ -72,7 +75,7 @@ export const PERMISSIONS = {
     RETENTIONS: { VIEW: 'finance:retentions:view' },
     CREDIT_NOTES: { VIEW: 'finance:credit-notes:view', MANAGE: 'finance:credit-notes:manage' },
     LOANS: { VIEW: 'finance:loans:view', MANAGE: 'finance:loans:manage' },
-    PAYABLES: { VIEW: 'finance:invoices:view' },
+    PAYABLES: { VIEW: 'finance:payables:view' },
     REPORTS: { VIEW: 'finance:reports:view' },
     ACCOUNTS: { VIEW: 'finance:accounts:view', MANAGE: 'finance:accounts:manage' },
     ENTRIES: {
@@ -121,6 +124,7 @@ export const PERMISSIONS = {
     BANKS: { VIEW: 'settings:banks:view', MANAGE: 'settings:banks:manage' },
     CURRENCIES: { VIEW: 'settings:currencies:view', MANAGE: 'settings:currencies:manage' },
     TAXES: { VIEW: 'settings:taxes:view', MANAGE: 'settings:taxes:manage' },
+    AUDIT: { VIEW: 'settings:audit:view', EXPORT: 'settings:audit:export' },
   },
 } as const;
 

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/index.js",
-  "types": "src/index.ts",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.build.json --noEmit",
@@ -19,6 +19,7 @@
     "db:seed:prod": "tsx src/scripts/run-seed.ts prod",
     "db:seed:test": "tsx src/scripts/run-seed.ts test",
     "db:reset": "tsx src/scripts/reset.ts",
+    "db:verify": "tsx src/scripts/_verify-integrity.ts",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
@@ -38,7 +39,8 @@
     "bcryptjs": "^3.0.3",
     "drizzle-kit": "0.31.11",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "vitest": "^5.0.5",
+    "@typescript/native": "npm:typescript@7.0.2"
   }
 }

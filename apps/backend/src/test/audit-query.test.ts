@@ -104,4 +104,68 @@ describe('Auditoría paginada (T-07-01)', () => {
     expect(Array.isArray(rows)).toBe(true);
     expect(rows).toHaveLength(3);
   });
+
+  it('busca por texto libre en descripción, documento y actor', async () => {
+    const prefix = `T${faker.string.numeric(6)}`;
+    await testDb.insert(auditLogs).values({
+      entityTable: 'payments',
+      entityId: faker.string.uuid(),
+      action: 'POST',
+      module: 'treasury',
+      actorName: `${prefix} Ana Pérez`,
+      actorEmail: `${prefix.toLowerCase()}@empresa.com`,
+      documentCode: `${prefix}-PAY-9`,
+      description: `${prefix} publicó el pago ${prefix}-PAY-9`,
+    } as never);
+
+    const byDescription = await audit.findPaginated({ q: `${prefix} publicó` }, 1, 10);
+    expect(byDescription.total).toBe(1);
+
+    const byActor = await audit.findPaginated({ q: `${prefix} Ana` }, 1, 10);
+    expect(byActor.total).toBe(1);
+
+    const byDocument = await audit.findPaginated({ q: `${prefix}-PAY-9` }, 1, 10);
+    expect(byDocument.total).toBe(1);
+  });
+
+  it('filtra por módulo y por resultado', async () => {
+    const prefix = `T${faker.string.numeric(6)}`;
+    await testDb.insert(auditLogs).values({
+      entityTable: 'payments',
+      entityId: faker.string.uuid(),
+      action: 'POST',
+      module: 'treasury',
+      result: 'DENIED',
+      documentCode: `${prefix}-DENIED`,
+      description: `${prefix} intento denegado`,
+    } as never);
+
+    const byModule = await audit.findPaginated({ module: 'treasury' }, 1, 100);
+    expect(byModule.total).toBeGreaterThan(0);
+    expect(byModule.data.every(row => row.module === 'treasury')).toBe(true);
+
+    const denied = await audit.findPaginated({ result: 'DENIED', documentCode: prefix }, 1, 10);
+    expect(denied.total).toBe(1);
+  });
+
+  it('devuelve facetas con conteo para los filtros del visor', async () => {
+    const prefix = `T${faker.string.numeric(6)}`;
+    await testDb.insert(auditLogs).values({
+      entityTable: 'invoices',
+      entityId: faker.string.uuid(),
+      action: 'VOID',
+      module: 'billing',
+      actorName: `${prefix} Luis`,
+      documentCode: `${prefix}-FAC`,
+      description: `${prefix} anuló la factura`,
+    } as never);
+
+    const facets = await audit.facets({ q: prefix });
+
+    expect(facets.modules).toContainEqual(expect.objectContaining({ value: 'billing', count: 1 }));
+    expect(facets.actions).toContainEqual(expect.objectContaining({ value: 'VOID', count: 1 }));
+    expect(facets.actors).toContainEqual(
+      expect.objectContaining({ name: `${prefix} Luis`, count: 1 })
+    );
+  });
 });

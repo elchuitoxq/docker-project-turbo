@@ -35,11 +35,13 @@ import {
   ReopenPeriodDto,
 } from './dto/accounting.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { DeactivatedResponseDto } from '../../common/dto/api-response.dto';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('accounting')
+@ApiBearerAuth()
 @Controller('v1/accounting')
 export class AccountingController {
   constructor(private readonly accountingService: AccountingService) {}
@@ -125,9 +127,9 @@ export class AccountingController {
     summary: 'Delete an account',
     description: 'Desactiva la cuenta. Responde 409 si tiene movimientos o cuentas hijas (T-04-01)',
   })
-  @ApiResponse({ status: 200, description: 'Account deactivated' })
+  @ApiResponse({ status: 200, description: 'Account deactivated', type: DeactivatedResponseDto })
   @ApiResponse({ status: 409, description: 'La cuenta tiene movimientos o cuentas hijas' })
-  async deleteAccount(@Param('id') id: string): Promise<{ deleted: true; deactivated: true }> {
+  async deleteAccount(@Param('id') id: string): Promise<DeactivatedResponseDto> {
     return this.accountingService.deleteAccount(id);
   }
 
@@ -211,6 +213,7 @@ export class AccountingController {
   }
 
   @Get('entries/:id')
+  @RequirePermissions('finance:entries:view')
   @ApiOperation({
     summary: 'Get entry by ID',
     description: 'Retrieves a specific entry with its lines',
@@ -295,6 +298,7 @@ export class AccountingController {
   }
 
   @Post('entries/from-invoice/:invoiceId')
+  @RequirePermissions('finance:entries:create')
   @ApiOperation({
     summary: 'Create entry from invoice',
     description: 'Creates an accounting entry automatically from an invoice using accounting maps',
@@ -322,6 +326,7 @@ export class AccountingController {
   }
 
   @Post('entries/from-payment/:paymentId')
+  @RequirePermissions('finance:entries:create')
   @ApiOperation({
     summary: 'Create entry from payment',
     description: 'Creates an accounting entry automatically from a payment using accounting maps',
@@ -398,6 +403,7 @@ export class AccountingController {
   }
 
   @Post('maps/:id/apply/:transactionId')
+  @RequirePermissions('finance:accounts:manage')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Apply map to transaction',

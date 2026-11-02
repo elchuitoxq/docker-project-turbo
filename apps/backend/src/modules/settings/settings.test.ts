@@ -280,6 +280,44 @@ describe('Settings Module', () => {
 
         expect(result[0].source).toBe('MANUAL');
       });
+
+      it('omite la tasa de la moneda funcional (vale 1 contra sí misma)', async () => {
+        // Una fila vieja de VES (36,50) no debe exponerse como "tasa vigente" (S-15 M-8).
+        const baseRate = {
+          id: 'rate-ves',
+          currencyId: 'ves-id',
+          rate: '36.50',
+          date: new Date('2026-06-06T00:00:00.000Z'),
+          source: 'TEST',
+          currencyCode: 'VES',
+          currencyName: 'Venezuelan Bolivar',
+          currencySymbol: 'Bs',
+          isBase: true,
+        };
+        const usdRate = {
+          id: 'rate-usd',
+          currencyId: 'usd-id',
+          rate: '889.5754',
+          date: new Date('2026-10-31T00:00:00.000Z'),
+          source: 'BCV',
+          currencyCode: 'USD',
+          currencyName: 'US Dollar',
+          currencySymbol: '$',
+          isBase: false,
+        };
+
+        vi.mocked(db).select.mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue(makeAwaitable([baseRate, usdRate])),
+            }),
+          }),
+        } as any);
+
+        const result = await service.getLatestRates();
+
+        expect(result.map(rate => rate.currencyCode)).toEqual(['USD']);
+      });
     });
 
     describe('addRate', () => {

@@ -6,6 +6,7 @@ import { CalendarClock, Pencil, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,7 @@ import {
 import { usePayrollSettings, useUpdatePayrollSetting } from '@/modules/hr/hooks';
 import type { PayrollSetting } from '@/modules/hr/api';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 
 const SETTING_TYPES = ['PERCENT', 'NUMBER', 'MONEY', 'MONEY_USD'] as const;
 
@@ -50,9 +51,9 @@ function formatDate(value: string): string {
 }
 
 export default function PayrollSettingsPage() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canView = permissions.includes(PERMISSIONS.HR.SETTINGS.VIEW);
-  const canManage = permissions.includes(PERMISSIONS.HR.SETTINGS.MANAGE);
+  const { hasPermission } = usePermission();
+  const canView = hasPermission(PERMISSIONS.HR.SETTINGS.VIEW);
+  const canManage = hasPermission(PERMISSIONS.HR.SETTINGS.MANAGE);
 
   const [asOf, setAsOf] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -128,13 +129,7 @@ export default function PayrollSettingsPage() {
             <label className="text-muted-foreground text-xs" htmlFor="asOf">
               Vigentes al
             </label>
-            <Input
-              id="asOf"
-              type="date"
-              value={asOf}
-              onChange={event => setAsOf(event.target.value)}
-              className="w-40"
-            />
+            <DatePicker id="asOf" value={asOf} onChange={setAsOf} className="w-40" />
           </div>
           {canManage ? (
             <Button onClick={() => openDialog(null)}>
@@ -283,11 +278,13 @@ export default function PayrollSettingsPage() {
               </Field>
               <Field>
                 <FieldLabel htmlFor="effectiveFrom">Vigente desde</FieldLabel>
-                <Input
+                <DatePicker
                   id="effectiveFrom"
                   name="effectiveFrom"
-                  type="date"
+                  key={editing?.id ?? 'new'}
                   defaultValue={editing ? editing.effectiveFrom.slice(0, 10) : ''}
+                  placeholder="Hoy"
+                  clearable
                 />
                 <FieldDescription>Sin fecha se usa el día de hoy.</FieldDescription>
               </Field>

@@ -1,11 +1,20 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+/** Moneda funcional del sistema (decisión D-01 de `S-08`). */
+export const BASE_CURRENCY_CODE = 'VES';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency: 'USD' | 'VES' = 'USD') {
+/**
+ * Formatea un monto en su moneda.
+ *
+ * El código es **obligatorio** a propósito: con un valor por defecto toda la app pintaba los montos
+ * en USD aunque el documento estuviera en VES (`T-09-01` de `S-09`).
+ */
+export function formatMoney(amount: number, currency: string) {
   return new Intl.NumberFormat('es-VE', {
     style: 'currency',
     currency,
@@ -14,20 +23,19 @@ export function formatCurrency(amount: number, currency: 'USD' | 'VES' = 'USD') 
 }
 
 /**
- * Monto en las dos monedas (`T-08-12`): el documento manda y la otra moneda se calcula con la tasa.
+ * Monto en las dos monedas (`T-08-12`): el documento manda y su equivalente en moneda funcional se
+ * calcula con la tasa **del documento**.
  *
- * Con una tasa inválida devuelve sólo el monto original: es preferible un importe a un `Infinity`.
+ * La moneda funcional no se duplica: si el documento ya está en base, el monto es el mismo y repetirlo
+ * como "equivalente" haría creer que se convirtió algo. Con una tasa inválida se muestra sólo el monto
+ * original: es preferible un importe a un `Infinity`.
  */
-export function formatDual(amount: number, currency: 'USD' | 'VES', rate: number) {
-  const primary = formatCurrency(amount, currency);
+export function formatDual(amount: number, currency: string, rate: number) {
+  const primary = formatMoney(amount, currency);
+  if (currency === BASE_CURRENCY_CODE) return primary;
   if (!Number.isFinite(rate) || rate <= 0) return primary;
 
-  const secondary =
-    currency === 'USD'
-      ? formatCurrency(amount * rate, 'VES')
-      : formatCurrency(amount / rate, 'USD');
-
-  return `${primary} · ${secondary}`;
+  return `${primary} · ${formatMoney(amount * rate, BASE_CURRENCY_CODE)}`;
 }
 
 export function formatDate(date: Date | string) {
@@ -56,4 +64,26 @@ export function formatDay(value: string | null | undefined) {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date(year, month - 1, day));
+}
+
+/**
+ * Fecha y hora local (`30/10/2026, 14:32`).
+ *
+ * La usa el histórico de procesos: ahí el orden de los pasos importa, así que dos acciones del mismo
+ * día no pueden verse iguales. Una fecha inválida se muestra tal cual llegó en vez de "Invalid Date".
+ */
+export function formatDateTime(value: Date | string | null | undefined) {
+  if (!value) return '—';
+
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return typeof value === 'string' ? value : '—';
+
+  return new Intl.DateTimeFormat('es-VE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
 }

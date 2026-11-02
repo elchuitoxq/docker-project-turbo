@@ -12,6 +12,13 @@ x-app: &app
     JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-0123456789abcdef0123456789abcdef}
     CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     SEED_ENV: development
+    # Tasa oficial: página de BCV que lee el cron y umbrales de la guarda de cordura (S-15).
+    BCV_API_URL: ${BCV_API_URL:-https://www.bcv.org.ve/seccionportal/tipo-de-cambio-oficial-del-bcv}
+    EXCHANGE_RATE_SYNC_ENABLED: ${EXCHANGE_RATE_SYNC_ENABLED:-true}
+    # Bloqueo diario de lotes vencidos (S-26).
+    INVENTORY_EXPIRY_BLOCK_ENABLED: ${INVENTORY_EXPIRY_BLOCK_ENABLED:-true}
+    EXCHANGE_RATE_MAX_AGE_HOURS: ${EXCHANGE_RATE_MAX_AGE_HOURS:-24}
+    EXCHANGE_RATE_MAX_VARIATION_PCT: ${EXCHANGE_RATE_MAX_VARIATION_PCT:-20}
 
 services:
   postgres:

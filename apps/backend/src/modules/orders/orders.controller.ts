@@ -30,10 +30,12 @@ import {
 } from './dto/orders.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('orders')
+@ApiBearerAuth()
 @Controller('v1/orders')
 @RequirePermissions('operations:orders:view')
 export class OrdersController {
@@ -107,7 +109,7 @@ export class OrdersController {
     @Param('id') id: string,
     @CurrentBranch() branchId: string
   ): Promise<OrderResponseDto> {
-    return this.ordersService.findOne(id, branchId);
+    return this.ordersService.findOneWithHistory(id, branchId);
   }
 
   @RequirePermissions('operations:orders:create')
@@ -127,9 +129,10 @@ export class OrdersController {
   })
   async create(
     @Body() createOrderDto: CreateOrderDto,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: { id: string }
   ): Promise<OrderResponseDto> {
-    return this.ordersService.create(createOrderDto, branchId);
+    return this.ordersService.create(createOrderDto, branchId, user?.id);
   }
 
   @RequirePermissions('operations:orders:edit')
@@ -159,9 +162,10 @@ export class OrdersController {
   async update(
     @Param('id') id: string,
     @Body() updateOrderDto: UpdateOrderDto,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: { id: string }
   ): Promise<OrderResponseDto> {
-    return this.ordersService.update(id, updateOrderDto, branchId);
+    return this.ordersService.update(id, updateOrderDto, branchId, user?.id);
   }
 
   @RequirePermissions('operations:orders:approve')
@@ -191,9 +195,10 @@ export class OrdersController {
   })
   async confirm(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: { id: string }
   ): Promise<ConfirmOrderResponseDto> {
-    return this.ordersService.confirm(id, branchId);
+    return this.ordersService.confirm(id, branchId, user?.id);
   }
 
   @RequirePermissions('operations:orders:edit')
@@ -223,9 +228,10 @@ export class OrdersController {
   })
   async cancel(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: { id: string }
   ): Promise<CancelOrderResponseDto> {
-    return this.ordersService.cancel(id, branchId);
+    return this.ordersService.cancel(id, branchId, user?.id);
   }
 
   @RequirePermissions('operations:orders:approve')
@@ -243,6 +249,14 @@ export class OrdersController {
   @ApiResponse({
     status: 200,
     description: 'Invoice generation initiated',
+    schema: {
+      example: {
+        message: 'Invoice generated from order',
+        orderId: '550e8400-e29b-41d4-a716-446655440011',
+        invoiceId: '550e8400-e29b-41d4-a716-446655440000',
+        invoiceCode: 'FAC-000124',
+      },
+    },
   })
   @ApiResponse({
     status: 404,
@@ -254,8 +268,9 @@ export class OrdersController {
   })
   async invoice(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
-  ): Promise<{ message: string; orderId: string }> {
-    return this.ordersService.invoice(id, branchId);
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: { id: string }
+  ): Promise<{ message: string; orderId: string; invoiceId: string; invoiceCode: string }> {
+    return this.ordersService.invoice(id, branchId, user?.id);
   }
 }

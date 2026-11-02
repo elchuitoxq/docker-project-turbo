@@ -11,6 +11,7 @@ import {
   Max,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PARTNER_TYPES, type PartnerType } from '../partner-type';
 
 export class CreatePartnerDto {
   @ApiProperty({
@@ -53,13 +54,13 @@ export class CreatePartnerDto {
   phone?: string;
 
   @ApiPropertyOptional({
-    description: 'Partner type',
-    enum: ['CUSTOMER', 'VENDOR'],
+    description: 'Partner type: customer, vendor or both',
+    enum: PARTNER_TYPES,
     example: 'CUSTOMER',
   })
   @IsOptional()
-  @IsEnum(['CUSTOMER', 'VENDOR'])
-  type?: 'CUSTOMER' | 'VENDOR';
+  @IsEnum(PARTNER_TYPES)
+  type?: PartnerType;
 
   @ApiPropertyOptional({
     description: 'Taxpayer type',
@@ -160,13 +161,13 @@ export class UpdatePartnerDto {
   phone?: string;
 
   @ApiPropertyOptional({
-    description: 'Partner type',
-    enum: ['CUSTOMER', 'VENDOR'],
+    description: 'Partner type: customer, vendor or both',
+    enum: PARTNER_TYPES,
     example: 'VENDOR',
   })
   @IsOptional()
-  @IsEnum(['CUSTOMER', 'VENDOR'])
-  type?: 'CUSTOMER' | 'VENDOR';
+  @IsEnum(PARTNER_TYPES)
+  type?: PartnerType;
 
   @ApiPropertyOptional({
     description: 'Taxpayer type',
@@ -262,11 +263,11 @@ export class PartnerResponseDto {
   phone: string | null;
 
   @ApiProperty({
-    description: 'Partner type',
-    enum: ['CUSTOMER', 'VENDOR'],
+    description: 'Partner type: customer, vendor or both',
+    enum: PARTNER_TYPES,
     example: 'CUSTOMER',
   })
-  type: 'CUSTOMER' | 'VENDOR';
+  type: PartnerType;
 
   @ApiProperty({
     description: 'Taxpayer type',

@@ -5,8 +5,8 @@ import { Plus, Search, LayoutGrid, List, Filter } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { ListFilters } from '@/components/list/list-table';
 import {
   Select,
   SelectContent,
@@ -113,62 +113,60 @@ export function PartnersView() {
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Buscar por nombre o RIF…"
-                className="pl-8"
-              />
-            </div>
-            {isMobile ? (
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <Filter />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="h-auto">
-                  <SheetHeader>
-                    <SheetTitle>Filtros</SheetTitle>
-                    <SheetDescription>Refina la búsqueda</SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-4">
-                    <Select value={type} onValueChange={v => setType(v as PartnerType | 'ALL')}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ALL">Todos</SelectItem>
-                        <SelectItem value="CUSTOMER">Clientes</SelectItem>
-                        <SelectItem value="VENDOR">Proveedores</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            ) : (
-              <Select value={type} onValueChange={v => setType(v as PartnerType | 'ALL')}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">Todos los tipos</SelectItem>
-                  <SelectItem value="CUSTOMER">Clientes</SelectItem>
-                  <SelectItem value="VENDOR">Proveedores</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <ListFilters>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Buscar por nombre o RIF…"
+            className="pl-8"
+          />
+        </div>
+        {isMobile ? (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Filter />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="h-auto">
+              <SheetHeader>
+                <SheetTitle>Filtros</SheetTitle>
+                <SheetDescription>Refina la búsqueda</SheetDescription>
+              </SheetHeader>
+              <div className="mt-4">
+                <Select value={type} onValueChange={v => setType(v as PartnerType | 'ALL')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos</SelectItem>
+                    <SelectItem value="CUSTOMER">Clientes</SelectItem>
+                    <SelectItem value="VENDOR">Proveedores</SelectItem>
+                    <SelectItem value="BOTH">Clientes y proveedores</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <Select value={type} onValueChange={v => setType(v as PartnerType | 'ALL')}>
+            <SelectTrigger className="w-full sm:w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos los tipos</SelectItem>
+              <SelectItem value="CUSTOMER">Clientes</SelectItem>
+              <SelectItem value="VENDOR">Proveedores</SelectItem>
+              <SelectItem value="BOTH">Clientes y proveedores</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </ListFilters>
 
       <PartnersTable
         partners={partners}

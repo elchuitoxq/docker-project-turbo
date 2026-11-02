@@ -1,5 +1,30 @@
-export type PartnerType = 'CUSTOMER' | 'VENDOR';
+export type PartnerType = 'CUSTOMER' | 'VENDOR' | 'BOTH';
 export type TaxpayerType = 'ORDINARY' | 'SPECIAL';
+
+/**
+ * Clave de rol comercial para filtrar/consultar: un partner `BOTH` aparece tanto
+ * en clientes como en proveedores. `SUPPLIER` se acepta como alias historico.
+ */
+export type PartnerRole = 'CUSTOMER' | 'VENDOR';
+
+export function partnerHasRole(
+  type: PartnerType | string | null | undefined,
+  role: PartnerRole
+): boolean {
+  const normalized = (type ?? 'CUSTOMER').toUpperCase();
+  const resolved = normalized === 'SUPPLIER' ? 'VENDOR' : normalized;
+  return resolved === 'BOTH' || resolved === role;
+}
+
+/** Coincidencia con un filtro de tipo: los roles incluyen a los partners `BOTH`. */
+export function matchesPartnerType(
+  type: PartnerType | string | null | undefined,
+  filter?: PartnerType | 'ALL' | null
+): boolean {
+  if (!filter || filter === 'ALL') return true;
+  if (filter === 'BOTH') return (type ?? '').toUpperCase() === 'BOTH';
+  return partnerHasRole(type, filter);
+}
 
 export type Partner = {
   id: string;

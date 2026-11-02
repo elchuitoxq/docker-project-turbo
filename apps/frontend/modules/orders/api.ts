@@ -9,8 +9,10 @@ export type Invoice = {
   status: 'DRAFT' | 'POSTED' | 'VOID';
   total: string;
   tax: string;
-  currencyCode: string;
-  issueDate: string;
+  currencyId: string;
+  exchangeRate?: string;
+  /** Fecha de emisión (`invoices.date` en el backend). */
+  date: string;
   dueDate: string | null;
 };
 

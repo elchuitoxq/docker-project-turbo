@@ -68,21 +68,38 @@ bancarias en cripto, ni cobertura de riesgo cambiario.
 
 > **Regla de oro:** ningún documento se recalcula con la tasa de hoy. La tasa se **congela** al emitir.
 
+> **Cuidado con `total_base`:** en `invoices` es la **base imponible** (subtotal sin IVA) expresada en
+> la moneda del documento, no el monto en moneda funcional. En `payables` el campo homónimo sí es el
+> monto convertido a base. Para agregar facturas en moneda funcional hay que hacer
+> `total × exchangeRate`, no sumar `total_base` (ver `S-09` DEF-022).
+
 ## 5. Contrato HTTP
 
 ```
-GET    /v1/settings/currencies                 → monedas + cuál es la base (VES)
-GET    /v1/settings/currencies/:code/rate      → ?date= (histórico) · última validada
-POST   /v1/settings/currencies/:code/rate      → override manual { rate, date, reason } (auditado)
-GET    /v1/settings/currencies/:code/rates     → historial paginado
-POST   /v1/settings/currencies/refresh         → fuerza sincronización BCV (permiso admin)
-GET    /v1/health/rates                        → estado de la tasa (edad, fuente, última sincronización)
+GET    /v1/settings/currencies                     → monedas + cuál es la base (VES)
+GET    /v1/settings/currencies/rates/latest        → última tasa por moneda (con fuente)
+GET    /v1/settings/currencies/rates/:code          → ?date= (histórico) · última validada
+GET    /v1/settings/currencies/rates/:code/history  → historial paginado (?from&to&limit)
+POST   /v1/settings/currencies/rates                → override manual { currencyCode, rate, date, reason }
+POST   /v1/settings/currencies/refresh              → fuerza sincronización BCV (permiso de gestión)
+GET    /v1/health/rates                             → { baseCurrency, rate, date, source, ageHours, isStale }
 ```
 
+- La sincronización automática (cron 09:00 y 17:00 de `America/Caracas`, lunes a viernes) y el
+  contrato de `refresh` (`{ status: stored | unchanged | manual-override, rate, date, source }`) están
+  en [`S-15`](./S-15-sincronizacion-tasa-bcv.md).
+- **La moneda funcional no tiene tasa**: vale 1 contra sí misma. `rates/latest` no la incluye,
+  `/v1/health/rates` informa la tasa de la **moneda de referencia** (`referenceCurrency`, USD) y el
+  servicio rechaza guardarle una tasa. Cualquier fila histórica en VES se elimina con la migración
+  `0024`.
 - **Todo endpoint de reporte** (`/v1/reports/*`, estados financieros, libros fiscales, resumen de
   gestión) devuelve `base` y `usd` en el mismo payload, más `closingRate` y `closingRateDate`.
 - El antiguo `GET /v1/cron/trigger-bcv` **se retira**: mutaba estado por `GET` y no tenía permiso propio.
-- Permisos: `settings:currencies:view`, `settings:currencies:manage`, `settings:currencies:override`.
+- Permisos: `settings:currencies:view` (lectura) y `settings:currencies:manage` (alta de moneda,
+  override y refresh). El permiso `settings:currencies:override` que preveía esta spec **no existe**:
+  el override queda cubierto por `manage`, que sólo tienen ADMIN y SUPER_ADMIN.
+  Los `GET` de monedas y tasas no exigen permiso (maestros compartidos que se leen antes de elegir
+  sucursal, regla R5), así que el gate de lectura es de UI.
 - Errores: `409` si se intenta override con fecha ya cerrada contablemente · `422` si la tasa no pasa
   la validación de cordura (≤ 0 o variación diaria mayor al umbral configurado).
 
@@ -181,3 +198,24 @@ Escenario: override manual de tasa
 | Elegir mal la moneda funcional encarece todo después        | **Decisión D-01** documentada y aprobada antes de escribir código (T-08-01)     |
 | Asientos históricos sin moneda                              | Migración asume moneda base para lo existente y lo deja documentado             |
 | Conversión "a mano" en módulos nuevos                       | `MoneyService` único + regla de revisión: multiplicar montos es rechazo de PR   |
+
+## 11. Continuación
+
+La mecánica de cobro y pago sobre documentos multimoneda se cerró en
+[`S-18`](./S-18-multimoneda-imputacion.md): la cuenta bancaria manda la moneda del pago, la factura
+rebaja su saldo **en su propia moneda** y la diferencia contra la tasa congelada se registra por
+imputación y en el asiento. Esta spec fija la emisión y la tasa; `S-18` fija la cancelación.
+
+### 11.1 Tasa del fixture (2026-10-31)
+
+La semilla de desarrollo congelaba **36,50 Bs/USD**, un valor de hace años que dejaba toda cuenta por
+cobrar en divisa subvalorada frente a la tasa vigente (889,58). Ahora:
+
+- `FIXTURE_USD_RATE = 889.58` se aplica a las facturas, cobros y comprobantes de retención sembrados, y
+  la fila de `exchange_rates` lleva el mismo valor con `source = 'TEST'`.
+- La fecha de esa fila se ancla al **día local a medianoche UTC**. Con `setUTCHours(0)` puro, un usuario
+  en Caracas después de las 20:00 veía la tasa como "del futuro" (`-1 días`, vencida) y el gate de tasa
+  bloqueaba la emisión.
+- `seed-prod` deja de declarar USD como funcional y de guardar una tasa en VES (contradecía la decisión
+  D-01 y la regla del gate que prohíbe tasas en la moneda funcional): VES es funcional y USD lleva la
+  tasa.

@@ -9,8 +9,15 @@ import { Public } from '../../common/decorators/public.decorator';
 export class HealthController {
   @Get()
   @Public()
-  @ApiOperation({ summary: 'Health check (usado por Docker/CI)' })
-  @ApiResponse({ status: 200, description: 'Servicio y base de datos disponibles' })
+  @ApiOperation({
+    summary: 'Health check (usado por Docker/CI)',
+    description: 'Comprueba que el servicio responde y que la base de datos está disponible',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Servicio y base de datos disponibles',
+    schema: { example: { status: 'ok', database: 'up', uptime: 3600 } },
+  })
   @ApiResponse({ status: 503, description: 'Dependencia no disponible' })
   async check(): Promise<{ status: string; database: string; uptime: number }> {
     try {

@@ -20,6 +20,7 @@ import {
   UserResponseDto,
 } from './dto/user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { MessageResponseDto } from '../../common/dto/api-response.dto';
 import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
@@ -118,12 +119,13 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'User deleted successfully',
+    type: MessageResponseDto,
   })
   @ApiResponse({
     status: 404,
     description: 'User not found',
   })
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
+  async remove(@Param('id') id: string): Promise<MessageResponseDto> {
     return this.usersService.remove(id);
   }
 
@@ -154,7 +156,18 @@ export class UsersController {
   @Post(':id/branches')
   @HttpCode(HttpStatus.OK)
   @RequirePermissions('settings:users:manage')
+  @ApiOperation({
+    summary: 'Assign branches to a user',
+    description:
+      "Replaces the user's branch assignments and sets the default branch used when the x-branch-id header is omitted",
+  })
   @ApiBody({ type: AssignBranchesDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Branches assigned successfully',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
   async assignBranches(
     @Param('id') id: string,
     @Body() assignBranchesDto: AssignBranchesDto

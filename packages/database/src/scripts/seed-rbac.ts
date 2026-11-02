@@ -47,9 +47,17 @@ export const ALL_PERMISSIONS = [
   'finance:invoices:void',
   'finance:treasury:view',
   'finance:treasury:create_account',
+  // Operaciones de tesorería con permiso propio (S-09 §5 regla 6, S-14 D-08):
+  // conciliar, caja chica y cierre diario no se derivan de "crear cuenta bancaria".
+  'finance:treasury:reconcile',
+  'finance:treasury:petty-cash',
+  'finance:treasury:daily-close',
   'finance:payments:view',
   'finance:payments:create',
   'finance:payments:void',
+  // Cuentas por pagar es una pantalla de proveedores: no se deriva de "ver facturas de venta",
+  // porque el vendedor también ve facturas y no debe entrar al CxP (S-16 M-20).
+  'finance:payables:view',
   'finance:retentions:view',
   'finance:credit-notes:view',
   'finance:credit-notes:manage',
@@ -98,6 +106,10 @@ export const ALL_PERMISSIONS = [
   'settings:currencies:manage',
   'settings:taxes:view',
   'settings:taxes:manage',
+  // Bitácora de auditoría (T-07): leer y exportar tienen permisos propios. Antes el visor usaba
+  // `settings:users:view`, así que administrar usuarios daba acceso a la bitácora y viceversa.
+  'settings:audit:view',
+  'settings:audit:export',
 ];
 
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -112,9 +124,13 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'operations:partners:view',
     'operations:partners:create',
     'operations:partners:edit',
+    // Ve el estado de cuenta del tercero: es la pantalla que explica el saldo que el gerente cobra.
+    'operations:partners:statement',
     'operations:sales:view',
     'operations:sales:create',
     'operations:sales:edit',
+    // CxP necesita el origen: la factura de compra (S-09, D-04).
+    'operations:purchases:view',
     'operations:orders:view',
     'operations:orders:create',
     'operations:orders:edit',
@@ -123,23 +139,45 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'inventory:products:view',
     'inventory:products:create',
     'inventory:products:edit',
+    // Kardex: el gerente responde por el stock que vende (S-14 M-1).
+    'inventory:moves:view',
+    // Aprobador natural del ajuste que registra el almacén (S-14 M-2).
+    'inventory:moves:approve',
     'finance:view',
     'finance:invoices:view',
+    // Emite la factura de la venta que supervisa (S-09, D-03). Publicar es el paso fiscal de esa
+    // emisión: sin `:post` el MANAGER dejaba el borrador creado desde el pedido sin poder emitirlo.
+    'finance:invoices:create',
+    'finance:invoices:post',
+    // Corrige el borrador que él mismo crea: la API sólo permite editar DRAFT (S-14 M-3).
+    'finance:invoices:edit',
     'finance:treasury:view',
     'finance:treasury:create_account',
+    'finance:treasury:reconcile',
+    'finance:treasury:petty-cash',
+    'finance:treasury:daily-close',
     'finance:payments:view',
     'finance:payments:create',
+    'finance:payments:void',
+    'finance:payables:view',
     'finance:credit-notes:view',
     'finance:credit-notes:manage',
     'finance:loans:view',
     'finance:loans:manage',
+    // El registro fiscal de comprobantes es del contador: el gerente ve la retención en la ficha de
+    // la compra que paga, pero no administra el libro (`S-14` PROHIBIDOS).
+    // Reportes en moneda funcional con columna USD (S-09, D-07).
+    'finance:reports:view',
     'finance:accounts:view',
     'finance:entries:view',
     'finance:close:view',
     'settings:banks:view',
     'settings:taxes:view',
+    'settings:currencies:view',
     'hr:view',
     'hr:employees:view',
+    // El gerente responde por lo que pasa en su sucursal: consulta la bitácora, no la exporta.
+    'settings:audit:view',
   ],
   SELLER: [
     'dashboard:view',
@@ -175,14 +213,21 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'settings:branches:view',
     'operations:view',
     'operations:partners:view',
+    'operations:purchases:view',
     'inventory:view',
     'inventory:products:view',
     'finance:view',
     'finance:invoices:view',
     'finance:treasury:view',
     'finance:treasury:create_account',
+    // Concilia extractos, administra caja chica y cierra el día (S-14 D-08).
+    'finance:treasury:reconcile',
+    'finance:treasury:petty-cash',
+    'finance:treasury:daily-close',
     'finance:payments:view',
     'finance:payments:create',
+    'finance:payments:void',
+    'finance:payables:view',
     'finance:retentions:view',
     'finance:credit-notes:view',
     'finance:credit-notes:manage',
@@ -197,6 +242,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
     'finance:close:manage',
     'settings:banks:view',
     'settings:taxes:view',
+    'settings:currencies:view',
   ],
 };
 

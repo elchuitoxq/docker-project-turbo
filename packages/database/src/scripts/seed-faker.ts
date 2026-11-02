@@ -40,16 +40,16 @@ export async function seedFaker(options: SeedOptions = {}) {
   await seedCoreData();
 
   const [usd] = await db.select().from(currencies).where(eq(currencies.code, 'USD')).limit(1);
-  const [ves] = await db.select().from(currencies).where(eq(currencies.code, 'VES')).limit(1);
   const [branch] = await db.select().from(branches).limit(1);
   const [warehouse] = await db
     .insert(warehouses)
     .values({ branchId: branch.id, name: 'Almacén Principal' })
     .returning();
 
-  await db.insert(exchangeRates).values({ currencyId: ves.id, rate: '50.00', source: 'MANUAL' });
+  // La tasa va en la moneda de referencia (USD): la funcional (VES) vale 1 contra sí misma.
+  await db.insert(exchangeRates).values({ currencyId: usd.id, rate: '50.00', source: 'MANUAL' });
 
-  const partnerTypes = ['CUSTOMER', 'SUPPLIER', 'BOTH'] as const;
+  const partnerTypes = ['CUSTOMER', 'VENDOR', 'BOTH'] as const;
   const taxpayerTypes = ['ORDINARY', 'SPECIAL'] as const;
 
   console.log('Creating partners...');

@@ -35,18 +35,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { branchesApi, type Branch, type Company } from '@/modules/branches/api';
-import { useAuthStore } from '@/stores/use-auth-store';
 import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 export default function BranchesPage() {
   const queryClient = useQueryClient();
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canManageCompanies = permissions.includes(PERMISSIONS.SETTINGS.COMPANIES.MANAGE);
-  const canViewCompanies =
-    canManageCompanies || permissions.includes(PERMISSIONS.SETTINGS.COMPANIES.VIEW);
-  const canManageBranches = permissions.includes(PERMISSIONS.SETTINGS.BRANCHES.MANAGE);
-  const canViewBranches =
-    canManageBranches || permissions.includes(PERMISSIONS.SETTINGS.BRANCHES.VIEW);
+  const { hasPermission } = usePermission();
+  const canManageCompanies = hasPermission(PERMISSIONS.SETTINGS.COMPANIES.MANAGE);
+  const canViewCompanies = canManageCompanies || hasPermission(PERMISSIONS.SETTINGS.COMPANIES.VIEW);
+  const canManageBranches = hasPermission(PERMISSIONS.SETTINGS.BRANCHES.MANAGE);
+  const canViewBranches = canManageBranches || hasPermission(PERMISSIONS.SETTINGS.BRANCHES.VIEW);
   const [companyDialogOpen, setCompanyDialogOpen] = useState(false);
   const [branchDialogOpen, setBranchDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);

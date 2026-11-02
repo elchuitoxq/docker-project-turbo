@@ -23,6 +23,7 @@ type Props = {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  id?: string;
 };
 
 export function PartnerCombobox({
@@ -32,6 +33,7 @@ export function PartnerCombobox({
   placeholder = 'Seleccionar partner…',
   disabled,
   className,
+  id,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -47,6 +49,7 @@ export function PartnerCombobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsBoolean, IsOptional, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsIn, Min, Max } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTaxConceptDto {
@@ -43,6 +43,15 @@ export class CreateTaxConceptDto {
   @IsOptional()
   @IsNumber()
   sustraendo?: number;
+
+  @ApiPropertyOptional({
+    description: 'Unidad del sustraendo: BS (monto fijo) o UT (unidades tributarias)',
+    enum: ['BS', 'UT'],
+    default: 'BS',
+  })
+  @IsOptional()
+  @IsIn(['BS', 'UT'])
+  sustraendoUnit?: 'BS' | 'UT';
 
   @ApiPropertyOptional({
     description: 'Is concept enabled',
@@ -100,6 +109,15 @@ export class UpdateTaxConceptDto {
   sustraendo?: number;
 
   @ApiPropertyOptional({
+    description: 'Unidad del sustraendo: BS (monto fijo) o UT (unidades tributarias)',
+    enum: ['BS', 'UT'],
+    default: 'BS',
+  })
+  @IsOptional()
+  @IsIn(['BS', 'UT'])
+  sustraendoUnit?: 'BS' | 'UT';
+
+  @ApiPropertyOptional({
     description: 'Is concept enabled',
     example: true,
   })
@@ -144,6 +162,13 @@ export class TaxConceptResponseDto {
     example: 0,
   })
   sustraendo: number;
+
+  @ApiProperty({
+    description: 'Unidad del sustraendo',
+    enum: ['BS', 'UT'],
+    example: 'BS',
+  })
+  sustraendoUnit: 'BS' | 'UT';
 
   @ApiProperty({
     description: 'Is concept enabled',

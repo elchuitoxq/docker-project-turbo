@@ -23,7 +23,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { hrApi } from '@/modules/hr/api';
 import { usePayrollSettings } from '@/modules/hr/hooks';
-import { formatCurrency } from '@/lib/utils';
+import { formatMoney } from '@/lib/utils';
 import {
   GUIDE_ITEMS,
   computeIslr,
@@ -81,9 +81,9 @@ const KEY_LABELS: Record<string, string> = {
 
 function formatSettingValue(key: string, value: number): string {
   if (key.endsWith('_EMP') || key.endsWith('_PAT')) return `${formatPercent(value)} %`;
-  if (key === 'CESTATICKET_USD') return formatCurrency(value, 'USD');
+  if (key === 'CESTATICKET_USD') return formatMoney(value, 'USD');
   if (key === 'UNIDAD_TRIBUTARIA' || key === 'ISLR_DESCUENTO_UNICO')
-    return formatCurrency(value, 'VES');
+    return formatMoney(value, 'VES');
   return new Intl.NumberFormat('es-VE').format(value);
 }
 
@@ -229,7 +229,7 @@ export function PayrollGuideView() {
                       <p className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         <Calculator className="size-3.5" />
                         Tarifa vigente ({incomeTax.data?.brackets.length ?? 0} tramos · UT{' '}
-                        {incomeTax.data ? formatCurrency(incomeTax.data.utValue, 'VES') : '—'})
+                        {incomeTax.data ? formatMoney(incomeTax.data.utValue, 'VES') : '—'})
                       </p>
                       <div className="grid gap-1 text-xs sm:grid-cols-2">
                         {(incomeTax.data?.brackets ?? []).map(bracket => (
@@ -402,20 +402,20 @@ function PayrollSimulator({
               <span className="text-muted-foreground">{row.label}</span>
               <span className={row.negative ? 'tabular-nums text-destructive' : 'tabular-nums'}>
                 {row.negative ? '−' : ''}
-                {formatCurrency(Math.abs(row.value), 'VES')}
+                {formatMoney(Math.abs(row.value), 'VES')}
               </span>
             </div>
           ))}
           <Separator className="my-1" />
           <div className="flex items-center justify-between gap-2 font-medium">
             <span>Neto estimado</span>
-            <span className="tabular-nums">{formatCurrency(net, 'VES')}</span>
+            <span className="tabular-nums">{formatMoney(net, 'VES')}</span>
           </div>
         </div>
 
         <p className="text-[11px] leading-snug text-muted-foreground">
           Estimación con la tabla vigente, el descuento único configurado y los conceptos marcados
-          como desgravables ({formatCurrency(desgravado, 'VES')} al mes). No incluye otros
+          como desgravables ({formatMoney(desgravado, 'VES')} al mes). No incluye otros
           desgravámenes ni conceptos del recibo.
         </p>
       </CardContent>

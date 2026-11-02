@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { db } from '../../../database';
 
@@ -15,10 +16,25 @@ import {
   currencies,
   exchangeRates,
   products,
+  branches,
+  warehouses,
+  orders,
+  users,
+  payments,
+  paymentAllocations,
+  creditNotes,
+  taxRetentions,
+  taxRetentionLines,
 } from '../../../schema';
-import { eq, and, desc, inArray, like, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNotNull, like, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { SupplierRetentionService } from '../purchasing/supplier-retention.service';
+import { computeInvoiceBalance } from '../purchasing/invoice-balance';
+import { isIssuedInvoiceStatus } from '../issued-status';
+import { isCustomerType } from '../../partners/partner-type';
+import { DocumentEventsService } from '../../documents/document-events.service';
+import { AccountingService } from '../../accounting/accounting.service';
+import { MoneyService } from '../../../common/money/money.service';
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
@@ -34,8 +50,14 @@ const IGTF_RATE = 0.03;
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
+  private readonly money = new MoneyService();
+
   constructor(
-    private readonly retentions: SupplierRetentionService = new SupplierRetentionService()
+    private readonly retentions: SupplierRetentionService = new SupplierRetentionService(),
+    private readonly events: DocumentEventsService = new DocumentEventsService(),
+    // Asiento fiscal de la factura con su desglose de IVA e IGTF (S-19).
+    private readonly accounting: AccountingService = new AccountingService()
   ) {}
 
   /**
@@ -119,6 +141,50 @@ export class BillingService {
     return parseFloat(rate.rate);
   }
 
+  /** Tasa vigente por id de moneda (la más reciente). La moneda base no entra: vale 1. */
+  private async getRatesById(): Promise<Map<string, number>> {
+    const rows = await db
+      .select({ currencyId: exchangeRates.currencyId, rate: exchangeRates.rate })
+      .from(exchangeRates)
+      .orderBy(desc(exchangeRates.date));
+
+    const rates = new Map<string, number>();
+    for (const row of rows) {
+      if (!rates.has(row.currencyId)) rates.set(row.currencyId, parseFloat(row.rate));
+    }
+    return rates;
+  }
+
+  /**
+   * Convierte un monto a la moneda del documento con la tasa del documento.
+   *
+   * Un producto cuyo costo está en divisa y una factura en moneda funcional no pueden guardar la
+   * línea con el costo sin convertir: el margen por línea quedaría mezclando dos monedas.
+   */
+  private toDocumentCurrency(params: {
+    amount: number;
+    fromCurrencyId: string | null | undefined;
+    documentCurrencyId: string;
+    documentRate: number;
+    baseCurrencyId: string;
+    rates: Map<string, number>;
+    label: string;
+  }): number {
+    const { amount, fromCurrencyId, documentCurrencyId, documentRate } = params;
+    if (!fromCurrencyId || fromCurrencyId === documentCurrencyId) return amount;
+
+    const fromRate =
+      fromCurrencyId === params.baseCurrencyId ? 1 : params.rates.get(fromCurrencyId);
+    if (!fromRate) {
+      throw new BadRequestException(
+        `No hay tasa registrada para ${params.label}: regístrala antes de emitir el documento`
+      );
+    }
+
+    const base = this.money.toBase(amount, fromRate);
+    return Number(this.money.round(this.money.fromBase(base.toString(), documentRate)));
+  }
+
   private calculateInvoiceTotals(
     items: { quantity: number; price: number; taxRate?: number; isExempt?: boolean }[],
     applyIgtf: boolean,
@@ -185,7 +251,21 @@ export class BillingService {
       });
     }
 
-    return invoicesWithItems;
+    return this.withPartnerNames(invoicesWithItems);
+  }
+
+  /** Añade el nombre del tercero al listado: la UI muestra partner, no UUID. */
+  private async withPartnerNames(rows: InvoiceResponseDto[]): Promise<InvoiceResponseDto[]> {
+    const partnerIds = [...new Set(rows.map(row => row.partnerId).filter(Boolean))];
+    if (partnerIds.length === 0) return rows;
+
+    const partnerRows = await db
+      .select({ id: partners.id, name: partners.name })
+      .from(partners)
+      .where(inArray(partners.id, partnerIds));
+    const names = new Map(partnerRows.map(row => [row.id, row.name]));
+
+    return rows.map(row => ({ ...row, partnerName: names.get(row.partnerId) ?? null }));
   }
 
   /**
@@ -238,20 +318,219 @@ export class BillingService {
 
     const items = await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id));
 
+    const [partner] = await db
+      .select({ name: partners.name })
+      .from(partners)
+      .where(eq(partners.id, invoice.partnerId))
+      .limit(1);
+
+    const detail = await this.withDocumentDetail(invoice);
+
     return {
       ...invoice,
+      ...detail,
+      partnerName: partner?.name ?? null,
+      // La tasa se expone numérica: el documento la congela y la UI la multiplica, no la compara como texto.
+      exchangeRate: invoice.exchangeRate === null ? null : Number(invoice.exchangeRate),
       totalBase: parseFloat(String(invoice.totalBase)),
       totalTax: parseFloat(String(invoice.totalTax)),
       totalIgtf: parseFloat(String(invoice.totalIgtf)),
       total: parseFloat(String(invoice.total)),
-      items: items.map(item => ({
-        ...item,
-        quantity: parseFloat(String(item.quantity)),
-        price: parseFloat(String(item.price)),
-        taxRate: parseFloat(String(item.taxRate)),
-        total: parseFloat(String(item.total)),
+      items: await this.withProductNames(
+        items.map(item => ({
+          ...item,
+          quantity: parseFloat(String(item.quantity)),
+          price: parseFloat(String(item.price)),
+          taxRate: parseFloat(String(item.taxRate)),
+          total: parseFloat(String(item.total)),
+        }))
+      ),
+    };
+  }
+
+  /**
+   * Ficha de la factura con su histórico de procesos (`S-12`).
+   *
+   * Se expone aparte de `findOne`: las llamadas internas (crear, editar, emitir, anular) no necesitan
+   * el histórico y no deben pagar sus consultas.
+   */
+  async findOneWithHistory(id: string, branchId?: string): Promise<InvoiceResponseDto> {
+    const invoice = await this.findOne(id, branchId);
+
+    return { ...invoice, history: await this.events.forInvoice(invoice.id) };
+  }
+
+  /**
+   * Datos de la ficha del documento (`S-10`).
+   *
+   * Sólo se resuelven en el detalle: el listado no necesita moneda, pagos ni saldo, y cargarlos ahí
+   * multiplicaría las consultas por fila. Todo se resuelve en lote con `inArray`.
+   */
+  private async withDocumentDetail(
+    invoice: typeof invoices.$inferSelect
+  ): Promise<
+    Pick<
+      InvoiceResponseDto,
+      | 'currencyCode'
+      | 'branchName'
+      | 'warehouseName'
+      | 'orderCode'
+      | 'createdByName'
+      | 'daysOverdue'
+      | 'settlement'
+      | 'payments'
+      | 'creditNotes'
+      | 'retentions'
+    >
+  > {
+    const [currency] = await db
+      .select({ code: currencies.code })
+      .from(currencies)
+      .where(eq(currencies.id, invoice.currencyId))
+      .limit(1);
+
+    const [branch] = await db
+      .select({ name: branches.name })
+      .from(branches)
+      .where(eq(branches.id, invoice.branchId))
+      .limit(1);
+
+    const [warehouse] = invoice.warehouseId
+      ? await db
+          .select({ name: warehouses.name })
+          .from(warehouses)
+          .where(eq(warehouses.id, invoice.warehouseId))
+          .limit(1)
+      : [];
+
+    const [order] = invoice.orderId
+      ? await db
+          .select({ code: orders.code })
+          .from(orders)
+          .where(eq(orders.id, invoice.orderId))
+          .limit(1)
+      : [];
+
+    const [author] = invoice.userId
+      ? await db
+          .select({ name: users.name })
+          .from(users)
+          .where(eq(users.id, invoice.userId))
+          .limit(1)
+      : [];
+
+    const balance = await computeInvoiceBalance(invoice.id);
+
+    const paymentRows = await db
+      .select({
+        id: payments.id,
+        code: payments.code,
+        date: payments.date,
+        amount: payments.amount,
+        exchangeRate: payments.exchangeRate,
+        status: payments.status,
+        reference: payments.reference,
+        currencyCode: currencies.code,
+      })
+      .from(paymentAllocations)
+      .innerJoin(payments, eq(payments.id, paymentAllocations.paymentId))
+      .leftJoin(currencies, eq(currencies.id, payments.currencyId))
+      .where(eq(paymentAllocations.invoiceId, invoice.id));
+
+    const noteRows = await db
+      .select({
+        id: creditNotes.id,
+        code: creditNotes.code,
+        total: creditNotes.total,
+        status: creditNotes.status,
+      })
+      .from(creditNotes)
+      .where(eq(creditNotes.invoiceId, invoice.id));
+
+    const retentionRows = await db
+      .select({
+        id: taxRetentions.id,
+        code: taxRetentions.code,
+        type: taxRetentions.type,
+        totalBase: taxRetentions.totalBase,
+        totalRetained: taxRetentions.totalRetained,
+        voucherNumber: taxRetentions.voucherNumber,
+        date: taxRetentions.date,
+      })
+      .from(taxRetentions)
+      .where(eq(taxRetentions.invoiceId, invoice.id));
+
+    return {
+      currencyCode: currency?.code ?? null,
+      branchName: branch?.name ?? null,
+      warehouseName: warehouse?.name ?? null,
+      orderCode: order?.code ?? null,
+      createdByName: author?.name ?? null,
+      daysOverdue: this.daysOverdue(invoice.dueDate),
+      settlement: balance
+        ? {
+            total: balance.total,
+            paid: balance.paid,
+            credited: balance.credited,
+            retained: balance.retained,
+            settled: balance.settled,
+            balance: balance.balance,
+          }
+        : undefined,
+      payments: paymentRows.map(row => ({
+        id: row.id,
+        code: row.code,
+        date: row.date,
+        amount: parseFloat(String(row.amount)),
+        exchangeRate: row.exchangeRate === null ? null : Number(row.exchangeRate),
+        status: row.status,
+        reference: row.reference ?? null,
+        currencyCode: row.currencyCode ?? null,
+      })),
+      creditNotes: noteRows.map(row => ({
+        id: row.id,
+        code: row.code,
+        total: parseFloat(String(row.total)),
+        status: row.status,
+      })),
+      retentions: retentionRows.map(row => ({
+        id: row.id,
+        code: row.code,
+        type: row.type,
+        totalBase: parseFloat(String(row.totalBase)),
+        totalRetained: parseFloat(String(row.totalRetained)),
+        voucherNumber: row.voucherNumber,
+        date: row.date,
       })),
     };
+  }
+
+  /** Días vencidos; 0 si no hay vencimiento o todavía no venció. */
+  private daysOverdue(dueDate: Date | null): number {
+    if (!dueDate) return 0;
+    const diff = Date.now() - new Date(dueDate).getTime();
+    if (diff <= 0) return 0;
+    return Math.floor(diff / 86_400_000);
+  }
+
+  /** SKU y nombre de cada producto de la factura, en una sola consulta. */
+  private async withProductNames(
+    items: InvoiceItemResponseDto[]
+  ): Promise<InvoiceItemResponseDto[]> {
+    const productIds = [...new Set(items.map(item => item.productId))];
+    if (productIds.length === 0) return items;
+
+    const rows = await db
+      .select({ id: products.id, sku: products.sku, name: products.name })
+      .from(products)
+      .where(inArray(products.id, productIds));
+    const byId = new Map(rows.map(row => [row.id, row]));
+
+    return items.map(item => ({
+      ...item,
+      productSku: byId.get(item.productId)?.sku ?? null,
+      productName: byId.get(item.productId)?.name ?? null,
+    }));
   }
 
   async create(
@@ -261,6 +540,10 @@ export class BillingService {
   ): Promise<InvoiceResponseDto> {
     // La sucursal validada por el guard manda sobre lo que venga en el body.
     const invoiceBranchId = branchId ?? createInvoiceDto.branchId;
+
+    if (!invoiceBranchId) {
+      throw new BadRequestException('La factura necesita una sucursal activa (x-branch-id)');
+    }
 
     const [partner] = await db
       .select()
@@ -293,18 +576,35 @@ export class BillingService {
     const productMap = new Map(productRecords.map(p => [p.id, p]));
 
     // M6: el IGTF depende de la moneda, no de la magnitud de la tasa.
-    const applyIgtf = partner.type === 'CUSTOMER' && isForeignCurrency;
+    const applyIgtf = isCustomerType(partner.type) && isForeignCurrency;
+
+    const rates = await this.getRatesById();
+    const toDoc = (amount: number, fromCurrencyId: string | null | undefined, label: string) =>
+      this.toDocumentCurrency({
+        amount,
+        fromCurrencyId,
+        documentCurrencyId: currencyId,
+        documentRate: exchangeRate,
+        baseCurrencyId: baseCurrency.id,
+        rates,
+        label,
+      });
 
     const itemCalculations = createInvoiceDto.items.map(item => {
       const product = productMap.get(item.productId);
       const isExempt = product?.isExempt || false;
       const taxRate = item.taxRate ?? (product?.taxRate ? parseFloat(product.taxRate) : 16);
+      // El precio llega en la moneda del documento salvo que el cliente declare otra.
+      const price = item.priceCurrencyId
+        ? toDoc(item.price, item.priceCurrencyId, 'la moneda del precio')
+        : item.price;
 
       return {
         ...item,
         isExempt,
         taxRate,
-        total: item.quantity * item.price,
+        price,
+        total: item.quantity * price,
       };
     });
 
@@ -358,7 +658,15 @@ export class BillingService {
           productId: item.productId,
           quantity: String(item.quantity),
           price: String(item.price),
-          cost: productMap.get(item.productId)?.cost || null,
+          cost: productMap.get(item.productId)?.cost
+            ? String(
+                toDoc(
+                  Number(productMap.get(item.productId)?.cost),
+                  productMap.get(item.productId)?.currencyId ?? baseCurrency.id,
+                  'el costo del producto'
+                )
+              )
+            : null,
           taxRate: String(item.taxRate),
           total: String(item.total),
         })
@@ -373,6 +681,30 @@ export class BillingService {
       });
     }
 
+    await this.events.record({
+      documentType: 'INVOICE',
+      documentId: newInvoice.id,
+      documentCode: newInvoice.code,
+      // La factura nacida de un pedido arrastra su cadena: así el histórico se lee completo.
+      parentDocumentId: newInvoice.orderId ?? null,
+      action: 'INVOICE_CREATED',
+      toStatus: InvoiceStatus.DRAFT,
+      description:
+        createInvoiceDto.orderId !== undefined
+          ? 'Generada desde un pedido'
+          : `${newInvoice.type === 'PURCHASE' ? 'Compra' : 'Venta'} · ${
+              itemCalculations.length
+            } línea${itemCalculations.length === 1 ? '' : 's'}`,
+      metadata: {
+        total: totals.total,
+        items: itemCalculations.length,
+        exchangeRate,
+        orderId: createInvoiceDto.orderId ?? null,
+      },
+      userId: userId ?? null,
+      branchId: invoiceBranchId,
+    });
+
     return {
       ...newInvoice,
       totalBase: totals.totalBase,
@@ -386,7 +718,8 @@ export class BillingService {
   async update(
     id: string,
     updateInvoiceDto: UpdateInvoiceDto,
-    branchId?: string
+    branchId?: string,
+    userId?: string
   ): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
@@ -413,7 +746,7 @@ export class BillingService {
       .where(eq(partners.id, updateInvoiceDto.partnerId || invoice.partnerId))
       .limit(1);
 
-    const applyIgtf = partner?.type === 'CUSTOMER' && isForeignCurrency;
+    const applyIgtf = isCustomerType(partner?.type) && isForeignCurrency;
 
     if (updateInvoiceDto.items) {
       await db.delete(invoiceItems).where(eq(invoiceItems.invoiceId, id));
@@ -425,16 +758,32 @@ export class BillingService {
           : [];
       const productMap = new Map(productRecords.map(p => [p.id, p]));
 
+      const rates = await this.getRatesById();
+      const toDoc = (amount: number, fromCurrencyId: string | null | undefined, label: string) =>
+        this.toDocumentCurrency({
+          amount,
+          fromCurrencyId,
+          documentCurrencyId: invoice.currencyId,
+          documentRate: exchangeRate,
+          baseCurrencyId: baseCurrency.id,
+          rates,
+          label,
+        });
+
       const itemCalculations = updateInvoiceDto.items.map(item => {
         const product = productMap.get(item.productId);
         const isExempt = product?.isExempt || false;
         const taxRate = item.taxRate ?? (product?.taxRate ? parseFloat(product.taxRate) : 16);
+        const price = item.priceCurrencyId
+          ? toDoc(item.price, item.priceCurrencyId, 'la moneda del precio')
+          : item.price;
 
         return {
           ...item,
           isExempt,
           taxRate,
-          total: item.quantity * item.price,
+          price,
+          total: item.quantity * price,
         };
       });
 
@@ -461,17 +810,83 @@ export class BillingService {
           productId: item.productId,
           quantity: String(item.quantity),
           price: String(item.price),
-          cost: productMap.get(item.productId)?.cost || null,
+          cost: productMap.get(item.productId)?.cost
+            ? String(
+                toDoc(
+                  Number(productMap.get(item.productId)?.cost),
+                  productMap.get(item.productId)?.currencyId ?? baseCurrency.id,
+                  'el costo del producto'
+                )
+              )
+            : null,
           taxRate: String(item.taxRate),
           total: String(item.total),
         });
       }
+    } else if (updateInvoiceDto.exchangeRate !== undefined) {
+      // Sin líneas nuevas los precios no cambian: sólo se recalculan IVA, IGTF y totales con la tasa
+      // corregida, que es lo que se ajusta en un borrador.
+      const storedItems = await db
+        .select()
+        .from(invoiceItems)
+        .where(eq(invoiceItems.invoiceId, id));
+
+      const storedProducts =
+        storedItems.length > 0
+          ? await db
+              .select()
+              .from(products)
+              .where(
+                inArray(
+                  products.id,
+                  storedItems.map(item => item.productId)
+                )
+              )
+          : [];
+
+      const totals = this.calculateInvoiceTotals(
+        storedItems.map(item => ({
+          quantity: parseFloat(String(item.quantity)),
+          price: parseFloat(String(item.price)),
+          taxRate: parseFloat(String(item.taxRate ?? 0)),
+          isExempt:
+            storedProducts.find(product => product.id === item.productId)?.isExempt ?? false,
+        })),
+        applyIgtf,
+        exchangeRate
+      );
+
+      await db
+        .update(invoices)
+        .set({
+          exchangeRate: String(exchangeRate),
+          totalBase: String(totals.totalBase),
+          totalTax: String(totals.totalTax),
+          totalIgtf: String(totals.totalIgtf),
+          total: String(totals.total),
+          updatedAt: new Date(),
+        })
+        .where(eq(invoices.id, id));
     }
+
+    await this.events.record({
+      documentType: 'INVOICE',
+      documentId: id,
+      documentCode: invoice.code,
+      parentDocumentId: invoice.orderId ?? null,
+      action: 'INVOICE_UPDATED',
+      fromStatus: invoice.status,
+      toStatus: invoice.status,
+      description: `Campos: ${Object.keys(updateInvoiceDto).join(', ')}`,
+      metadata: { fields: Object.keys(updateInvoiceDto) },
+      userId: userId ?? null,
+      branchId: invoice.branchId,
+    });
 
     return this.findOne(id);
   }
 
-  async post(id: string, branchId?: string): Promise<InvoiceResponseDto> {
+  async post(id: string, branchId?: string, userId?: string): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
     if (!invoice || (branchId && invoice.branchId !== branchId)) {
@@ -496,6 +911,29 @@ export class BillingService {
       await this.retentions.retainInvoice(invoice.id);
     }
 
+    // Asiento de la factura con desglose de IVA/IGTF (`S-19`). Si el plan de cuentas o el período no
+    // lo permiten, se avisa y la emisión sigue: el documento fiscal no puede quedar bloqueado por la
+    // contabilidad, y el asiento se puede regenerar desde `POST /v1/accounting/entries/from-invoice`.
+    await this.accounting
+      .createEntryFromInvoice(invoice.id, userId)
+      .catch((error: Error) =>
+        this.logger.warn(`No se pudo contabilizar la factura ${invoice.code}: ${error.message}`)
+      );
+
+    await this.events.record({
+      documentType: 'INVOICE',
+      documentId: id,
+      documentCode: invoice.code,
+      parentDocumentId: invoice.orderId ?? null,
+      action: 'INVOICE_POSTED',
+      fromStatus: invoice.status,
+      toStatus: InvoiceStatus.POSTED,
+      description: invoice.invoiceNumber ? `Folio fiscal ${invoice.invoiceNumber}` : null,
+      metadata: { folio: invoice.invoiceNumber ?? null },
+      userId: userId ?? null,
+      branchId: invoice.branchId,
+    });
+
     return this.findOne(id);
   }
 
@@ -517,7 +955,12 @@ export class BillingService {
     return new Date(issue.getTime() + creditDays * 24 * 60 * 60 * 1000);
   }
 
-  async void(id: string, branchId?: string): Promise<InvoiceResponseDto> {
+  async void(
+    id: string,
+    branchId?: string,
+    userId?: string,
+    reason?: string
+  ): Promise<InvoiceResponseDto> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
 
     if (!invoice || (branchId && invoice.branchId !== branchId)) {
@@ -535,6 +978,52 @@ export class BillingService {
       );
     }
 
+    // Una nota de crédito vigente contra una factura anulada es un crédito huérfano: seguiría
+    // restando en el libro fiscal y en el saldo del tercero. Se anula primero la nota.
+    const [activeNote] = await db
+      .select({ code: creditNotes.code })
+      .from(creditNotes)
+      .where(and(eq(creditNotes.invoiceId, id), inArray(creditNotes.status, ['POSTED', 'APPLIED'])))
+      .limit(1);
+
+    if (activeNote) {
+      throw new ConflictException(
+        `La factura tiene la nota de crédito ${activeNote.code} vigente: anula la nota antes de anular la factura`
+      );
+    }
+
+    // Regla 2 de `S-04`: un período contable cerrado no admite más movimientos, y anular es uno.
+    await this.accounting.assertPeriodOpen(invoice.date ?? new Date(), invoice.branchId);
+
+    // Retenciones emitidas por la compra: si no respaldan ningún pago, se van con la factura; si ya
+    // se aplicaron a un pago, primero hay que anular ese pago para no dejar el comprobante huérfano.
+    const retentions = await db
+      .select({ id: taxRetentions.id, code: taxRetentions.code })
+      .from(taxRetentions)
+      .where(eq(taxRetentions.invoiceId, id));
+
+    if (retentions.length > 0) {
+      const retentionIds = retentions.map(row => row.id);
+      const [used] = await db
+        .select({ id: taxRetentionLines.id })
+        .from(taxRetentionLines)
+        .where(
+          and(
+            inArray(taxRetentionLines.retentionId, retentionIds),
+            isNotNull(taxRetentionLines.paymentId)
+          )
+        )
+        .limit(1);
+
+      if (used) {
+        throw new ConflictException(
+          'La compra tiene retenciones aplicadas a un pago: anula el pago antes de anular la factura'
+        );
+      }
+
+      await db.delete(taxRetentions).where(inArray(taxRetentions.id, retentionIds));
+    }
+
     await db
       .update(invoices)
       .set({
@@ -543,19 +1032,47 @@ export class BillingService {
       })
       .where(eq(invoices.id, id));
 
+    // Anular el documento anula su asiento: si quedara vigente, el ingreso y el IVA seguirían en el
+    // mayor con la factura anulada (`S-19`).
+    await this.accounting
+      .cancelEntryBySource('INVOICE', id, userId)
+      .catch((error: Error) =>
+        this.logger.warn(
+          `No se pudo anular el asiento de la factura ${invoice.code}: ${error.message}`
+        )
+      );
+
+    await this.events.record({
+      documentType: 'INVOICE',
+      documentId: id,
+      documentCode: invoice.code,
+      parentDocumentId: invoice.orderId ?? null,
+      action: 'INVOICE_VOIDED',
+      fromStatus: invoice.status,
+      toStatus: InvoiceStatus.VOID,
+      description: reason?.trim() ? `Factura anulada: ${reason.trim()}` : 'Factura anulada',
+      metadata: {
+        reason: reason?.trim() || null,
+        retentionsRemoved: retentions.map(row => row.code),
+      },
+      userId: userId ?? null,
+      branchId: invoice.branchId,
+    });
+
     return this.findOne(id);
   }
 
-  async getStats(branchId: string): Promise<InvoiceStatsDto> {
+  async getStats(branchId: string, type?: string): Promise<InvoiceStatsDto> {
     const conditions = [eq(invoices.branchId, branchId)];
+    // La pantalla de ventas y la de compras muestran sus propias cifras: sin este filtro los KPI
+    // mezclaban facturas de venta con facturas de proveedor (S-16).
 
-    const allInvoices =
-      conditions.length > 0
-        ? await db
-            .select()
-            .from(invoices)
-            .where(and(...conditions))
-        : await db.select().from(invoices);
+    if (type) conditions.push(eq(invoices.type, type));
+
+    const allInvoices = await db
+      .select()
+      .from(invoices)
+      .where(and(...conditions));
 
     let totalAmount = 0;
     let draftCount = 0;
@@ -564,19 +1081,35 @@ export class BillingService {
     let voidCount = 0;
 
     for (const inv of allInvoices) {
-      totalAmount += parseFloat(String(inv.total));
+      // "Emitida" es todo documento que ya salió del borrador y no está anulado: POSTED, PAID y
+      // PARTIAL suman al total facturado. Antes se sumaban también los borradores y las anuladas,
+      // así que el KPI no cuadraba con los documentos vigentes (`S-16` M-15).
+      const status = inv.status as string;
+      const isIssued = isIssuedInvoiceStatus(status);
 
-      switch (inv.status) {
+      if (isIssued) {
+        // Se suma en moneda funcional: sumar `total` de facturas en monedas distintas da un número
+        // que no significa nada (regla 5 de `S-08`). Ojo: `total_base` es la base imponible del
+        // documento, no el monto en moneda funcional.
+        const rate = parseFloat(String(inv.exchangeRate ?? 1)) || 1;
+        totalAmount += parseFloat(String(inv.total)) * rate;
+      }
+
+      switch (status) {
         case InvoiceStatus.DRAFT:
           draftCount++;
           break;
         case InvoiceStatus.POSTED:
+        case 'PARTIAL':
           postedCount++;
           break;
         case InvoiceStatus.PAID:
           paidCount++;
+          postedCount++;
           break;
+        // `CANCELLED` quedó en documentos de semillas antiguas: es una anulada más.
         case InvoiceStatus.VOID:
+        case 'CANCELLED':
           voidCount++;
           break;
       }

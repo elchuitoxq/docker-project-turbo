@@ -10,6 +10,7 @@ import {
   Users,
   Settings as SettingsIcon,
   LayoutDashboard,
+  BookOpen,
   Search,
   Star,
   type LucideIcon,
@@ -45,6 +46,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Banknote,
   Users,
   Settings: SettingsIcon,
+  BookOpen,
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {

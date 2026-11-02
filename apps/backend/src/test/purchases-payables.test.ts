@@ -7,8 +7,9 @@ import {
   createTestCurrency,
   createTestInvoice,
   createTestPartner,
+  ensureTestUser,
 } from './factories';
-import { creditNotes, invoices, payments, taxRetentions } from '../schema';
+import { creditNotes, invoices, taxRetentions } from '../schema';
 import { BillingService } from '../modules/billing/services/billing.service';
 import { PayablesService } from '../modules/billing/purchasing/payables.service';
 import { SupplierRetentionService } from '../modules/billing/purchasing/supplier-retention.service';
@@ -26,8 +27,6 @@ const billing = new BillingService();
 const payables = new PayablesService();
 const retentions = new SupplierRetentionService();
 const treasury = new TreasuryService(new MoneyService());
-
-const TEST_USER_ID = faker.string.uuid();
 
 async function purchaseScenario(
   options: { taxBase?: number; taxRate?: number; special?: boolean } = {}
@@ -242,12 +241,7 @@ describe('Pago a proveedor (T-03-06)', () => {
   it('un pago parcial deja la factura en PARTIAL y descuenta el saldo', async () => {
     const { branch, invoice, partner, currency } = await postedPurchase();
 
-    const [method] = await testDb.select().from(payments).limit(0);
-
-    void method;
-
-    // Se toma un método existente del seed de la empresa de la sucursal.
-    const methodId = await firstMethodId();
+    const methodId = await offlineMethodId(branch.id);
 
     const payment = await treasury.create(
       {
@@ -260,7 +254,7 @@ describe('Pago a proveedor (T-03-06)', () => {
         type: 'EXPENSE' as never,
         allocations: [{ invoiceId: invoice.id, amount: 500 }],
       },
-      TEST_USER_ID
+      (await ensureTestUser()).id
     );
 
     expect(payment).toBeDefined();
@@ -278,7 +272,7 @@ describe('Pago a proveedor (T-03-06)', () => {
 
   it('rechaza asignaciones que superan el pago', async () => {
     const { branch, invoice, partner, currency } = await postedPurchase();
-    const methodId = await firstMethodId();
+    const methodId = await offlineMethodId(branch.id);
 
     await expect(
       treasury.create(
@@ -292,14 +286,14 @@ describe('Pago a proveedor (T-03-06)', () => {
           type: 'EXPENSE' as never,
           allocations: [{ invoiceId: invoice.id, amount: 500 }],
         },
-        TEST_USER_ID
+        (await ensureTestUser()).id
       )
     ).rejects.toThrow(/superan el importe/);
   });
 
   it('rechaza un pago mayor al saldo de la factura', async () => {
     const { branch, invoice, currency, partner } = await postedPurchase();
-    const methodId = await firstMethodId();
+    const methodId = await offlineMethodId(branch.id);
 
     // El saldo es 1.040 (1.160 − 120 de retención): asignar 1.100 viola la regla 4 de `S-03`.
     await expect(
@@ -314,14 +308,14 @@ describe('Pago a proveedor (T-03-06)', () => {
           type: 'EXPENSE' as never,
           allocations: [{ invoiceId: invoice.id, amount: 1_100 }],
         },
-        TEST_USER_ID
+        (await ensureTestUser()).id
       )
     ).rejects.toThrow(/supera el saldo de la factura/);
   });
 
   it('pagar el neto deja la factura en PAID', async () => {
     const { branch, invoice, currency, partner } = await postedPurchase();
-    const methodId = await firstMethodId();
+    const methodId = await offlineMethodId(branch.id);
 
     await treasury.create(
       {
@@ -334,7 +328,7 @@ describe('Pago a proveedor (T-03-06)', () => {
         type: 'EXPENSE' as never,
         allocations: [{ invoiceId: invoice.id, amount: 1_040 }],
       },
-      TEST_USER_ID
+      (await ensureTestUser()).id
     );
 
     const [updated] = await testDb.select().from(invoices).where(eq(invoices.id, invoice.id));
@@ -385,12 +379,20 @@ describe('Regla 5: no se anula una factura con pagos', () => {
   });
 });
 
-/** Primer método de pago disponible en la base de pruebas. */
-async function firstMethodId(): Promise<string> {
+/**
+ * Método de pago que **no** afecta el saldo bancario: la regla `S-18` exige cuenta bancaria —y de su
+ * misma moneda— cuando el método sí lo afecta, y estas pruebas validan el saldo de la factura.
+ */
+async function offlineMethodId(branchId: string): Promise<string> {
   const { paymentMethods } = await import('../schema');
-  const [method] = await testDb.select().from(paymentMethods).limit(1);
-
-  if (!method) throw new Error('La base de pruebas no tiene métodos de pago');
+  const [method] = await testDb
+    .insert(paymentMethods)
+    .values({
+      code: `CXP${faker.string.alphanumeric(8).toUpperCase()}`,
+      name: 'Pago sin cuenta',
+      branchId,
+    })
+    .returning();
 
   return method.id;
 }

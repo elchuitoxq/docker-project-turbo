@@ -9,19 +9,19 @@
 
 ## Resumen
 
-| Área               | Estado observado                                                               | Evidencia / límite                                                                                                                            |
-| ------------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Monorepo           | Configurado con pnpm y Turborepo                                               | `package.json`, `pnpm-workspace.yaml`, `turbo.json`                                                                                           |
-| Database           | Esquema Drizzle con moneda funcional, sucursal obligatoria y 21 migraciones    | `schema.ts`, `drizzle/0000…0020`; rollback por migración en [`DATABASE.md`](./DATABASE.md)                                                    |
-| Pruebas PostgreSQL | Entorno aislado separado para `testdb_database` y `testdb_backend`             | [`DATABASE-TESTING.md`](./DATABASE-TESTING.md); 962 backend + 39 database verdes                                                              |
-| Backend            | 22 controladores; autenticación JWT por cookie httpOnly y guards globales      | `ThrottlerGuard → JwtAuthGuard → PermissionsGuard → BranchContextGuard`; 12 controladores declaran `@RequirePermissions`                      |
-| RBAC               | Seis roles de sistema con permisos verificados por rol                         | `seed-rbac.ts` declara 87 permisos; prueba de cobertura en `src/test/permissions-coverage.test.ts`                                            |
-| Frontend           | Módulos de operaciones, inventario, finanzas, RR. HH., contabilidad y reportes | 164 pruebas; navegación y permisos sincronizados en `lib/navigation.ts` y `lib/permissions.ts`                                                |
-| Multimoneda        | Moneda funcional VES, monto dual y bloqueo por tasa vencida                    | `lib/rates.ts`, `components/finance/stale-rate-gate.tsx`; E2E `stale-rate.spec.ts`                                                            |
-| Aislamiento        | Probado en servicio, HTTP y navegador                                          | `src/test/branch-isolation.test.ts` + E2E `branch-isolation.spec.ts` sobre el build de producción                                             |
-| Plan               | **100 de 100 tareas del WBS**                                                  | [`sdd/04-plan-de-tareas.md`](./sdd/04-plan-de-tareas.md); pendientes legales en `⚠️ P-28`                                                     |
-| Nómina legal       | ISLR del Art. 50 aplicándose y guía interactiva de parámetros                  | `payroll/income-tax.ts`, `income_tax_brackets`, `/dashboard/settings/payroll-guide`; [`10-PARAMETROS-LEGALES.md`](./10-PARAMETROS-LEGALES.md) |
-| Graphify           | Informe estático generado el 2026-06-10                                        | `graphify-out/GRAPH_REPORT.md`; no usar como verificación actual                                                                              |
+| Área               | Estado observado                                                               | Evidencia / límite                                                                                                                                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo           | Configurado con pnpm y Turborepo                                               | `package.json`, `pnpm-workspace.yaml`, `turbo.json`                                                                                                                                                                                                                           |
+| Database           | Esquema Drizzle con moneda funcional, sucursal obligatoria y 21 migraciones    | `schema.ts`, `drizzle/0000…0020`; rollback por migración en [`DATABASE.md`](./DATABASE.md)                                                                                                                                                                                    |
+| Pruebas PostgreSQL | Entorno aislado separado para `testdb_database` y `testdb_backend`             | [`DATABASE-TESTING.md`](./DATABASE-TESTING.md); 962 backend + 39 database verdes                                                                                                                                                                                              |
+| Backend            | 22 controladores; autenticación JWT por cookie httpOnly y guards globales      | `ThrottlerGuard → JwtAuthGuard → PermissionsGuard → BranchContextGuard`; toda ruta de módulo declara `@RequirePermissions` salvo las abiertas por diseño (`auth`, `health`, perfil propio y lectura de monedas)                                                               |
+| RBAC               | Seis roles de sistema con permisos verificados por rol                         | `seed-rbac.ts` declara 87 permisos; `src/test/permissions-coverage.test.ts` valida que ninguna ruta quede sin permiso y que los códigos existan en el catálogo                                                                                                                |
+| Frontend           | Módulos de operaciones, inventario, finanzas, RR. HH., contabilidad y reportes | 174 pruebas; navegación y permisos sincronizados en `lib/navigation.ts` y `lib/permissions.ts`; `AuthGuard` deriva el permiso de la ruta y redirige a `/forbidden`, y cada acción de escritura usa `usePermission`/`PermissionsGate` con el mismo código que exige el backend |
+| Multimoneda        | Moneda funcional VES, monto dual y bloqueo por tasa vencida                    | `lib/rates.ts`, `components/finance/stale-rate-gate.tsx`; E2E `stale-rate.spec.ts`                                                                                                                                                                                            |
+| Aislamiento        | Probado en servicio, HTTP y navegador                                          | `src/test/branch-isolation.test.ts` + E2E `branch-isolation.spec.ts` sobre el build de producción                                                                                                                                                                             |
+| Plan               | **100 de 100 tareas del WBS**                                                  | [`sdd/04-plan-de-tareas.md`](./sdd/04-plan-de-tareas.md); pendientes legales en `⚠️ P-28`                                                                                                                                                                                     |
+| Nómina legal       | ISLR del Art. 50 aplicándose y guía interactiva de parámetros                  | `payroll/income-tax.ts`, `income_tax_brackets`, `/dashboard/settings/payroll-guide`; [`10-PARAMETROS-LEGALES.md`](./10-PARAMETROS-LEGALES.md)                                                                                                                                 |
+| Graphify           | Informe estático generado el 2026-06-10                                        | `graphify-out/GRAPH_REPORT.md`; no usar como verificación actual                                                                                                                                                                                                              |
 
 ## Seeds de desarrollo y pruebas RBAC
 
@@ -51,8 +51,10 @@ El flujo de pruebas sigue aislado: `pnpm db:seed:test` exige
 `DATABASE_TEST_URL` local validada para `testdb_database` y la usa como
 `DATABASE_URL`, sin permitir que la conexión de desarrollo cambie el destino.
 
-Esto habilita probar la autenticación y visibilidad de UI por permiso. No
-certifica autorización backend ni aislamiento por sucursal en todos los módulos.
+Esto habilita probar la autenticación y visibilidad de UI por permiso. La
+autorización backend se verifica con `src/test/permissions-coverage.test.ts`:
+toda ruta de módulo declara `@RequirePermissions` (o figura en la lista de
+rutas abiertas por diseño) y cada código existe en el catálogo de la seed.
 
 ## Resultados previos del entorno aislado
 
@@ -144,11 +146,14 @@ procedimiento, manejo de errores y cuentas de login, consultar
 
 ## Próximos bloqueos funcionales
 
-1. Implementar y probar autorización backend por rol/permisos; hoy los permisos
-   de la sesión alimentan principalmente el gating del frontend.
+1. ~~Implementar y probar autorización backend por rol/permisos~~ — **resuelto**:
+   los guards son globales y el test de cobertura falla si una ruta queda sin
+   `@RequirePermissions`.
 2. Alinear contratos completos de Orders y Billing, incluido método de update,
    filtros, estados y respuestas.
 3. Acordar la forma final del estado de cuenta y rango de fechas.
-4. Mantener sincronizados el catálogo frontend de permisos y la seed RBAC.
+4. ~~Mantener sincronizados el catálogo frontend de permisos y la seed RBAC~~ —
+   **cubierto** por `lib/permissions.test.ts`, que compara `PERMISSIONS` contra
+   `ALL_PERMISSIONS` de la seed.
 5. Revalidar los indicadores históricos de `PROGRESS.md` con pruebas/ejecución
    reproducibles, sin inferir completitud solo por tener controlador o pantalla.

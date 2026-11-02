@@ -1,11 +1,14 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BiService, KpiResult, ChartResult, ActivityResult, MonthlyData } from './bi.service';
+import { ActivityResultDto, KpiResultDto, MonthlyDataDto } from './dto/bi.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('bi')
+@ApiBearerAuth()
 @Controller('v1/bi')
 @RequirePermissions('dashboard:view')
 export class BiController {
@@ -20,9 +23,10 @@ export class BiController {
   @ApiResponse({
     status: 200,
     description: 'Dashboard KPIs',
+    type: KpiResultDto,
   })
-  async getKpis(): Promise<KpiResult> {
-    return this.biService.getKpis();
+  async getKpis(@CurrentBranch() branchId: string): Promise<KpiResult> {
+    return this.biService.getKpis(branchId);
   }
 
   @Get('chart')
@@ -45,13 +49,15 @@ export class BiController {
   @ApiResponse({
     status: 200,
     description: 'Monthly chart data',
+    type: [MonthlyDataDto],
   })
   async getChartData(
+    @CurrentBranch() branchId: string,
     @Query('type') type: 'sales' | 'payments',
     @Query('year') year?: string
   ): Promise<MonthlyData[]> {
     const selectedYear = year ? parseInt(year, 10) : new Date().getFullYear();
-    return this.biService.getChartData(type, selectedYear);
+    return this.biService.getChartData(type, selectedYear, branchId);
   }
 
   @Get('activity')
@@ -62,8 +68,9 @@ export class BiController {
   @ApiResponse({
     status: 200,
     description: 'Recent activity data',
+    type: ActivityResultDto,
   })
-  async getActivity(): Promise<ActivityResult> {
-    return this.biService.getActivity();
+  async getActivity(@CurrentBranch() branchId: string): Promise<ActivityResult> {
+    return this.biService.getActivity(branchId);
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { partnersApi } from '../api';
+import { toast } from 'sonner';
+import { partnersApi, type PartnerPayload } from '../api';
 import type { Partner, PartnerFilters, PartnerStatement } from '../types';
 
 export const partnersKeys = {
@@ -29,21 +30,23 @@ export function usePartner(id: string | null) {
 export function useCreatePartner() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Partner>) => partnersApi.create(data),
+    mutationFn: (data: PartnerPayload) => partnersApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: partnersKeys.all });
     },
+    onError: error => toast.error(error.message),
   });
 }
 
 export function useUpdatePartner(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Partner>) => partnersApi.update(id, data),
+    mutationFn: (data: PartnerPayload) => partnersApi.update(id, data),
     onSuccess: data => {
       qc.invalidateQueries({ queryKey: partnersKeys.all });
       qc.setQueryData(partnersKeys.detail(id), data);
     },
+    onError: error => toast.error(error.message),
   });
 }
 

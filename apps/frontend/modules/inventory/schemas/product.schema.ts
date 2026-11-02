@@ -5,6 +5,8 @@ export const productSchema = z.object({
   name: z.string().min(1, 'Requerido').max(255),
   description: z.string().max(1000).optional().or(z.literal('')),
   categoryId: z.string().uuid().optional().or(z.literal('')),
+  /** Moneda del costo y del precio maestros; vacío = moneda funcional. */
+  currencyId: z.string().uuid().optional().or(z.literal('')),
   cost: z.coerce.number().min(0).default(0),
   price: z.coerce.number().min(0).default(0),
   isExempt: z.boolean().default(false),

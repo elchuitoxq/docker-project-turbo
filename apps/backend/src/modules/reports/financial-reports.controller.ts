@@ -1,6 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { FinancialReportsService } from './financial-reports.service';
+import {
+  BalanceSheetReportDto,
+  IncomeStatementReportDto,
+  TrialBalanceReportDto,
+} from './dto/financial-reports.dto';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
@@ -9,6 +14,7 @@ import { RequirePermissions } from '../../common/decorators/require-permissions.
  * reportes fiscales (`/v1/reports/fiscal`), que tienen otro consumidor y otro formato.
  */
 @ApiTags('reports')
+@ApiBearerAuth()
 @Controller('v1/reports')
 export class FinancialReportsController {
   constructor(private readonly reports: FinancialReportsService) {}
@@ -21,7 +27,11 @@ export class FinancialReportsController {
   })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Balance de comprobación' })
+  @ApiResponse({
+    status: 200,
+    description: 'Balance de comprobación',
+    type: TrialBalanceReportDto,
+  })
   async trialBalance(
     @CurrentBranch() branchId: string,
     @Query('from') from?: string,
@@ -37,7 +47,7 @@ export class FinancialReportsController {
     description: 'Activo, pasivo, patrimonio y resultado acumulado hasta la fecha',
   })
   @ApiQuery({ name: 'date', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Balance general' })
+  @ApiResponse({ status: 200, description: 'Balance general', type: BalanceSheetReportDto })
   async balanceSheet(@CurrentBranch() branchId: string, @Query('date') date?: string) {
     return this.reports.balanceSheet(branchId, date);
   }
@@ -50,7 +60,11 @@ export class FinancialReportsController {
   })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Estado de resultados' })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado de resultados',
+    type: IncomeStatementReportDto,
+  })
   async incomeStatement(
     @CurrentBranch() branchId: string,
     @Query('from') from?: string,

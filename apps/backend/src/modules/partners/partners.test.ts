@@ -115,6 +115,18 @@ describe('PartnersService', () => {
 
       expect(result).toHaveLength(1);
     });
+
+    it('should apply a role filter when a type is provided', async () => {
+      const where = vi.fn().mockReturnValue(makeAwaitable([mockPartner]));
+      vi.mocked(db).select.mockReturnValue({
+        from: vi.fn().mockReturnValue({ where }),
+      } as any);
+
+      const result = await service.findAll(undefined, 'CUSTOMER');
+
+      expect(where).toHaveBeenCalled();
+      expect(result).toHaveLength(1);
+    });
   });
 
   describe('findOne', () => {
@@ -806,6 +818,26 @@ describe('PartnersService', () => {
       expect(result.customer).toBe(3);
       expect(result.vendor).toBe(0);
       expect(result.total).toBe(3);
+    });
+
+    it('should count BOTH partners as customer and vendor without duplicating total', async () => {
+      vi.mocked(db).select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          groupBy: vi.fn().mockReturnValue(
+            makeAwaitable([
+              { type: 'CUSTOMER', count: 10 },
+              { type: 'VENDOR', count: 5 },
+              { type: 'BOTH', count: 4 },
+            ])
+          ),
+        }),
+      } as any);
+
+      const result = await service.getStats();
+
+      expect(result.customer).toBe(14);
+      expect(result.vendor).toBe(9);
+      expect(result.total).toBe(19);
     });
 
     it('should handle uppercase type values', async () => {

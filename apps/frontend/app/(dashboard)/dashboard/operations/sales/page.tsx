@@ -6,7 +6,7 @@ export default function SalesPage() {
       type="SALE"
       title="Ventas"
       subtitle="Facturas de venta emitidas y borradores"
-      newHref="/dashboard/operations/sales"
+      detailBasePath="/dashboard/operations/sales"
     />
   );
 }

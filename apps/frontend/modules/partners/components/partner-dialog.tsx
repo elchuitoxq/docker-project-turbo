@@ -31,6 +31,8 @@ import {
 } from '../schemas/partner.schema';
 import type { Partner } from '../types';
 import { useCreatePartner, useUpdatePartner } from '../hooks/use-partners';
+import { useQuery } from '@tanstack/react-query';
+import { taxConceptsApi } from '@/modules/settings/tax-concepts/api';
 
 type Props = {
   open: boolean;
@@ -64,6 +66,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
       retentionRate: 0,
       isSpecialTaxpayer: false,
       creditLimit: 0,
+      islrConceptId: '',
     },
   });
 
@@ -80,6 +83,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
         retentionRate: Number(partner.retentionRate),
         isSpecialTaxpayer: partner.isSpecialTaxpayer,
         creditLimit: Number(partner.creditLimit),
+        islrConceptId: partner.islrConceptId ?? '',
       });
     } else {
       reset({
@@ -93,6 +97,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
         retentionRate: 0,
         isSpecialTaxpayer: false,
         creditLimit: 0,
+        islrConceptId: '',
       });
     }
   }, [partner, reset]);
@@ -100,16 +105,23 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
   const typeValue = useWatch({ control, name: 'type' });
   const taxpayerType = useWatch({ control, name: 'taxpayerType' });
   const isSpecialTaxpayer = useWatch({ control, name: 'isSpecialTaxpayer' });
+  const islrConceptId = useWatch({ control, name: 'islrConceptId' });
+
+  // Catálogo de conceptos de ISLR: clasifica al proveedor (`S-20`).
+  const concepts = useQuery({
+    queryKey: ['settings', 'tax-concepts'],
+    queryFn: taxConceptsApi.list,
+  });
+  const taxConcepts = (concepts.data ?? []).filter(concept => concept.isEnabled);
 
   const onSubmit = handleSubmit(async data => {
     try {
       const payload = {
         ...data,
-        retentionRate: String(data.retentionRate),
-        creditLimit: String(data.creditLimit),
         email: data.email || null,
         address: data.address || null,
         phone: data.phone || null,
+        islrConceptId: data.islrConceptId || null,
       };
       if (isEdit) {
         await update.mutateAsync(payload);
@@ -173,6 +185,7 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
                 <SelectContent>
                   <SelectItem value="CUSTOMER">Cliente</SelectItem>
                   <SelectItem value="VENDOR">Proveedor</SelectItem>
+                  <SelectItem value="BOTH">Cliente y proveedor</SelectItem>
                 </SelectContent>
               </Select>
             </Field>
@@ -225,6 +238,30 @@ export function PartnerDialog({ open, onOpenChange, partner }: Props) {
                 max={100}
                 {...register('retentionRate', { valueAsNumber: true })}
               />
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor="islrConceptId">Concepto de ISLR</FieldLabel>
+              <Select
+                value={islrConceptId || 'none'}
+                onValueChange={v => setValue('islrConceptId', v === 'none' ? '' : v)}
+              >
+                <SelectTrigger id="islrConceptId">
+                  <SelectValue placeholder="Sin concepto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin concepto</SelectItem>
+                  {taxConcepts.map(concept => (
+                    <SelectItem key={concept.id} value={concept.id}>
+                      {`${concept.code} · ${concept.name} (${concept.retentionPercentage} %)`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Clasifica al proveedor para la retención de ISLR. Se administra en Configuración →
+                Impuestos.
+              </p>
             </Field>
 
             <Field>

@@ -52,6 +52,19 @@ export class ApiPaginatedResponseDto<T> {
   meta: PaginationMetaDto;
 }
 
+export class MessageResponseDto {
+  @ApiProperty({ example: 'Operation completed successfully' })
+  message: string;
+}
+
+export class DeactivatedResponseDto {
+  @ApiProperty({ example: true })
+  deleted: boolean;
+
+  @ApiProperty({ example: true })
+  deactivated: boolean;
+}
+
 export class PaginationQueryDto {
   @ApiProperty({ required: false, default: 1, minimum: 1 })
   page?: number = 1;

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,12 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { loansApi, loanItemTotals, toLoanList, type Loan, type LoanStatus } from '../api';
 import { PartnerCombobox } from '@/modules/partners/components/partner-combobox';
+import { usePartners } from '@/modules/partners/hooks/use-partners';
+import { Combobox } from '@/components/ui/combobox';
+import { useProducts } from '@/modules/inventory/hooks/use-products';
 import { formatDay } from '@/lib/utils';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 const STATUS_LABEL: Record<LoanStatus, string> = {
   PENDING: 'Pendiente',
@@ -62,6 +68,9 @@ const STATUS_VARIANT: Record<LoanStatus, 'default' | 'secondary' | 'outline' | '
  */
 export function LoansView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.LOANS.MANAGE);
+  const canViewPartners = hasPermission(PERMISSIONS.OPERATIONS.PARTNERS.VIEW);
   const [status, setStatus] = React.useState<'ALL' | LoanStatus>('ALL');
   const [creating, setCreating] = React.useState(false);
   const [returning, setReturning] = React.useState<Loan | null>(null);
@@ -70,6 +79,17 @@ export function LoansView() {
     queryKey: ['loans', status],
     queryFn: () => loansApi.list(status === 'ALL' ? {} : { status }),
   });
+
+  // El listado sólo trae `partnerId`; el nombre se resuelve con el catálogo de terceros.
+  const partnersQuery = usePartners({ limit: 200 });
+  const partnerNames = React.useMemo(
+    () => new Map((partnersQuery.data?.data ?? []).map(partner => [partner.id, partner.name])),
+    [partnersQuery.data]
+  );
+  const partnerLabel = (partnerId: string) =>
+    canViewPartners
+      ? (partnerNames.get(partnerId) ?? partnerId.slice(0, 8))
+      : partnerId.slice(0, 8);
 
   const loans = toLoanList(data);
 
@@ -107,10 +127,12 @@ export function LoansView() {
               <SelectItem value="REJECTED">Rechazado</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={() => setCreating(true)}>
-            <Plus data-icon="inline-start" />
-            Nuevo préstamo
-          </Button>
+          {canManage && (
+            <Button onClick={() => setCreating(true)}>
+              <Plus data-icon="inline-start" />
+              Nuevo préstamo
+            </Button>
+          )}
         </div>
       </div>
 
@@ -154,7 +176,7 @@ export function LoansView() {
                     <TableRow key={loan.id}>
                       <TableCell className="font-medium">{loan.code}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {loan.partnerId.slice(0, 8)}
+                        {partnerLabel(loan.partnerId)}
                       </TableCell>
                       <TableCell className="text-xs">
                         {returned} / {delivered}
@@ -171,36 +193,42 @@ export function LoansView() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {loan.status === 'PENDING' && (
-                            <>
+                        {canManage && (
+                          <div className="flex justify-end gap-1">
+                            {loan.status === 'PENDING' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => decide.mutate({ id: loan.id, action: 'approve' })}
+                                  disabled={decide.isPending}
+                                >
+                                  <ThumbsUp data-icon="inline-start" />
+                                  Aprobar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => decide.mutate({ id: loan.id, action: 'reject' })}
+                                  disabled={decide.isPending}
+                                >
+                                  <ThumbsDown data-icon="inline-start" />
+                                  Rechazar
+                                </Button>
+                              </>
+                            )}
+                            {loan.status === 'ACTIVE' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => decide.mutate({ id: loan.id, action: 'approve' })}
-                                disabled={decide.isPending}
+                                onClick={() => setReturning(loan)}
                               >
-                                <ThumbsUp data-icon="inline-start" />
-                                Aprobar
+                                <Undo2 data-icon="inline-start" />
+                                Devolución
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => decide.mutate({ id: loan.id, action: 'reject' })}
-                                disabled={decide.isPending}
-                              >
-                                <ThumbsDown data-icon="inline-start" />
-                                Rechazar
-                              </Button>
-                            </>
-                          )}
-                          {loan.status === 'ACTIVE' && (
-                            <Button size="sm" variant="outline" onClick={() => setReturning(loan)}>
-                              <Undo2 data-icon="inline-start" />
-                              Devolución
-                            </Button>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -252,6 +280,13 @@ function CreateLoanDialog({
   const [dueDate, setDueDate] = React.useState('');
   const [notes, setNotes] = React.useState('');
 
+  const products = useProducts({});
+  const productOptions = (products.data?.data ?? []).map(product => ({
+    value: product.id,
+    label: product.name,
+    sublabel: product.sku,
+  }));
+
   const mutation = useMutation({
     mutationFn: () =>
       loansApi.create({
@@ -277,7 +312,7 @@ function CreateLoanDialog({
 
   return (
     <Dialog open onOpenChange={open => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo préstamo de equipo</DialogTitle>
           <DialogDescription>
@@ -295,12 +330,14 @@ function CreateLoanDialog({
             <PartnerCombobox value={partnerId} onChange={setPartnerId} />
           </Field>
           <Field>
-            <FieldLabel htmlFor="loan-product">Producto (UUID)</FieldLabel>
-            <Input
-              id="loan-product"
-              value={productId}
-              onChange={event => setProductId(event.target.value)}
-              placeholder="550e8400-e29b-41d4-a716-446655440000"
+            <FieldLabel>Producto</FieldLabel>
+            <Combobox
+              value={productId || null}
+              onChange={setProductId}
+              options={productOptions}
+              placeholder={products.isLoading ? 'Cargando productos…' : 'Selecciona un producto'}
+              className="h-9 w-full text-sm"
+              emptyMessage="Sin productos"
             />
           </Field>
           <Field>
@@ -324,11 +361,12 @@ function CreateLoanDialog({
           </Field>
           <Field>
             <FieldLabel htmlFor="loan-due">Vence</FieldLabel>
-            <Input
+            <DatePicker
               id="loan-due"
-              type="date"
               value={dueDate}
-              onChange={event => setDueDate(event.target.value)}
+              onChange={setDueDate}
+              placeholder="Fecha de vencimiento"
+              clearable
             />
           </Field>
           <Field>

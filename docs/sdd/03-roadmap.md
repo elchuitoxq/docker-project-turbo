@@ -9,17 +9,24 @@
 
 ## Épicas
 
-| Épica                                         | Spec                                           | Prioridad | Por qué en ese orden                                                                         | Esfuerzo |
-| --------------------------------------------- | ---------------------------------------------- | --------- | -------------------------------------------------------------------------------------------- | -------- |
-| **E0 · Aislamiento por sucursal + auditoría** | [`S-00`](./specs/S-00-aislamiento-sucursal.md) | 🔴 P0     | Hoy un usuario puede ver datos de otra sucursal; es un riesgo de negocio y de cumplimiento   | M        |
-| **E8 · Multimoneda (dólar como referencia)**  | [`S-08`](./specs/S-08-multimoneda.md)          | 🔴 P0     | El libro no declara moneda y la tasa puede quedar congelada: contamina todo documento futuro | L        |
-| **E1 · Reparar contratos**                    | [`S-01`](./specs/S-01-contratos-p0.md)         | 🔴 P0     | 8 endpoints de HR + 7 de inventario/billing/reportes devuelven 404/405 en producción         | M        |
-| **E2 · Nómina Venezuela completa**            | [`S-02`](./specs/S-02-nomina-ve.md)            | 🟠 P1     | Es el módulo con más contratos rotos y la mayor carga regulatoria                            | L        |
-| **E3 · Compras y cuentas por pagar**          | [`S-03`](./specs/S-03-compras-cxp.md)          | 🟠 P1     | Sin CxP no hay ciclo de compras ni retenciones de compra                                     | L        |
-| **E4 · Contabilidad y cierre**                | [`S-04`](./specs/S-04-contabilidad.md)         | 🟠 P1     | Los asientos existen pero nadie los opera ni cierra el período                               | M        |
-| **E5 · Tesorería y cobranzas**                | [`S-05`](./specs/S-05-tesoreria-cobranzas.md)  | 🟡 P2     | Cierre diario, conciliación y estado de cuenta con fechas                                    | M        |
-| **E6 · Reportes fiscales**                    | [`S-06`](./specs/S-06-reportes-fiscales.md)    | 🟡 P2     | Libros y retenciones: obligación legal, depende de E3/E4                                     | M        |
-| **E7 · Frontend restante**                    | [`S-07`](./specs/S-07-frontend-restante.md)    | 🟡 P2     | Notas de crédito, préstamos, auditoría y home                                                | M        |
+| Épica                                                   | Spec                                                    | Prioridad | Por qué en ese orden                                                                                                                                                               | Esfuerzo |
+| ------------------------------------------------------- | ------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **E0 · Aislamiento por sucursal + auditoría**           | [`S-00`](./specs/S-00-aislamiento-sucursal.md)          | 🔴 P0     | Hoy un usuario puede ver datos de otra sucursal; es un riesgo de negocio y de cumplimiento                                                                                         | M        |
+| **E8 · Multimoneda (dólar como referencia)**            | [`S-08`](./specs/S-08-multimoneda.md)                   | 🔴 P0     | El libro no declara moneda y la tasa puede quedar congelada: contamina todo documento futuro                                                                                       | L        |
+| **E1 · Reparar contratos**                              | [`S-01`](./specs/S-01-contratos-p0.md)                  | 🔴 P0     | 8 endpoints de HR + 7 de inventario/billing/reportes devuelven 404/405 en producción                                                                                               | M        |
+| **E2 · Nómina Venezuela completa**                      | [`S-02`](./specs/S-02-nomina-ve.md)                     | 🟠 P1     | Es el módulo con más contratos rotos y la mayor carga regulatoria                                                                                                                  | L        |
+| **E3 · Compras y cuentas por pagar**                    | [`S-03`](./specs/S-03-compras-cxp.md)                   | 🟠 P1     | Sin CxP no hay ciclo de compras ni retenciones de compra                                                                                                                           | L        |
+| **E4 · Contabilidad y cierre**                          | [`S-04`](./specs/S-04-contabilidad.md)                  | 🟠 P1     | Los asientos existen pero nadie los opera ni cierra el período                                                                                                                     | M        |
+| **E5 · Tesorería y cobranzas**                          | [`S-05`](./specs/S-05-tesoreria-cobranzas.md)           | 🟡 P2     | Cierre diario, conciliación y estado de cuenta con fechas                                                                                                                          | M        |
+| **E6 · Reportes fiscales**                              | [`S-06`](./specs/S-06-reportes-fiscales.md)             | 🟡 P2     | Libros y retenciones: obligación legal, depende de E3/E4                                                                                                                           | M        |
+| **E7 · Frontend restante**                              | [`S-07`](./specs/S-07-frontend-restante.md)             | 🟡 P2     | Notas de crédito, préstamos, auditoría y home                                                                                                                                      | M        |
+| **E9 · UI de flujos del MANAGER + multimoneda visible** | [`S-09`](./specs/S-09-ui-flujos-manager.md)             | 🔴 P0     | El backend ya tiene pedidos, facturas, tasas y bancos; sin pantalla el rol no puede operar y los montos se muestran en USD por defecto                                             | L        |
+| **E10 · Vistas de detalle de documentos**               | [`S-10`](./specs/S-10-vistas-detalle-documentos.md)     | 🔴 P0     | Pedidos, ventas, compras y facturación son sólo listados: no se puede revisar, postear ni imprimir un documento                                                                    | L        |
+| **E11 · Estandarización de tablas de listado**          | [`S-11`](./specs/S-11-estandarizacion-tablas.md)        | 🟡 P2     | Siete listados equivalentes con siete estilos distintos: contenedor, carga, vacío, números y acciones cambian de una pantalla a otra                                               | M        |
+| **E12 · Histórico de procesos de documentos**           | [`S-12`](./specs/S-12-historico-procesos-documentos.md) | 🔴 P0     | El detalle mostraba el estado actual y nada más: no se sabía quién confirmó, facturó o anuló un documento ni cuándo                                                                | M        |
+| **E13 · Controles de fecha unificados**                 | [`S-13`](./specs/S-13-controles-de-fecha.md)            | 🟡 P2     | Quince pantallas usaban el `input type="date"` nativo: formato del navegador, sin selector y sin límites de rango                                                                  | S        |
+| **E14 · Contrato del cargo MANAGER**                    | [`S-14`](./specs/S-14-actuaciones-rol-manager.md)       | 🔴 P0     | El rol creció por decisiones sueltas y tres documentos lo describían distinto; faltaban actuaciones (kardex, aprobar ajustes, editar borradores) y sobraba un permiso mal nombrado | S        |
+| **E15 · Tasa oficial automática (BCV)**                 | [`S-15`](./specs/S-15-sincronizacion-tasa-bcv.md)       | 🔴 P0     | El parser devolvía `6` en vez de la tasa, leía la portada y fallaba desde el contenedor por la cadena TLS incompleta de BCV: la sincronización automática nunca funcionó           | M        |
 
 ## Secuencia recomendada (slices de ~1 semana)
 
@@ -37,6 +44,13 @@ Semana 10-11 S-06 Fiscal: libro de ventas, IVA/IGTF, retenciones TXT/XML y valid
 Semana 12-13 S-03 Compras: facturas de proveedor, CxP, retenciones y pagos
 Semana 14-15 S-05 Tesoreria: metodos, cuentas, cierre diario, conciliacion y caja chica
 Semana 16   S-07  Notas de credito, prestamos, auditoria y home con BI
+Semana 17+  S-09  UI de flujos del MANAGER: moneda visible, tasas, facturas, pedidos y bancos
+Semana 18+  S-10  Fichas de pedido, venta, compra y factura con acciones e impresión
+Semana 19+  S-11  Estandarización de tablas de listado (primitivos compartidos)
+Semana 20+  S-12  Histórico de procesos de los documentos (autor, fecha y cadena pedido → factura)
+Semana 21+  S-13  Controles de fecha unificados (Date Picker de shadcn en toda la aplicación)
+Semana 22+  S-14  Contrato del cargo MANAGER: actuaciones, prohibiciones y permisos por operación
+Semana 23+  S-15  Tasa oficial automática: cron que lee la página de tipo de cambio del BCV
 ```
 
 > Las duraciones son orientativas para una persona. Cada bloque debe terminar con el

@@ -30,12 +30,13 @@ import {
   ApplyCreditNoteResponseDto,
 } from './dto/credit-notes.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { CurrentUser, CurrentUserData } from '../../common/decorators/current-user.decorator';
 import { CurrentBranch } from '../../common/decorators/current-branch.decorator';
 
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('credit-notes')
+@ApiBearerAuth()
 @Controller('v1/credit-notes')
 @RequirePermissions('finance:credit-notes:view')
 export class CreditNotesController {
@@ -168,7 +169,7 @@ export class CreditNotesController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Only DRAFT credit notes can be posted',
+    description: 'Only DRAFT credit notes can be posted, or the customer return has no warehouse',
   })
   @ApiResponse({
     status: 404,
@@ -176,9 +177,10 @@ export class CreditNotesController {
   })
   async post(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
   ): Promise<PostCreditNoteResponseDto> {
-    return this.creditNotesService.post(id, branchId);
+    return this.creditNotesService.post(id, branchId, user?.id);
   }
 
   @RequirePermissions('finance:credit-notes:manage')
@@ -186,7 +188,8 @@ export class CreditNotesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Void a credit note',
-    description: 'Voids a POSTED credit note (changes status from POSTED to VOIDED)',
+    description:
+      'Voids a POSTED or APPLIED credit note. An applied note releases its usages and reverses its inventory return',
   })
   @ApiParam({
     name: 'id',
@@ -200,7 +203,7 @@ export class CreditNotesController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Cannot void an already voided or APPLIED credit note',
+    description: 'Credit note is already voided',
   })
   @ApiResponse({
     status: 404,
@@ -208,9 +211,10 @@ export class CreditNotesController {
   })
   async void(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
   ): Promise<VoidCreditNoteResponseDto> {
-    return this.creditNotesService.void(id, branchId);
+    return this.creditNotesService.void(id, branchId, user?.id);
   }
 
   @RequirePermissions('finance:credit-notes:manage')
@@ -218,7 +222,8 @@ export class CreditNotesController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Apply credit note to invoice',
-    description: 'Applies a credit note to an invoice, creating a payment allocation',
+    description:
+      'Applies the available amount of a credit note to an invoice of the same partner and currency',
   })
   @ApiParam({
     name: 'id',

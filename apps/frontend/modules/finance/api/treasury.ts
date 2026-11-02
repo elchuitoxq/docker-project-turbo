@@ -3,13 +3,15 @@ import { apiClient } from '@/lib/api/client';
 export type BankAccount = {
   id: string;
   bankId: string;
-  bankName?: string;
+  bankName?: string | null;
   accountNumber: string;
   accountType: 'CHECKING' | 'SAVINGS';
   currencyId: string;
-  currencyCode?: string;
+  currencyCode?: string | null;
   isActive: boolean;
-  balance?: string;
+  /** Saldo actual según el backend: es el campo real del DTO (no `balance`). */
+  currentBalance?: number;
+  initialBalance?: number;
 };
 
 export type Payment = {
@@ -23,6 +25,8 @@ export type Payment = {
   type: 'INCOME' | 'EXPENSE';
   direction?: 'IN' | 'OUT';
   amount: string;
+  /** Monto equivalente en moneda funcional: es el único sumable en los totales. */
+  amountBase?: string;
   currencyId: string;
   currencyCode?: string;
   exchangeRate?: string;
@@ -56,6 +60,8 @@ export type PaymentMethod = {
   isDigital?: boolean | null;
   currencyId?: string | null;
   branchId?: string | null;
+  /** El método no se puede usar sin número de referencia (transferencia, Zelle…). */
+  requiresReference?: boolean | null;
 };
 
 export const treasuryApi = {
@@ -67,9 +73,15 @@ export const treasuryApi = {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(filters)) if (v) params.set(k, String(v));
     const qs = params.toString();
-    return apiClient.get<{ data: Payment[]; total: number }>(
-      `/treasury/payments${qs ? `?${qs}` : ''}`
-    );
+    return apiClient
+      .get<Payment[] | { data: Payment[]; total: number }>(
+        `/treasury/payments${qs ? `?${qs}` : ''}`
+      )
+      .then(response =>
+        Array.isArray(response)
+          ? { data: response, total: response.length }
+          : { data: response.data ?? [], total: response.total ?? 0 }
+      );
   },
   createPayment: (data: CreatePaymentPayload) =>
     apiClient.post<Payment>('/treasury/payments', data),

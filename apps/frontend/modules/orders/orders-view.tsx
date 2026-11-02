@@ -1,37 +1,57 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
+  ListCard,
+  ListEmptyRow,
+  ListSkeletonRows,
+  ListTd,
+  ListTh,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '@/components/list/list-table';
+import { usePermission } from '@/hooks/use-permission';
+import { PERMISSIONS } from '@/lib/permissions';
 import { ordersApi, type Order } from './orders-api';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { OrderFormDialog } from './components/order-form-dialog';
+import { formatMoney, formatDate } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 
-const STATUS_LABEL: Record<Order['status'], string> = {
+const STATUS_LABEL: Record<string, string> = {
+  DRAFT: 'Borrador',
+  CONFIRMED: 'Confirmado',
+  PROCESSING: 'En proceso',
+  COMPLETED: 'Completado',
+  CANCELLED: 'Cancelado',
+  // Estados heredados que aún existen en documentos de semillas antiguas.
   PENDING: 'Pendiente',
   APPROVED: 'Aprobado',
   INVOICED: 'Facturado',
-  CANCELLED: 'Cancelado',
 };
 
-const STATUS_VARIANT: Record<Order['status'], 'default' | 'secondary' | 'destructive' | 'outline'> =
-  {
-    PENDING: 'secondary',
-    APPROVED: 'default',
-    INVOICED: 'outline',
-    CANCELLED: 'destructive',
-  };
+const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  DRAFT: 'secondary',
+  CONFIRMED: 'outline',
+  PROCESSING: 'default',
+  COMPLETED: 'default',
+  CANCELLED: 'destructive',
+  PENDING: 'secondary',
+  APPROVED: 'default',
+  INVOICED: 'outline',
+};
 
 export function OrdersView() {
+  const { codeOf } = useCurrencyIndex();
+  const { hasPermission } = usePermission();
+  const [formOpen, setFormOpen] = React.useState(false);
+  const canCreate = hasPermission(PERMISSIONS.OPERATIONS.ORDERS.CREATE);
   const { data, isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: () => ordersApi.list({}),
@@ -41,63 +61,69 @@ export function OrdersView() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
-        <p className="text-sm text-muted-foreground">Pedidos de venta y compra</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Pedidos</h1>
+          <p className="text-sm text-muted-foreground">Pedidos de venta y compra</p>
+        </div>
+        {canCreate && (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus /> Nuevo pedido
+          </Button>
+        )}
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Listado</CardTitle>
-          <CardDescription>
-            {isLoading ? 'Cargando…' : `${orders.length} pedido${orders.length === 1 ? '' : 's'}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="space-y-2 p-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
-              ))}
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No hay pedidos</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Partner</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+      <ListCard
+        title="Listado"
+        description={
+          isLoading ? 'Cargando…' : `${orders.length} pedido${orders.length === 1 ? '' : 's'}`
+        }
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <ListTh>Código</ListTh>
+              <ListTh>Fecha</ListTh>
+              <ListTh>Tipo</ListTh>
+              <ListTh>Partner</ListTh>
+              <ListTh>Estado</ListTh>
+              <ListTh align="right">Total</ListTh>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <ListSkeletonRows cols={6} />
+            ) : orders.length === 0 ? (
+              <ListEmptyRow cols={6} message="No hay pedidos registrados." />
+            ) : (
+              orders.map(o => (
+                <TableRow key={o.id}>
+                  <ListTd mono>
+                    <Link href={`/dashboard/operations/orders/${o.id}`} className="hover:underline">
+                      {o.code}
+                    </Link>
+                  </ListTd>
+                  <ListTd className="text-xs">{formatDate(o.orderDate)}</ListTd>
+                  <ListTd>
+                    <Badge variant={o.type === 'SALE' ? 'default' : 'secondary'}>
+                      {o.type === 'SALE' ? 'Venta' : 'Compra'}
+                    </Badge>
+                  </ListTd>
+                  <ListTd>{o.partnerName ?? '—'}</ListTd>
+                  <ListTd>
+                    <Badge variant={STATUS_VARIANT[o.status] ?? 'secondary'}>
+                      {STATUS_LABEL[o.status] ?? o.status}
+                    </Badge>
+                  </ListTd>
+                  <ListTd numeric>{formatMoney(Number(o.total), codeOf(o.currencyId))}</ListTd>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map(o => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-mono text-xs">{o.code}</TableCell>
-                    <TableCell className="text-xs">{formatDate(o.orderDate)}</TableCell>
-                    <TableCell>
-                      <Badge variant={o.type === 'SALE' ? 'default' : 'secondary'}>
-                        {o.type === 'SALE' ? 'Venta' : 'Compra'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{o.partnerName ?? '—'}</TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[o.status]}>{STATUS_LABEL[o.status]}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Number(o.total), o.currencyCode === 'VES' ? 'VES' : 'USD')}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </ListCard>
+
+      {canCreate && <OrderFormDialog open={formOpen} onOpenChange={setFormOpen} />}
     </div>
   );
 }

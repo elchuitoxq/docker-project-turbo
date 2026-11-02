@@ -8,6 +8,7 @@ import { ArrowLeft, BookOpen, CircleAlert, Plus, ScrollText, Trash2 } from 'luci
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +45,7 @@ import {
   type EntrySourceType,
 } from '@/modules/accounting/api';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 import { useBranchStore } from '@/stores/use-branch-store';
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -75,10 +76,10 @@ function postableAccounts(nodes: AccountNode[]): AccountNode[] {
 }
 
 export default function EntriesPage() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
+  const { hasPermission } = usePermission();
   const currentBranchId = useBranchStore(state => state.currentBranchId);
-  const canCreate = permissions.includes(PERMISSIONS.FINANCE.ENTRIES.CREATE);
-  const canPost = permissions.includes(PERMISSIONS.FINANCE.ENTRIES.POST);
+  const canCreate = hasPermission(PERMISSIONS.FINANCE.ENTRIES.CREATE);
+  const canPost = hasPermission(PERMISSIONS.FINANCE.ENTRIES.POST);
 
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -201,16 +202,25 @@ export default function EntriesPage() {
           <div className="flex flex-wrap items-end gap-3">
             <Field className="w-40">
               <FieldLabel htmlFor="from">Desde</FieldLabel>
-              <Input
+              <DatePicker
                 id="from"
-                type="date"
                 value={from}
-                onChange={event => setFrom(event.target.value)}
+                onChange={setFrom}
+                placeholder="Desde"
+                toDate={to || undefined}
+                clearable
               />
             </Field>
             <Field className="w-40">
               <FieldLabel htmlFor="to">Hasta</FieldLabel>
-              <Input id="to" type="date" value={to} onChange={event => setTo(event.target.value)} />
+              <DatePicker
+                id="to"
+                value={to}
+                onChange={setTo}
+                placeholder="Hasta"
+                fromDate={from || undefined}
+                clearable
+              />
             </Field>
             <Field className="w-52">
               <FieldLabel htmlFor="source">Origen</FieldLabel>
@@ -337,7 +347,12 @@ export default function EntriesPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field>
                   <FieldLabel htmlFor="date">Fecha</FieldLabel>
-                  <Input id="date" name="date" type="date" defaultValue="2026-10-27" required />
+                  <DatePicker
+                    id="date"
+                    name="date"
+                    key={open ? 'open' : 'closed'}
+                    defaultValue="2026-10-27"
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="reference">Referencia</FieldLabel>

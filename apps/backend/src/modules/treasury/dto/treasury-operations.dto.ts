@@ -80,6 +80,12 @@ export class UpdateBankAccountDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  /** Cuenta contable a la que se imputan los movimientos de esta cuenta bancaria (`S-19`). */
+  @ApiPropertyOptional({ description: 'Cuenta del plan contable (activo)' })
+  @IsOptional()
+  @IsUUID()
+  accountingAccountId?: string;
 }
 
 /** `T-05-03`: snapshot del cierre diario por sucursal y fecha. */

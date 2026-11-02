@@ -29,10 +29,12 @@ import {
   ProductCategoryResponseDto,
 } from './dto/products.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { MessageResponseDto } from '../../common/dto/api-response.dto';
 
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('products')
+@ApiBearerAuth()
 @Controller('v1/products')
 @RequirePermissions('inventory:products:view')
 export class ProductsController {
@@ -169,6 +171,7 @@ export class ProductsController {
   @ApiResponse({
     status: 200,
     description: 'Product deleted successfully',
+    type: MessageResponseDto,
   })
   @ApiResponse({
     status: 404,

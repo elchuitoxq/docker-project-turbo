@@ -11,6 +11,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Table,
   TableBody,
@@ -23,7 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDay } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 import { usePartnerStatement, usePartner } from '../hooks/use-partners';
 
 const TYPE_LABEL = {
@@ -60,6 +62,8 @@ function monthStart(): string {
 export function PartnerStatementView({ partnerId }: Props) {
   const [from, setFrom] = React.useState(monthStart());
   const [to, setTo] = React.useState(new Date().toISOString().slice(0, 10));
+  // El estado de cuenta lo calcula el backend en moneda funcional.
+  const { baseCode } = useCurrencyIndex();
 
   const { data: partner, isLoading: loadingPartner } = usePartner(partnerId);
   const { data: statement, isLoading: loadingStatement } = usePartnerStatement(partnerId, {
@@ -98,20 +102,24 @@ export function PartnerStatementView({ partnerId }: Props) {
         <FieldGroup className="flex-row items-end">
           <Field className="w-40">
             <FieldLabel htmlFor="statement-from">Desde</FieldLabel>
-            <Input
+            <DatePicker
               id="statement-from"
-              type="date"
               value={from}
-              onChange={event => setFrom(event.target.value)}
+              onChange={setFrom}
+              placeholder="Desde"
+              toDate={to || undefined}
+              clearable
             />
           </Field>
           <Field className="w-40">
             <FieldLabel htmlFor="statement-to">Hasta</FieldLabel>
-            <Input
+            <DatePicker
               id="statement-to"
-              type="date"
               value={to}
-              onChange={event => setTo(event.target.value)}
+              onChange={setTo}
+              placeholder="Hasta"
+              fromDate={from || undefined}
+              clearable
             />
           </Field>
         </FieldGroup>
@@ -125,7 +133,7 @@ export function PartnerStatementView({ partnerId }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">
-              {formatCurrency(Number(statement.openingBalance ?? 0))}
+              {formatMoney(Number(statement.openingBalance ?? 0), baseCode)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Antes del {formatDay(from)}</p>
           </CardContent>
@@ -138,7 +146,7 @@ export function PartnerStatementView({ partnerId }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">
-              {formatCurrency(Number(statement.closingBalance ?? 0))}
+              {formatMoney(Number(statement.closingBalance ?? 0), baseCode)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Al {formatDay(to)}</p>
           </CardContent>
@@ -151,7 +159,7 @@ export function PartnerStatementView({ partnerId }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">
-              {formatCurrency(Number(statement.totalOutstanding))}
+              {formatMoney(Number(statement.totalOutstanding), baseCode)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Facturas abiertas</p>
           </CardContent>
@@ -164,11 +172,11 @@ export function PartnerStatementView({ partnerId }: Props) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">
-              {formatCurrency(Number(partner.creditLimit))}
+              {formatMoney(Number(partner.creditLimit), baseCode)}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {Number(partner.creditLimit) > 0
-                ? `Disponible: ${formatCurrency(Math.max(0, Number(partner.creditLimit) - Number(statement.totalOutstanding)))}`
+                ? `Disponible: ${formatMoney(Math.max(0, Number(partner.creditLimit) - Number(statement.totalOutstanding)), baseCode)}`
                 : 'Sin límite configurado'}
             </p>
           </CardContent>
@@ -223,13 +231,13 @@ export function PartnerStatementView({ partnerId }: Props) {
                         </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-emerald-600">
-                        {line.debit > 0 ? formatCurrency(line.debit) : '—'}
+                        {line.debit > 0 ? formatMoney(line.debit, baseCode) : '—'}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-sky-600">
-                        {line.credit > 0 ? formatCurrency(line.credit) : '—'}
+                        {line.credit > 0 ? formatMoney(line.credit, baseCode) : '—'}
                       </TableCell>
                       <TableCell className="text-right font-semibold tabular-nums">
-                        {formatCurrency(line.balance)}
+                        {formatMoney(line.balance, baseCode)}
                       </TableCell>
                     </TableRow>
                   );

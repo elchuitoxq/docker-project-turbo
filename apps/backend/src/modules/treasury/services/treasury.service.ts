@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { db } from '../../../database';
 import { MoneyService } from '../../../common/money/money.service';
 import {
@@ -11,13 +17,20 @@ import {
   documentLinks,
   invoices,
   bankAccounts,
+  banks,
+  currencies,
+  exchangeRates,
+  creditNoteItems,
   paymentMethods,
   partners,
 } from '../../../schema';
-import { eq, and, desc, gte, isNull, like, lte, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, inArray, isNull, like, lte, ne, sql } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { computeInvoiceBalance } from '../../billing/purchasing/invoice-balance';
+import { isUniqueViolation, normalizePaymentReference } from '../payment-reference';
 import { DailyCloseService } from '../operations/daily-close.service';
+import { DocumentEventsService } from '../../documents/document-events.service';
+import { AccountingService } from '../../accounting/accounting.service';
 import {
   CreatePaymentDto,
   PaymentResponseDto,
@@ -37,6 +50,26 @@ import type {
 
 const PAYMENT_METHODS_BALANCE_AFFECTING = ['CASH_USD', 'CASH_VES', 'POS', 'ZELLE', 'TRANSFER'];
 
+/**
+ * Imputación calculada antes de escribir (`S-18`).
+ *
+ * Guarda el importe en las dos monedas para que el saldo de la factura se rebaje en la suya sin
+ * derivar nada por división.
+ */
+type PaymentAllocationPlan = {
+  invoiceId: string;
+  /** Importe en la moneda del pago. */
+  amount: number;
+  /** Valor en moneda funcional a la tasa del pago. */
+  amountBase: number;
+  /** Importe que rebaja el saldo, en moneda de la factura. */
+  invoiceAmount: number;
+  /** Tasa congelada de la factura. */
+  invoiceRate: number;
+  /** `amountBase − invoiceAmount × invoiceRate`. */
+  exchangeDifference: number;
+};
+
 /** Datos mínimos para registrar el pago de una nómina desde otro módulo. */
 export interface PayrollPaymentInput {
   payrollRunId: string;
@@ -54,10 +87,65 @@ export interface PayrollPaymentInput {
 
 @Injectable()
 export class TreasuryService {
+  private readonly logger = new Logger(TreasuryService.name);
+
   constructor(
     private readonly money: MoneyService,
-    private readonly dailyClose: DailyCloseService = new DailyCloseService()
+    private readonly dailyClose: DailyCloseService = new DailyCloseService(),
+    private readonly documentEvents: DocumentEventsService = new DocumentEventsService(),
+    // Contabilización del cobro/pago con su diferencia cambiaria (`S-18`).
+    private readonly accounting: AccountingService = new AccountingService()
   ) {}
+
+  /**
+   * Tasa vigente de una moneda en una fecha (`S-18`).
+   *
+   * Se consulta directo a `exchange_rates` en vez de inyectar `ExchangeRateService`: ese servicio
+   * depende de `ConfigService` y aquí sólo hace falta la última tasa hasta la fecha del pago.
+   */
+  private async rateAt(currencyId: string, date: Date): Promise<number> {
+    const [row] = await db
+      .select({ rate: exchangeRates.rate })
+      .from(exchangeRates)
+      .where(and(eq(exchangeRates.currencyId, currencyId), lte(exchangeRates.date, date)))
+      .orderBy(desc(exchangeRates.date))
+      .limit(1);
+
+    const rate = Number(row?.rate ?? 0);
+    return rate > 0 ? rate : 1;
+  }
+
+  /**
+   * Rechaza una referencia que ya justifica otro pago vigente (`T-05-01`).
+   *
+   * Se busca en **todos** los pagos, no sólo en la factura que se está cobrando: la misma
+   * transferencia no puede usarse dos veces ni en abonos de la misma factura ni en facturas
+   * distintas ni en otra sucursal. Un pago anulado libera su referencia porque el dinero nunca
+   * llegó a la cuenta y hay que poder registrarlo de nuevo.
+   */
+  private async assertReferenceAvailable(
+    reference: string | null,
+    executor: Pick<typeof db, 'select'> = db
+  ): Promise<void> {
+    if (!reference) return;
+
+    const [existing] = await executor
+      .select({ code: payments.code, date: payments.date, invoiceCode: invoices.code })
+      .from(payments)
+      .leftJoin(invoices, eq(invoices.id, payments.invoiceId))
+      .where(and(eq(payments.reference, reference), ne(payments.status, PaymentStatus.VOID)))
+      .limit(1);
+
+    if (!existing) return;
+
+    const when = existing.date ? new Date(existing.date).toISOString().slice(0, 10) : 'sin fecha';
+    const document = existing.invoiceCode ? ` de la factura ${existing.invoiceCode}` : '';
+
+    throw new ConflictException(
+      `La referencia ${reference} ya está registrada en el pago ${existing.code}${document} (${when}). Una misma transferencia no puede justificar dos cobros.`
+    );
+  }
+
   private async getNextPaymentCode(
     branchId: string,
     executor: Pick<typeof db, 'select'> = db
@@ -77,7 +165,9 @@ export class TreasuryService {
       }
     }
 
-    return `PAY-${String(nextNumber).padStart(5, '0')}`;
+    // Mismo ancho que el resto de correlativos (`INV-000001`, `ORD-000001`, `COMP-000001`): un
+    // `PAY-00005` al lado de `PAY-000001` rompe el orden alfabético del listado (`S-16` M-23).
+    return `PAY-${String(nextNumber).padStart(6, '0')}`;
   }
 
   async findAll(branchId: string, status?: PaymentStatus): Promise<PaymentResponseDto[]> {
@@ -89,8 +179,21 @@ export class TreasuryService {
       .from(payments)
       .where(and(...conditions));
 
+    const partnerIds = [
+      ...new Set(allPayments.map(payment => payment.partnerId).filter((id): id is string => !!id)),
+    ];
+    const partnerRows =
+      partnerIds.length > 0
+        ? await db
+            .select({ id: partners.id, name: partners.name })
+            .from(partners)
+            .where(inArray(partners.id, partnerIds))
+        : [];
+    const partnerNames = new Map(partnerRows.map(row => [row.id, row.name]));
+
     return allPayments.map(p => ({
       ...p,
+      partnerName: p.partnerId ? (partnerNames.get(p.partnerId) ?? null) : null,
       amount: parseFloat(String(p.amount)),
     }));
   }
@@ -126,53 +229,70 @@ export class TreasuryService {
 
     const affectsBalance = PAYMENT_METHODS_BALANCE_AFFECTING.includes(method.code);
     const amountBase = this.money.round(this.money.toBase(input.amount, input.exchangeRate));
+    const reference = normalizePaymentReference(input.reference);
 
-    const created = await db.transaction(async tx => {
-      // El código se asigna con advisory lock: `payments.code` es único global.
-      await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
-      const code = await this.getNextPaymentCode(input.branchId, tx);
+    if (method.requiresReference && !reference) {
+      throw new BadRequestException(
+        `El método ${method.name} exige el número de referencia de la transacción`
+      );
+    }
 
-      const [payment] = await tx
-        .insert(payments)
-        .values({
-          id: uuidv4(),
-          code,
-          partnerId: null,
-          branchId: input.branchId,
-          methodId: input.methodId,
-          status: PaymentStatus.POSTED,
-          type: PaymentType.EXPENSE,
-          amount: String(input.amount),
-          currencyId: input.currencyId,
-          exchangeRate: String(input.exchangeRate),
-          amountBase,
-          bankAccountId: input.bankAccountId ?? null,
-          payrollRunId: input.payrollRunId,
-          reference: input.reference ?? null,
-          metadata: { payrollRunId: input.payrollRunId },
-          date: input.date ?? new Date(),
-          userId: input.userId ?? null,
-        })
-        .returning();
+    const created = await db
+      .transaction(async tx => {
+        // El código se asigna con advisory lock: `payments.code` es único global.
+        await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
+        await this.assertReferenceAvailable(reference, tx);
+        const code = await this.getNextPaymentCode(input.branchId, tx);
 
-      if (affectsBalance && input.bankAccountId) {
-        const [account] = await tx
-          .select()
-          .from(bankAccounts)
-          .where(eq(bankAccounts.id, input.bankAccountId))
-          .limit(1);
+        const [payment] = await tx
+          .insert(payments)
+          .values({
+            id: uuidv4(),
+            code,
+            partnerId: null,
+            branchId: input.branchId,
+            methodId: input.methodId,
+            status: PaymentStatus.POSTED,
+            type: PaymentType.EXPENSE,
+            amount: String(input.amount),
+            currencyId: input.currencyId,
+            exchangeRate: String(input.exchangeRate),
+            amountBase,
+            bankAccountId: input.bankAccountId ?? null,
+            payrollRunId: input.payrollRunId,
+            reference,
+            metadata: { payrollRunId: input.payrollRunId },
+            date: input.date ?? new Date(),
+            userId: input.userId ?? null,
+          })
+          .returning();
 
-        if (account) {
-          const balance = Number(account.currentBalance ?? 0) - input.amount;
-          await tx
-            .update(bankAccounts)
-            .set({ currentBalance: String(balance), updatedAt: new Date() })
-            .where(eq(bankAccounts.id, account.id));
+        if (affectsBalance && input.bankAccountId) {
+          const [account] = await tx
+            .select()
+            .from(bankAccounts)
+            .where(eq(bankAccounts.id, input.bankAccountId))
+            .limit(1);
+
+          if (account) {
+            const balance = Number(account.currentBalance ?? 0) - input.amount;
+            await tx
+              .update(bankAccounts)
+              .set({ currentBalance: String(balance), updatedAt: new Date() })
+              .where(eq(bankAccounts.id, account.id));
+          }
         }
-      }
 
-      return payment;
-    });
+        return payment;
+      })
+      .catch(error => {
+        if (isUniqueViolation(error)) {
+          throw new ConflictException(
+            `La referencia ${reference} ya está registrada en otro pago. Una misma transferencia no puede justificar dos pagos.`
+          );
+        }
+        throw error;
+      });
 
     return { ...created, amount: Number(created.amount) };
   }
@@ -194,12 +314,10 @@ export class TreasuryService {
     branchId?: string
   ): Promise<PaymentResponseDto> {
     const paymentBranchId = branchId ?? createPaymentDto.branchId;
+    const paymentDate = createPaymentDto.date ? new Date(createPaymentDto.date) : new Date();
 
     // Regla 1 de `S-05`: no se registran movimientos con fecha de un cierre cerrado (T-05-03).
-    await this.dailyClose.assertOpen(
-      paymentBranchId,
-      createPaymentDto.date ? new Date(createPaymentDto.date) : new Date()
-    );
+    await this.dailyClose.assertOpen(paymentBranchId, paymentDate);
 
     const [method] = await db
       .select()
@@ -212,6 +330,27 @@ export class TreasuryService {
     }
 
     const affectsBalance = PAYMENT_METHODS_BALANCE_AFFECTING.includes(method.code);
+
+    const reference = normalizePaymentReference(createPaymentDto.reference);
+
+    // `requiresReference` se configura por método (`T-05-01`) y hasta ahora no se exigía: un cobro
+    // por transferencia se podía guardar sin el número que lo respalda.
+    if (method.requiresReference && !reference) {
+      throw new BadRequestException(
+        `El método ${method.name} exige el número de referencia de la transacción`
+      );
+    }
+
+    // Se comprueba antes de mover dinero: si la referencia ya está usada, el pago no debe existir.
+    await this.assertReferenceAvailable(reference);
+
+    // La cuenta manda la moneda (`S-18`): un cobro en divisa entra a una cuenta en divisa y el saldo
+    // de la cuenta se mueve sólo en su moneda. Mezclar monedas hace imposible conciliar.
+    const bankAccount = await this.resolveBankAccountForPayment(
+      createPaymentDto,
+      paymentBranchId,
+      affectsBalance
+    );
 
     // Las asignaciones se validan antes de escribir: si el importe no cuadra, el pago no debe
     // quedar registrado (regla 6 de `S-03`).
@@ -230,9 +369,15 @@ export class TreasuryService {
       );
     }
 
-    // Regla 4 de `S-03`: el pago no puede exceder el saldo de la factura. Si se paga en otra
-    // moneda, el monto equivalente depende de la tasa del día y la diferencia se registra como
-    // resultado cambiario, así que la comparación exacta sólo aplica en la moneda del documento.
+    // Regla 4 de `S-03` + `S-18`: el pago no puede exceder el saldo de la factura, y la imputación
+    // se guarda en las dos monedas (la del pago y la del documento).
+    //
+    // - Misma moneda → el importe baja el saldo **a la par**: pagar USD 58 de una factura en USD
+    //   rebaja 58 USD, se cobre a la tasa que se cobre.
+    // - Monedas distintas → el valor del pago se lleva a la moneda de la factura con la tasa **del
+    //   día del pago** de esa moneda (no con la tasa congelada de la factura, que sobre-imputaba).
+    const allocationPlans: PaymentAllocationPlan[] = [];
+
     for (const allocation of allocationRequests) {
       const computed = await computeInvoiceBalance(allocation.invoiceId);
 
@@ -241,128 +386,187 @@ export class TreasuryService {
       }
 
       const [target] = await db
-        .select({ currencyId: invoices.currencyId })
+        .select({
+          currencyId: invoices.currencyId,
+          exchangeRate: invoices.exchangeRate,
+          currencyCode: currencies.code,
+          isBase: currencies.isBase,
+        })
         .from(invoices)
+        .innerJoin(currencies, eq(currencies.id, invoices.currencyId))
         .where(eq(invoices.id, allocation.invoiceId))
         .limit(1);
 
-      const sameCurrency = target?.currencyId === createPaymentDto.currencyId;
+      if (!target) {
+        throw new NotFoundException(`Invoice with ID ${allocation.invoiceId} not found`);
+      }
 
-      if (
-        sameCurrency &&
-        Number(this.money.round(allocation.amount)) > Number(this.money.round(computed.balance))
-      ) {
+      const sameCurrency = target.currencyId === createPaymentDto.currencyId;
+      const invoiceRate = Number(target.exchangeRate ?? 1) || 1;
+      const paymentRate = Number(createPaymentDto.exchangeRate) || 1;
+      const amountBase = Number(
+        this.money.round(this.money.toBase(allocation.amount, paymentRate))
+      );
+
+      // Tasa de la moneda de la factura en la fecha del pago: la moneda funcional vale 1.
+      const invoiceCurrencyRate = target.isBase
+        ? 1
+        : await this.rateAt(target.currencyId, paymentDate);
+
+      const invoiceAmount = sameCurrency
+        ? Number(this.money.round(allocation.amount))
+        : Number(this.money.round(amountBase / invoiceCurrencyRate));
+
+      // Resultado cambiario: lo que valió el pago contra lo que valía la porción de factura que
+      // cancela, medido en moneda funcional y con la tasa congelada del documento.
+      const exchangeDifference = Number(this.money.round(amountBase - invoiceAmount * invoiceRate));
+
+      if (Number(this.money.round(invoiceAmount)) > Number(this.money.round(computed.balance))) {
         throw new BadRequestException(
-          `La asignación (${allocation.amount}) supera el saldo de la factura (${computed.balance})`
+          `La asignación (${invoiceAmount} ${target.currencyCode}) supera el saldo de la factura (${computed.balance})`
         );
       }
-    }
 
-    if (affectsBalance && createPaymentDto.bankAccountId) {
-      const [bankAccount] = await db
-        .select()
-        .from(bankAccounts)
-        .where(eq(bankAccounts.id, createPaymentDto.bankAccountId))
-        .limit(1);
-
-      if (bankAccount) {
-        const currentBalance = parseFloat(String(bankAccount.currentBalance));
-        const newBalance =
-          createPaymentDto.type === PaymentType.INCOME
-            ? currentBalance + createPaymentDto.amount
-            : currentBalance - createPaymentDto.amount;
-
-        await db
-          .update(bankAccounts)
-          .set({ currentBalance: String(newBalance) })
-          .where(eq(bankAccounts.id, bankAccount.id));
-      }
+      allocationPlans.push({
+        invoiceId: allocation.invoiceId,
+        amount: allocation.amount,
+        amountBase,
+        invoiceAmount,
+        invoiceRate,
+        exchangeDifference,
+      });
     }
 
     // El código se asigna con advisory lock dentro de una transacción: `payments.code` es único a
     // nivel global y dos cobros concurrentes podían leer el mismo máximo (H-69).
-    const newPayment = await db.transaction(async tx => {
-      await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
-      const code = await this.getNextPaymentCode(paymentBranchId, tx);
+    const newPayment = await db
+      .transaction(async tx => {
+        await tx.execute(sql`select pg_advisory_xact_lock(42004)`);
 
-      const [row] = await tx
-        .insert(payments)
-        .values({
-          id: uuidv4(),
-          code,
-          invoiceId: createPaymentDto.invoiceId,
-          partnerId: createPaymentDto.partnerId,
-          branchId: paymentBranchId,
-          methodId: createPaymentDto.methodId,
-          status: PaymentStatus.POSTED,
-          type: createPaymentDto.type || PaymentType.INCOME,
-          direction:
-            (createPaymentDto.type || PaymentType.INCOME) === PaymentType.EXPENSE ? 'OUT' : 'IN',
-          retentionAmount: String(createPaymentDto.retentionAmount ?? 0),
-          amount: String(createPaymentDto.amount),
-          currencyId: createPaymentDto.currencyId,
-          exchangeRate: String(createPaymentDto.exchangeRate),
-          amountBase: this.money.round(
-            this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
-          ),
-          bankAccountId: createPaymentDto.bankAccountId,
-          reference: createPaymentDto.reference,
-          date: createPaymentDto.date ? new Date(createPaymentDto.date) : new Date(),
-          userId,
-        })
-        .returning();
+        // Segunda comprobación dentro de la transacción: dos formularios abiertos a la vez pueden
+        // pasar el chequeo previo con la misma referencia. El índice único es la última barrera.
+        await this.assertReferenceAvailable(reference, tx);
 
-      return row;
-    });
+        // El saldo de la cuenta se mueve en la misma transacción que el pago: si el alta falla (por
+        // ejemplo, referencia duplicada) el abono no puede quedar reflejado en la cuenta.
+        if (affectsBalance && bankAccount) {
+          // El importe está en la moneda de la cuenta (validado arriba), así que el saldo se mueve en
+          // su propia moneda y no hay mezcla (`S-18`).
+          const [account] = await tx
+            .select()
+            .from(bankAccounts)
+            .where(eq(bankAccounts.id, bankAccount.id))
+            .limit(1);
 
-    if (allocationRequests.length > 0) {
-      for (const allocation of allocationRequests) {
+          const currentBalance = parseFloat(
+            String(account?.currentBalance ?? bankAccount.currentBalance)
+          );
+          const newBalance =
+            (createPaymentDto.type || PaymentType.INCOME) === PaymentType.INCOME
+              ? currentBalance + createPaymentDto.amount
+              : currentBalance - createPaymentDto.amount;
+
+          await tx
+            .update(bankAccounts)
+            .set({ currentBalance: String(newBalance) })
+            .where(eq(bankAccounts.id, bankAccount.id));
+        }
+
+        const code = await this.getNextPaymentCode(paymentBranchId, tx);
+
+        const [row] = await tx
+          .insert(payments)
+          .values({
+            id: uuidv4(),
+            code,
+            invoiceId: createPaymentDto.invoiceId,
+            partnerId: createPaymentDto.partnerId,
+            branchId: paymentBranchId,
+            methodId: createPaymentDto.methodId,
+            status: PaymentStatus.POSTED,
+            type: createPaymentDto.type || PaymentType.INCOME,
+            direction:
+              (createPaymentDto.type || PaymentType.INCOME) === PaymentType.EXPENSE ? 'OUT' : 'IN',
+            retentionAmount: String(createPaymentDto.retentionAmount ?? 0),
+            amount: String(createPaymentDto.amount),
+            currencyId: createPaymentDto.currencyId,
+            exchangeRate: String(createPaymentDto.exchangeRate),
+            amountBase: this.money.round(
+              this.money.toBase(createPaymentDto.amount, createPaymentDto.exchangeRate)
+            ),
+            bankAccountId: createPaymentDto.bankAccountId,
+            reference,
+            date: createPaymentDto.date ? new Date(createPaymentDto.date) : new Date(),
+            userId,
+          })
+          .returning();
+
+        return row;
+      })
+      .catch(error => {
+        if (isUniqueViolation(error)) {
+          throw new ConflictException(
+            `La referencia ${reference} ya está registrada en otro pago. Una misma transferencia no puede justificar dos cobros.`
+          );
+        }
+        throw error;
+      });
+
+    if (allocationPlans.length > 0) {
+      for (const plan of allocationPlans) {
         await db.insert(paymentAllocations).values({
           id: uuidv4(),
           paymentId: newPayment.id,
-          invoiceId: allocation.invoiceId,
-          amount: String(allocation.amount),
-          amountBase: this.money.round(
-            this.money.toBase(allocation.amount, createPaymentDto.exchangeRate)
-          ),
+          invoiceId: plan.invoiceId,
+          amount: String(plan.amount),
+          amountBase: this.money.round(plan.amountBase),
+          invoiceAmount: String(plan.invoiceAmount),
+          exchangeRate: String(createPaymentDto.exchangeRate),
+          exchangeDifferenceBase: String(plan.exchangeDifference),
         });
 
-        await this.refreshInvoiceBalance(allocation.invoiceId);
+        await this.refreshInvoiceBalance(plan.invoiceId);
+      }
+
+      // El cobro/pago cierra la cadena del documento: sin este evento el histórico de la factura
+      // terminaba en la emisión y no se veía quién la pagó ni cuándo (`S-16` M-22).
+      await this.recordPaymentEvents(newPayment, allocationPlans, userId);
+
+      // La diferencia cambiaria se guarda siempre (antes sólo con `invoiceId` y daba cero): es el
+      // resultado de cobrar/pagar a una tasa distinta de la congelada en el documento (`S-18`).
+      const exchangeDifference = Number(
+        this.money.round(allocationPlans.reduce((sum, plan) => sum + plan.exchangeDifference, 0))
+      );
+
+      if (exchangeDifference !== 0) {
+        await db
+          .update(payments)
+          .set({
+            metadata: {
+              ...((newPayment.metadata as Record<string, unknown> | null) ?? {}),
+              exchangeDifference,
+              allocations: allocationPlans.map(plan => ({
+                invoiceId: plan.invoiceId,
+                invoiceAmount: plan.invoiceAmount,
+                invoiceRate: plan.invoiceRate,
+                exchangeDifference: plan.exchangeDifference,
+              })),
+            } as never,
+          })
+          .where(eq(payments.id, newPayment.id));
       }
     }
 
-    if (createPaymentDto.invoiceId) {
-      const [invoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, createPaymentDto.invoiceId))
-        .limit(1);
-
-      if (invoice) {
-        // El estado y el saldo los fija `refreshInvoiceBalance`; aquí sólo se registra la diferencia
-        // de cambio (M8) para que no se pierda al pagar con otra tasa.
-        const allocatedBase = await this.calculateTotalPaidBase(createPaymentDto.invoiceId);
-        const invoiceRate = invoice.exchangeRate ? Number(invoice.exchangeRate) : 1;
-        const invoiceBase = Number(
-          this.money.round(this.money.toBase(invoice.total ?? 0, invoiceRate))
-        );
-        const exchangeDifference = Number(this.money.round(allocatedBase - invoiceBase));
-
-        if (exchangeDifference !== 0) {
-          await db
-            .update(payments)
-            .set({
-              metadata: {
-                ...((newPayment.metadata as Record<string, unknown> | null) ?? {}),
-                exchangeDifference,
-                invoiceBase,
-                allocatedBase,
-                invoiceRate,
-              } as never,
-            })
-            .where(eq(payments.id, newPayment.id));
-        }
-      }
+    // Contabilización automática del cobro/pago (`S-18`): el asiento incluye la diferencia cambiaria.
+    // Si faltara el mapeo, el dinero ya se movió: se avisa y no se revierte el movimiento de caja.
+    try {
+      await this.accounting.createEntryFromPayment(newPayment.id, userId);
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo contabilizar el pago ${newPayment.code}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
 
     return {
@@ -372,12 +576,63 @@ export class TreasuryService {
   }
 
   /**
+   * Resuelve y valida la cuenta bancaria del pago (`S-18`).
+   *
+   * Regla: el pago se registra en la moneda de la cuenta. Si el método afecta saldo, la cuenta es
+   * obligatoria — sin ella el dinero no entra a ningún lado y el saldo de tesorería queda mintiendo.
+   */
+  private async resolveBankAccountForPayment(
+    dto: CreatePaymentDto,
+    branchId: string | undefined,
+    affectsBalance: boolean
+  ): Promise<typeof bankAccounts.$inferSelect | null> {
+    if (!dto.bankAccountId) {
+      if (affectsBalance) {
+        throw new BadRequestException(
+          'El método de pago afecta el saldo de una cuenta: indica la cuenta bancaria del cobro/pago'
+        );
+      }
+      return null;
+    }
+
+    const [row] = await db
+      .select({ account: bankAccounts, currencyCode: currencies.code })
+      .from(bankAccounts)
+      .innerJoin(currencies, eq(currencies.id, bankAccounts.currencyId))
+      .where(eq(bankAccounts.id, dto.bankAccountId))
+      .limit(1);
+
+    if (!row) {
+      throw new NotFoundException(`Bank account with ID ${dto.bankAccountId} not found`);
+    }
+
+    const account = row.account;
+
+    if (branchId && account.branchId && account.branchId !== branchId) {
+      throw new BadRequestException('La cuenta bancaria pertenece a otra sucursal');
+    }
+    if (account.isActive === false) {
+      throw new BadRequestException('La cuenta bancaria está inactiva');
+    }
+    if (account.currencyId !== dto.currencyId) {
+      throw new BadRequestException(
+        `La cuenta ${account.accountNumber} está en ${row.currencyCode}: un cobro/pago en otra moneda descuadra el saldo de la cuenta`
+      );
+    }
+
+    return account;
+  }
+
+  /**
    * Recalcula la cach? `invoices.paid_amount` y el estado de la factura.
    *
    * Las compras pasan a `PENDING`/`PARTIAL`/`PAID` (el vencimiento lo decide la antigüedad, no el
    * estado); las ventas conservan `PAID` para no cambiar el comportamiento anterior.
    */
-  private async refreshInvoiceBalance(invoiceId: string): Promise<void> {
+  private async refreshInvoiceBalance(
+    invoiceId: string,
+    options: { resetWhenEmpty?: boolean } = {}
+  ): Promise<void> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, invoiceId)).limit(1);
     if (!invoice) return;
 
@@ -386,13 +641,95 @@ export class TreasuryService {
 
     // `paid_amount` guarda sólo el efectivo aplicado (moneda del documento); el saldo exigible
     // descuenta además notas de crédito y retenciones (H-82).
+    //
+    // `resetWhenEmpty` lo usa la anulación: al borrar la imputación la factura vuelve a estar
+    // pendiente, no puede quedar en el estado que tenía con el pago (`S-18`).
     const status =
-      computed.balance <= 0.01 ? 'PAID' : computed.settled > 0.01 ? 'PARTIAL' : invoice.status;
+      computed.balance <= 0.01
+        ? 'PAID'
+        : computed.settled > 0.01
+          ? 'PARTIAL'
+          : options.resetWhenEmpty
+            ? 'POSTED'
+            : invoice.status;
 
     await db
       .update(invoices)
       .set({ paidAmount: String(computed.paid), status })
       .where(eq(invoices.id, invoiceId));
+  }
+
+  /**
+   * Deja constancia en el histórico de cada factura cobrada/pagada (`S-16` M-22).
+   *
+   * Se escribe después de refrescar el saldo para poder contar el estado resultante: así el evento
+   * lee "Emitida → Pagada" igual que lo hace la UI.
+   */
+  private async recordPaymentEvents(
+    payment: typeof payments.$inferSelect,
+    plans: PaymentAllocationPlan[],
+    userId?: string
+  ): Promise<void> {
+    if (plans.length === 0) return;
+
+    // La imputación vive en dos monedas (`S-18`): el importe cobrado y su equivalente en la moneda
+    // del documento. Antes el evento guardaba el importe del pago con el `currencyId` de la factura,
+    // así que un cobro de 2.389,60 Bs aparecía como 2.389,60 USD.
+    const [paymentCurrency] = await db
+      .select({ code: currencies.code })
+      .from(currencies)
+      .where(eq(currencies.id, payment.currencyId))
+      .limit(1);
+
+    for (const plan of plans) {
+      const [invoice] = await db
+        .select({
+          id: invoices.id,
+          code: invoices.code,
+          type: invoices.type,
+          status: invoices.status,
+          orderId: invoices.orderId,
+          currencyId: invoices.currencyId,
+          currencyCode: currencies.code,
+        })
+        .from(invoices)
+        .innerJoin(currencies, eq(currencies.id, invoices.currencyId))
+        .where(eq(invoices.id, plan.invoiceId))
+        .limit(1);
+
+      if (!invoice) continue;
+
+      const isCollection = payment.type === 'INCOME';
+      const invoiced = `${plan.invoiceAmount} ${invoice.currencyCode}`;
+      const applied =
+        payment.currencyId === invoice.currencyId
+          ? invoiced
+          : `${plan.amount} ${paymentCurrency?.code ?? ''} (${invoiced})`;
+
+      await this.documentEvents.record({
+        documentType: 'INVOICE',
+        documentId: invoice.id,
+        documentCode: invoice.code,
+        parentDocumentId: invoice.orderId,
+        action: 'PAYMENT_REGISTERED',
+        toStatus: invoice.status,
+        description: `${isCollection ? 'Cobro' : 'Pago'} ${payment.code} por ${applied} ${invoice.type === 'PURCHASE' ? 'al proveedor' : 'del cliente'}`,
+        metadata: {
+          paymentId: payment.id,
+          paymentCode: payment.code,
+          amount: plan.amount,
+          currencyId: payment.currencyId,
+          currencyCode: paymentCurrency?.code ?? null,
+          invoiceAmount: plan.invoiceAmount,
+          invoiceCurrencyId: invoice.currencyId,
+          invoiceCurrencyCode: invoice.currencyCode,
+          invoiceRate: plan.invoiceRate,
+          exchangeDifference: plan.exchangeDifference,
+        },
+        userId: userId ?? payment.userId,
+        branchId: payment.branchId,
+      });
+    }
   }
 
   /**
@@ -418,8 +755,26 @@ export class TreasuryService {
     }
 
     const rows = await db
-      .select()
+      .select({
+        id: taxRetentions.id,
+        code: taxRetentions.code,
+        voucherNumber: taxRetentions.voucherNumber,
+        type: taxRetentions.type,
+        partnerId: taxRetentions.partnerId,
+        partnerName: partners.name,
+        invoiceId: taxRetentions.invoiceId,
+        invoiceCode: invoices.code,
+        period: taxRetentions.period,
+        date: taxRetentions.date,
+        totalBase: taxRetentions.totalBase,
+        totalTax: taxRetentions.totalTax,
+        totalRetained: taxRetentions.totalRetained,
+        totalRetainedBase: taxRetentions.totalRetainedBase,
+        currencyId: taxRetentions.currencyId,
+      })
       .from(taxRetentions)
+      .leftJoin(partners, eq(partners.id, taxRetentions.partnerId))
+      .leftJoin(invoices, eq(invoices.id, taxRetentions.invoiceId))
       .where(and(...conditions))
       .orderBy(desc(taxRetentions.date));
 
@@ -429,36 +784,17 @@ export class TreasuryService {
       voucherNumber: row.voucherNumber,
       type: row.type,
       partnerId: row.partnerId,
+      partnerName: row.partnerName ?? null,
       invoiceId: row.invoiceId,
+      invoiceCode: row.invoiceCode ?? null,
       period: row.period,
       date: row.date,
       totalBase: Number(row.totalBase),
       totalTax: Number(row.totalTax ?? 0),
       totalRetained: Number(row.totalRetained),
+      totalRetainedBase: Number(row.totalRetainedBase ?? row.totalRetained),
+      currencyId: row.currencyId ?? null,
     }));
-  }
-
-  /** Total asignado a la factura, expresado en moneda funcional. */
-  private async calculateTotalPaidBase(invoiceId: string): Promise<number> {
-    const allocations = await db
-      .select()
-      .from(paymentAllocations)
-      .where(eq(paymentAllocations.invoiceId, invoiceId));
-
-    let total = 0;
-    for (const alloc of allocations) {
-      const [payment] = await db
-        .select()
-        .from(payments)
-        .where(eq(payments.id, alloc.paymentId))
-        .limit(1);
-
-      if (payment && payment.status === PaymentStatus.POSTED) {
-        total = Number(this.money.round(total + Number(alloc.amountBase ?? 0)));
-      }
-    }
-
-    return total;
   }
 
   private async calculateTotalPaid(invoiceId: string): Promise<number> {
@@ -587,6 +923,20 @@ export class TreasuryService {
 
     console.log(`[Treasury] Step 6: Deleting payment allocations`);
 
+    // Se capturan antes de borrarlas: la anulación debe reabrir todas las facturas que el pago tocó
+    // —una imputación puede repartirse entre varias— y no sólo `payment.invoiceId` (`S-18`).
+    const voidedAllocations = await db
+      .select({ invoiceId: paymentAllocations.invoiceId })
+      .from(paymentAllocations)
+      .where(eq(paymentAllocations.paymentId, id));
+
+    const affectedInvoiceIds = [
+      ...new Set([
+        ...voidedAllocations.map(row => row.invoiceId),
+        ...(payment.invoiceId ? [payment.invoiceId] : []),
+      ]),
+    ];
+
     await db.delete(paymentAllocations).where(eq(paymentAllocations.paymentId, id));
 
     console.log(`[Treasury] Step 7: Cleaning document links`);
@@ -597,24 +947,52 @@ export class TreasuryService {
 
     console.log(`[Treasury] Step 8: Reopening invoices`);
 
-    if (payment.invoiceId) {
-      const [invoice] = await db
-        .select()
-        .from(invoices)
-        .where(eq(invoices.id, payment.invoiceId))
-        .limit(1);
-
-      if (invoice) {
-        await db
-          .update(invoices)
-          .set({ status: 'POSTED' })
-          .where(eq(invoices.id, payment.invoiceId));
-      }
+    for (const affectedInvoiceId of affectedInvoiceIds) {
+      await this.refreshInvoiceBalance(affectedInvoiceId, { resetWhenEmpty: true });
     }
 
     console.log(`[Treasury] Voiding payment record`);
 
     await db.update(payments).set({ status: PaymentStatus.VOID }).where(eq(payments.id, id));
+
+    // El asiento del cobro/pago se anula con él: si quedara vigente, el ingreso seguiría en el libro
+    // aunque la factura y el banco ya estén revertidos (`S-18`).
+    await this.accounting
+      .cancelEntryBySource('PAYMENT', id, userId)
+      .catch(error =>
+        this.logger.warn(
+          `No se pudo anular el asiento del pago ${payment.code}: ${(error as Error).message}`
+        )
+      );
+
+    // La anulación también queda en el histórico de cada factura afectada (`S-16` M-22).
+    for (const affectedInvoiceId of affectedInvoiceIds) {
+      const [invoice] = await db
+        .select({
+          id: invoices.id,
+          code: invoices.code,
+          status: invoices.status,
+          orderId: invoices.orderId,
+        })
+        .from(invoices)
+        .where(eq(invoices.id, affectedInvoiceId))
+        .limit(1);
+
+      if (!invoice) continue;
+
+      await this.documentEvents.record({
+        documentType: 'INVOICE',
+        documentId: invoice.id,
+        documentCode: invoice.code,
+        parentDocumentId: invoice.orderId,
+        action: 'PAYMENT_VOIDED',
+        toStatus: invoice.status,
+        description: `Pago ${payment.code} anulado`,
+        metadata: { paymentId: payment.id, paymentCode: payment.code },
+        userId: userId ?? null,
+        branchId: payment.branchId,
+      });
+    }
 
     return this.findOne(id);
   }
@@ -688,12 +1066,21 @@ export class TreasuryService {
   }
 
   async getBankAccounts(branchId: string): Promise<BankAccountResponseDto[]> {
+    // El banco y la moneda viajan en la respuesta: la UI no tiene cómo resolverlos y sus tarjetas
+    // quedaban con el nombre vacío y el saldo sin código de moneda (S-16 M-18).
     const accounts = await db
-      .select()
+      .select({ account: bankAccounts, bankName: banks.name, currencyCode: currencies.code })
       .from(bankAccounts)
+      .leftJoin(banks, eq(banks.id, bankAccounts.bankId))
+      .leftJoin(currencies, eq(currencies.id, bankAccounts.currencyId))
       .where(eq(bankAccounts.branchId, branchId));
 
-    return accounts.map(account => this.toAccountDto(account));
+    return accounts.map(row =>
+      this.toAccountDto(row.account, {
+        bankName: row.bankName,
+        currencyCode: row.currencyCode,
+      })
+    );
   }
 
   /** Incluye las cuentas inactivas para poder reactivarlas (`T-05-02`). */
@@ -719,6 +1106,9 @@ export class TreasuryService {
         ...(dto.accountNumber !== undefined ? { accountNumber: dto.accountNumber } : {}),
         ...(dto.type !== undefined ? { type: dto.type } : {}),
         ...(dto.bankId !== undefined ? { bankId: dto.bankId } : {}),
+        ...(dto.accountingAccountId !== undefined
+          ? { accountingAccountId: dto.accountingAccountId }
+          : {}),
         ...(dto.initialBalance !== undefined ? { initialBalance: String(dto.initialBalance) } : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
@@ -731,7 +1121,8 @@ export class TreasuryService {
   }
 
   async createBankAccount(
-    createBankAccountDto: CreateBankAccountDto
+    createBankAccountDto: CreateBankAccountDto,
+    branchId?: string
   ): Promise<BankAccountResponseDto> {
     const [newAccount] = await db
       .insert(bankAccounts)
@@ -741,8 +1132,10 @@ export class TreasuryService {
         accountNumber: createBankAccountDto.accountNumber,
         type: createBankAccountDto.type,
         currencyId: createBankAccountDto.currencyId,
-        branchId: createBankAccountDto.branchId,
+        // La sucursal activa (`x-branch-id`) manda: sin ella la cuenta quedaría fuera de todo listado.
+        branchId: branchId ?? createBankAccountDto.branchId ?? null,
         bankId: createBankAccountDto.bankId ?? null,
+        accountingAccountId: createBankAccountDto.accountingAccountId ?? null,
         initialBalance: String(
           createBankAccountDto.initialBalance ?? createBankAccountDto.currentBalance ?? 0
         ),
@@ -966,7 +1359,10 @@ export class TreasuryService {
     };
   }
 
-  private toAccountDto(account: typeof bankAccounts.$inferSelect): BankAccountResponseDto {
+  private toAccountDto(
+    account: typeof bankAccounts.$inferSelect,
+    extra: { bankName?: string | null; currencyCode?: string | null } = {}
+  ): BankAccountResponseDto {
     return {
       id: account.id,
       name: account.name,
@@ -975,10 +1371,13 @@ export class TreasuryService {
       currencyId: account.currencyId,
       branchId: account.branchId,
       bankId: account.bankId,
+      accountingAccountId: account.accountingAccountId,
       initialBalance: Number(account.initialBalance ?? 0),
       currentBalance: Number(account.currentBalance ?? 0),
       isActive: account.isActive,
       notes: account.notes,
+      bankName: extra.bankName ?? null,
+      currencyCode: extra.currencyCode ?? null,
     };
   }
 
@@ -1023,5 +1422,3 @@ export class TreasuryService {
     return available;
   }
 }
-
-import { creditNoteItems, currencies } from '../../../schema';

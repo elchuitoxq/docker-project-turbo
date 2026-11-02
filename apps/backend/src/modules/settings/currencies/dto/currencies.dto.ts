@@ -225,3 +225,22 @@ export class RateWithFreshnessDto extends RateHistoryDto {
   @ApiProperty({ description: 'true si supera el umbral de antigüedad', example: false })
   isStale: boolean;
 }
+
+export class SyncResultDto {
+  @ApiProperty({
+    description:
+      'stored = tasa nueva guardada · unchanged = BCV publicó el mismo valor · manual-override = el día tiene una tasa manual y no se pisa',
+    enum: ['stored', 'unchanged', 'manual-override'],
+    example: 'stored',
+  })
+  status: 'stored' | 'unchanged' | 'manual-override';
+
+  @ApiProperty({ example: 889.5754 })
+  rate: number;
+
+  @ApiProperty({ example: '2026-10-31T00:00:00.000Z' })
+  date: Date;
+
+  @ApiProperty({ example: 'BCV' })
+  source: string;
+}

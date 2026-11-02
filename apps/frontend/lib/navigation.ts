@@ -16,6 +16,47 @@ export type NavGroup = {
   items?: NavLeaf[];
 };
 
+export type RouteRequirement = {
+  /** Permisos que deben estar todos presentes. */
+  all: string[];
+  /** Permisos de los que basta uno; vacío = sin restricción adicional. */
+  any: string[];
+};
+
+/**
+ * Deriva el permiso de una ruta del mismo catálogo que usa el sidebar, para que
+ * una URL escrita a mano no muestre una vista que el menú oculta.
+ */
+export function routeRequirement(pathname: string): RouteRequirement | null {
+  const candidates: { url: string; requirement: RouteRequirement }[] = [];
+
+  for (const group of NAV_ITEMS) {
+    const groupPermissions = group.permission ? [group.permission] : [];
+    if (group.url) {
+      candidates.push({ url: group.url, requirement: { all: groupPermissions, any: [] } });
+    }
+    for (const item of group.items ?? []) {
+      if (!item.url) continue;
+      candidates.push({
+        url: item.url,
+        requirement: {
+          all: item.permission ? [...groupPermissions, item.permission] : groupPermissions,
+          any: item.anyPermissions ?? [],
+        },
+      });
+    }
+  }
+
+  let match: { url: string; requirement: RouteRequirement } | null = null;
+  for (const candidate of candidates) {
+    const matches = pathname === candidate.url || pathname.startsWith(`${candidate.url}/`);
+    if (!matches) continue;
+    if (!match || candidate.url.length > match.url.length) match = candidate;
+  }
+
+  return match?.requirement ?? null;
+}
+
 export const NAV_ITEMS: NavGroup[] = [
   {
     title: 'Dashboard',
@@ -141,7 +182,7 @@ export const NAV_ITEMS: NavGroup[] = [
       {
         title: 'Cierre diario',
         url: '/dashboard/finance/daily-close',
-        permission: PERMISSIONS.FINANCE.VIEW,
+        permission: PERMISSIONS.FINANCE.TREASURY.DAILY_CLOSE,
         icon: 'CalendarCheck',
       },
       {
@@ -266,6 +307,12 @@ export const NAV_ITEMS: NavGroup[] = [
         icon: 'Percent',
       },
       {
+        title: 'Retenciones al proveedor',
+        url: '/dashboard/settings/retentions',
+        permission: PERMISSIONS.FINANCE.INVOICES.VIEW,
+        icon: 'Receipt',
+      },
+      {
         title: 'Guía de parámetros legales',
         url: '/dashboard/settings/payroll-guide',
         permission: PERMISSIONS.HR.SETTINGS.VIEW,
@@ -274,9 +321,24 @@ export const NAV_ITEMS: NavGroup[] = [
       {
         title: 'Auditoría',
         url: '/dashboard/settings/audit',
-        permission: PERMISSIONS.SETTINGS.USERS.VIEW,
+        permission: PERMISSIONS.SETTINGS.AUDIT.VIEW,
         icon: 'History',
       },
+    ],
+  },
+  {
+    // La guía explica también lo que el usuario **no** puede hacer, así que no se filtra por
+    // permisos de módulo: el contenido se adapta y muestra qué solicitar.
+    title: 'Guías de uso',
+    url: '/dashboard/guides',
+    icon: 'BookOpen',
+    items: [
+      { title: 'Todas las guías', url: '/dashboard/guides', icon: 'BookOpen' },
+      { title: 'Inventario', url: '/dashboard/guides/inventory', icon: 'Warehouse' },
+      { title: 'Operaciones', url: '/dashboard/guides/operations', icon: 'Briefcase' },
+      { title: 'Finanzas', url: '/dashboard/guides/finance', icon: 'Banknote' },
+      { title: 'Recursos Humanos', url: '/dashboard/guides/hr', icon: 'Users' },
+      { title: 'Configuración', url: '/dashboard/guides/settings', icon: 'Settings' },
     ],
   },
 ];

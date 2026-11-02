@@ -27,10 +27,12 @@ import {
   PartnerStatsResponseDto,
 } from './dto/partners.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { MessageResponseDto } from '../../common/dto/api-response.dto';
 
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('partners')
+@ApiBearerAuth()
 @Controller('v1/partners')
 @RequirePermissions('operations:partners:view')
 export class PartnersController {
@@ -57,11 +59,19 @@ export class PartnersController {
     required: false,
     description: 'Con `true` devuelve { data, total, page, limit }',
   })
+  @ApiQuery({
+    name: 'type',
+    required: false,
+    description:
+      'Filtra por rol comercial: `CUSTOMER`, `VENDOR` o `BOTH`. Los roles incluyen a los partners `BOTH`.',
+    enum: ['CUSTOMER', 'VENDOR', 'BOTH'],
+  })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 20 })
   async findAll(
     @Query('search') search?: string,
     @Query('paginated') paginated?: string,
+    @Query('type') type?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string
   ): Promise<
@@ -71,12 +81,13 @@ export class PartnersController {
     if (paginated === 'true') {
       return this.partnersService.findPaginated({
         search,
+        type,
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
       });
     }
 
-    return this.partnersService.findAll(search);
+    return this.partnersService.findAll(search, type);
   }
 
   @Get('stats')
@@ -181,12 +192,13 @@ export class PartnersController {
   @ApiResponse({
     status: 200,
     description: 'Partner deactivated successfully',
+    type: MessageResponseDto,
   })
   @ApiResponse({
     status: 404,
     description: 'Partner not found',
   })
-  async remove(@Param('id') id: string): Promise<{ message: string }> {
+  async remove(@Param('id') id: string): Promise<MessageResponseDto> {
     return this.partnersService.remove(id);
   }
 }

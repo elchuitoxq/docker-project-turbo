@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { testDb } from './database';
-import { createTestBranch } from './factories';
+import { createTestBranch, createTestEmployee } from './factories';
 import {
   accountingAccounts,
   accountingEntries,
@@ -101,11 +101,14 @@ async function scenario(status: 'PROCESSED' | 'PAID' | 'DRAFT' = 'PROCESSED') {
     })
     .returning();
 
+  // `payroll_items.employee_id` es FK desde `S-17`: el empleado tiene que existir de verdad.
+  const employee = await createTestEmployee({ branchId: branch.id });
+
   const [item] = await testDb
     .insert(payrollItems)
     .values({
       runId: run.id,
-      employeeId: '00000000-0000-4000-8000-000000000999',
+      employeeId: employee.id,
       baseAmount: '1100',
       netTotal: '1060',
     })

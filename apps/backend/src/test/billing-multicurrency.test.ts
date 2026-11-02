@@ -146,7 +146,7 @@ describe('Billing multimoneda', () => {
     const dto = await buildInvoice(await baseCurrencyId());
     const invoice = await billing.create(dto, userId, dto.branchId);
 
-    const listed = await billing.findAll(dto.branchId);
+    const listed = await billing.findAll(dto.branchId!);
     const [found] = await testDb
       .select({ id: currencies.id, isBase: currencies.isBase })
       .from(currencies)
@@ -155,5 +155,88 @@ describe('Billing multimoneda', () => {
 
     expect(found?.isBase).toBe(true);
     expect(listed.some(item => item.id === invoice.id)).toBe(true);
+  });
+
+  it('convierte precio y costo del producto a la moneda del documento', async () => {
+    // Producto en divisa (tasa 40) facturado en moneda funcional.
+    const productCurrencyId = await foreignCurrencyWithRate(40);
+    const branch = await createTestBranch();
+    const partner = await createTestPartner({ type: 'CUSTOMER' });
+    const product = await createTestProduct({
+      currencyId: productCurrencyId,
+      cost: '10.00',
+      price: '100.00',
+    });
+
+    const invoice = await billing.create(
+      {
+        partnerId: partner.id,
+        branchId: branch.id,
+        currencyId: await baseCurrencyId(),
+        type: InvoiceType.SALE,
+        items: [
+          {
+            productId: product.id,
+            quantity: 2,
+            price: 100,
+            priceCurrencyId: productCurrencyId,
+            taxRate: 16,
+          },
+        ],
+      } as CreateInvoiceDto,
+      userId,
+      branch.id
+    );
+
+    const [line] = invoice.items ?? [];
+    // 100 × 40 = 4.000 por unidad; el costo sigue la misma tasa: 10 × 40 = 400.
+    expect(line.price).toBeCloseTo(4000, 2);
+    expect(Number(line.cost)).toBeCloseTo(400, 2);
+    expect(invoice.totalBase).toBeCloseTo(8000, 2);
+  });
+
+  it('convierte el costo del producto cuando la factura va en divisa', async () => {
+    // Producto en moneda funcional facturado en divisa (tasa 40): 100 / 40 = 2,50.
+    const documentCurrencyId = await foreignCurrencyWithRate(40);
+    const branch = await createTestBranch();
+    const partner = await createTestPartner({ type: 'CUSTOMER' });
+    const product = await createTestProduct({
+      currencyId: await baseCurrencyId(),
+      cost: '100.00',
+      price: '150.00',
+    });
+
+    const invoice = await billing.create(
+      {
+        partnerId: partner.id,
+        branchId: branch.id,
+        currencyId: documentCurrencyId,
+        type: InvoiceType.SALE,
+        items: [{ productId: product.id, quantity: 1, price: 10, taxRate: 16 }],
+      } as CreateInvoiceDto,
+      userId,
+      branch.id
+    );
+
+    const [line] = invoice.items ?? [];
+    expect(line.price).toBeCloseTo(10, 2);
+    expect(Number(line.cost)).toBeCloseTo(2.5, 2);
+  });
+
+  it('recalcula IVA e IGTF cuando cambia la tasa de un borrador', async () => {
+    const currencyId = await foreignCurrencyWithRate(40);
+    const dto = await buildInvoice(currencyId);
+    const invoice = await billing.create(dto, userId, dto.branchId);
+
+    const updated = await billing.update(invoice.id, { exchangeRate: 50 }, dto.branchId, userId);
+
+    expect(Number(updated.exchangeRate)).toBe(50);
+    // Base e IVA no cambian: los precios ya estaban en la moneda del documento.
+    expect(updated.totalBase).toBeCloseTo(invoice.totalBase, 2);
+    expect(updated.totalTax).toBeCloseTo(invoice.totalTax, 2);
+    expect(Number(updated.total)).toBeCloseTo(
+      updated.totalBase + updated.totalTax + updated.totalIgtf,
+      2
+    );
   });
 });

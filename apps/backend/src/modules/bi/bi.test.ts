@@ -44,7 +44,7 @@ describe('BiService', () => {
     it('should return KPIs with zero values when no data exists', async () => {
       vi.mocked(db.select).mockReturnValue(createQueryBuilder([{ count: 0, sum: 0 }]) as any);
 
-      const result = await service.getKpis();
+      const result = await service.getKpis('branch-1');
 
       expect(result).toEqual({
         totalInvoicesPosted: { count: 0, sum: 0 },
@@ -68,7 +68,7 @@ describe('BiService', () => {
         () => createQueryBuilder(callResults[callIndex++]) as any
       );
 
-      const result = await service.getKpis();
+      const result = await service.getKpis('branch-1');
 
       expect(result.totalInvoicesPosted).toEqual({ count: 10, sum: 50000 });
       expect(result.totalPaymentsPosted).toEqual({ count: 25, sum: 30000 });
@@ -80,7 +80,7 @@ describe('BiService', () => {
     it('should handle null/undefined counts and sums gracefully', async () => {
       vi.mocked(db.select).mockReturnValue(createQueryBuilder([{ count: null, sum: null }]) as any);
 
-      const result = await service.getKpis();
+      const result = await service.getKpis('branch-1');
 
       expect(result.totalInvoicesPosted).toEqual({ count: 0, sum: 0 });
       expect(result.totalPaymentsPosted).toEqual({ count: 0, sum: 0 });
@@ -97,7 +97,7 @@ describe('BiService', () => {
       ];
       vi.mocked(db.select).mockReturnValue(createQueryBuilder(mockSalesData) as any);
 
-      const result = await service.getChartData('sales', 2024);
+      const result = await service.getChartData('sales', 2024, 'branch-1');
 
       expect(result).toHaveLength(12);
       expect(result[0]).toEqual({ month: 1, monthName: 'Enero', total: 10000, count: 5 });
@@ -113,7 +113,7 @@ describe('BiService', () => {
       ];
       vi.mocked(db.select).mockReturnValue(createQueryBuilder(mockPaymentsData) as any);
 
-      const result = await service.getChartData('payments', 2024);
+      const result = await service.getChartData('payments', 2024, 'branch-1');
 
       expect(result).toHaveLength(12);
       expect(result[8]).toEqual({ month: 9, monthName: 'Septiembre', total: 8000, count: 4 });
@@ -123,7 +123,7 @@ describe('BiService', () => {
     it('should return all months with zero values when no data exists', async () => {
       vi.mocked(db.select).mockReturnValue(createQueryBuilder([]) as any);
 
-      const result = await service.getChartData('sales', 2024);
+      const result = await service.getChartData('sales', 2024, 'branch-1');
 
       expect(result).toHaveLength(12);
       result.forEach(month => {
@@ -187,7 +187,7 @@ describe('BiService', () => {
         () => createQueryBuilder(callResults[callIndex++]) as any
       );
 
-      const result = await service.getActivity();
+      const result = await service.getActivity('branch-1');
 
       expect(result.recentInvoices).toHaveLength(2);
       expect(result.recentPayments).toHaveLength(1);
@@ -204,7 +204,7 @@ describe('BiService', () => {
         () => createQueryBuilder(callResults[callIndex++]) as any
       );
 
-      const result = await service.getActivity();
+      const result = await service.getActivity('branch-1');
 
       expect(result.recentInvoices).toEqual([]);
       expect(result.recentPayments).toEqual([]);
@@ -229,7 +229,7 @@ describe('BiService', () => {
         () => createQueryBuilder(callResults[callIndex++]) as any
       );
 
-      const result = await service.getActivity();
+      const result = await service.getActivity('branch-1');
 
       expect(result.recentInvoices[0].partnerName).toBeNull();
     });
@@ -252,7 +252,7 @@ describe('BiService', () => {
         () => createQueryBuilder(callResults[callIndex++]) as any
       );
 
-      const result = await service.getActivity();
+      const result = await service.getActivity('branch-1');
 
       expect(result.recentInvoices[0].partnerName).toBeNull();
     });
@@ -272,7 +272,7 @@ describe('BiService', () => {
     it('should handle leap year correctly', async () => {
       vi.mocked(db.select).mockReturnValue(createQueryBuilder([]) as any);
 
-      const result = await service.getChartData('sales', 2024);
+      const result = await service.getChartData('sales', 2024, 'branch-1');
 
       expect(result).toHaveLength(12);
       expect(result.find(m => m.month === 2)).toBeDefined();
@@ -282,7 +282,7 @@ describe('BiService', () => {
       const mockData = [{ month: 1, total: '12345.67', count: 5 }];
       vi.mocked(db.select).mockReturnValue(createQueryBuilder(mockData) as any);
 
-      const result = await service.getChartData('sales', 2024);
+      const result = await service.getChartData('sales', 2024, 'branch-1');
 
       expect(result[0].total).toBe(12345.67);
     });

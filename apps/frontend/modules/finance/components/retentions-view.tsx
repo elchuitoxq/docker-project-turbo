@@ -2,9 +2,10 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileSpreadsheet, Download, FileText, Calendar, Search } from 'lucide-react';
+import { Download, FileText, Calendar, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -23,72 +24,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { retentionsApi, type Retention } from '../api/retentions';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { retentionsApi } from '../api/retentions';
+import { formatMoney, formatDate } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
 
-const STATUS_LABEL = {
-  DRAFT: 'Borrador',
-  APPLIED: 'Aplicada',
-  PAID: 'Pagada',
-  VOID: 'Anulada',
-} as const;
-
-const STATUS_VARIANT = {
-  DRAFT: 'secondary',
-  APPLIED: 'outline',
-  PAID: 'default',
-  VOID: 'destructive',
-} as const;
-
+/**
+ * Retenciones IVA/ISLR emitidas (`S-06`).
+ *
+ * Los comprobantes los genera el sistema al registrar el pago de una factura de compra
+ * (`tax_retentions`); esta pantalla los lista con su factura de origen y exporta los archivos del
+ * SENIAT. Antes pedía `/accounting/retentions`, una ruta que no existe (`S-16` M-14).
+ */
 export function RetentionsView() {
+  const { baseCode, codeOf } = useCurrencyIndex();
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState<'ALL' | 'IVA' | 'ISLR'>('ALL');
-  const [status, setStatus] = React.useState<string>('ALL');
   const [fromDate, setFromDate] = React.useState('');
   const [toDate, setToDate] = React.useState('');
 
+  /**
+   * Base e IVA del comprobante están en la moneda del documento; el retenido se muestra convertido a
+   * moneda funcional. Etiquetar la base de una compra en USD como Bs.S era un error de lectura fiscal
+   * (`S-16` M-25).
+   */
+  const rowCurrency = (row: { currencyId?: string | null }) => codeOf(row.currencyId);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['retentions', { type, status, fromDate, toDate }],
+    queryKey: ['retentions', { type, fromDate, toDate }],
     queryFn: () =>
       retentionsApi.list({
         ...(type !== 'ALL' && { type }),
-        ...(status !== 'ALL' && { status }),
-        ...(fromDate && { fromDate }),
-        ...(toDate && { toDate }),
+        ...(fromDate && { from: fromDate }),
+        ...(toDate && { to: toDate }),
       }),
   });
 
-  const filtered = (data?.data ?? []).filter(
-    r =>
-      !search ||
-      r.documentCode.toLowerCase().includes(search.toLowerCase()) ||
-      (r.partnerName ?? '').toLowerCase().includes(search.toLowerCase())
-  );
+  const rows = data ?? [];
+  const filtered = rows.filter(row => {
+    if (!search) return true;
+    const needle = search.toLowerCase();
+    return (
+      row.code.toLowerCase().includes(needle) ||
+      (row.partnerName ?? '').toLowerCase().includes(needle) ||
+      (row.invoiceCode ?? '').toLowerCase().includes(needle)
+    );
+  });
 
-  const totalIva = filtered
-    .filter(r => r.type === 'IVA')
-    .reduce((acc, r) => acc + Number(r.retentionAmount), 0);
-  const totalIslr = filtered
-    .filter(r => r.type === 'ISLR')
-    .reduce((acc, r) => acc + Number(r.retentionAmount), 0);
+  const sumRetained = (wanted: 'IVA' | 'ISLR') =>
+    filtered
+      .filter(row => row.type === wanted)
+      .reduce((acc, row) => acc + Number(row.totalRetainedBase ?? row.totalRetained), 0);
+
+  const totalIva = sumRetained('IVA');
+  const totalIslr = sumRetained('ISLR');
 
   function downloadTxt() {
     if (!fromDate || !toDate) {
       alert('Selecciona un rango de fechas para exportar');
       return;
     }
-    retentionsApi
-      .generateIvaTxt(fromDate, toDate)
-      .then(res => {
-        const blob = new Blob([res.content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = res.filename ?? 'ret-iva.txt';
-        a.click();
-        URL.revokeObjectURL(url);
-      })
-      .catch(() => alert('Error al generar TXT'));
+    retentionsApi.generateIvaTxt(fromDate, toDate).then(res => {
+      const blob = new Blob([res.content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.filename ?? 'ret-iva.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   function downloadXml() {
@@ -96,18 +99,15 @@ export function RetentionsView() {
       alert('Selecciona un rango de fechas para exportar');
       return;
     }
-    retentionsApi
-      .generateIslrXml(fromDate, toDate)
-      .then(res => {
-        const blob = new Blob([res.content], { type: 'application/xml' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = res.filename ?? 'ret-islr.xml';
-        a.click();
-        URL.revokeObjectURL(url);
-      })
-      .catch(() => alert('Error al generar XML'));
+    retentionsApi.generateIslrXml(fromDate, toDate).then(res => {
+      const blob = new Blob([res.content], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.filename ?? 'ret-islr.xml';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   return (
@@ -115,36 +115,44 @@ export function RetentionsView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Retenciones</h1>
-          <p className="text-sm text-muted-foreground">Retenciones IVA e ISLR</p>
+          <p className="text-sm text-muted-foreground">
+            Comprobantes IVA e ISLR generados al pagar facturas de compra
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={downloadTxt}>
-            <FileText className="size-4" /> TXT IVA
+            <FileText data-icon="inline-start" />
+            TXT IVA
           </Button>
           <Button variant="outline" onClick={downloadXml}>
-            <FileSpreadsheet className="size-4" /> XML ISLR
+            <Download data-icon="inline-start" />
+            XML ISLR
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total IVA retenido</p>
-            <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalIva)}</p>
-          </CardContent>
+          <CardHeader className="pb-2">
+            <CardDescription>IVA retenido ({baseCode})</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {formatMoney(totalIva, baseCode)}
+            </CardTitle>
+          </CardHeader>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total ISLR retenido</p>
-            <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalIslr)}</p>
-          </CardContent>
+          <CardHeader className="pb-2">
+            <CardDescription>ISLR retenido ({baseCode})</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {formatMoney(totalIslr, baseCode)}
+            </CardTitle>
+          </CardHeader>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Cantidad</p>
-            <p className="text-2xl font-bold tabular-nums">{filtered.length}</p>
-          </CardContent>
+          <CardHeader className="pb-2">
+            <CardDescription>Comprobantes</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{filtered.length}</CardTitle>
+          </CardHeader>
         </Card>
       </div>
 
@@ -155,12 +163,12 @@ export function RetentionsView() {
               <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar…"
+                onChange={event => setSearch(event.target.value)}
+                placeholder="Buscar por comprobante, factura o proveedor…"
                 className="pl-8"
               />
             </div>
-            <Select value={type} onValueChange={v => setType(v as 'ALL' | 'IVA' | 'ISLR')}>
+            <Select value={type} onValueChange={value => setType(value as 'ALL' | 'IVA' | 'ISLR')}>
               <SelectTrigger className="w-32">
                 <SelectValue />
               </SelectTrigger>
@@ -170,34 +178,23 @@ export function RetentionsView() {
                 <SelectItem value="ISLR">ISLR</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos</SelectItem>
-                {Object.entries(STATUS_LABEL).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    {v}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <div className="flex items-center gap-1">
               <Calendar className="size-4 text-muted-foreground" />
-              <Input
-                type="date"
+              <DatePicker
                 value={fromDate}
-                onChange={e => setFromDate(e.target.value)}
-                className="w-40"
+                onChange={setFromDate}
                 placeholder="Desde"
-              />
-              <Input
-                type="date"
-                value={toDate}
-                onChange={e => setToDate(e.target.value)}
                 className="w-40"
+                clearable
+                toDate={toDate || undefined}
+              />
+              <DatePicker
+                value={toDate}
+                onChange={setToDate}
                 placeholder="Hasta"
+                className="w-40"
+                clearable
+                fromDate={fromDate || undefined}
               />
             </div>
           </div>
@@ -208,56 +205,62 @@ export function RetentionsView() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Listado</CardTitle>
           <CardDescription>
-            {isLoading ? 'Cargando…' : `${filtered.length} retenciones`}
+            {isLoading ? 'Cargando…' : `${filtered.length} comprobantes`}
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="space-y-2 p-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12" />
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-12" />
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">No hay retenciones</div>
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              No hay retenciones en este rango. Se generan al registrar el pago de una factura de
+              compra con retención.
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Documento</TableHead>
+                  <TableHead>Comprobante</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Partner</TableHead>
+                  <TableHead>Proveedor</TableHead>
                   <TableHead className="hidden md:table-cell">Factura</TableHead>
                   <TableHead className="text-right">Base</TableHead>
-                  <TableHead className="text-right">%</TableHead>
+                  <TableHead className="text-right">IVA</TableHead>
                   <TableHead className="text-right">Retenido</TableHead>
-                  <TableHead>Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((r: Retention) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono text-xs">{r.documentCode}</TableCell>
-                    <TableCell className="text-xs">{formatDate(r.date)}</TableCell>
-                    <TableCell>
-                      <Badge variant={r.type === 'IVA' ? 'default' : 'secondary'}>{r.type}</Badge>
+                {filtered.map(retention => (
+                  <TableRow key={retention.id}>
+                    <TableCell className="font-mono text-xs">
+                      {retention.voucherNumber ?? retention.code}
                     </TableCell>
-                    <TableCell>{r.partnerName ?? '—'}</TableCell>
-                    <TableCell className="hidden md:table-cell font-mono text-xs text-muted-foreground">
-                      {r.invoiceCode ?? '—'}
+                    <TableCell className="text-xs">{formatDate(retention.date)}</TableCell>
+                    <TableCell>
+                      <Badge variant={retention.type === 'IVA' ? 'default' : 'secondary'}>
+                        {retention.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{retention.partnerName ?? '—'}</TableCell>
+                    <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                      {retention.invoiceCode ?? '—'}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatCurrency(Number(r.taxAmount))}
+                      {formatMoney(Number(retention.totalBase), rowCurrency(retention))}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {Number(r.retentionRate).toFixed(2)}%
+                      {formatMoney(Number(retention.totalTax), rowCurrency(retention))}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
-                      {formatCurrency(Number(r.retentionAmount))}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                      {formatMoney(
+                        Number(retention.totalRetainedBase ?? retention.totalRetained),
+                        baseCode
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

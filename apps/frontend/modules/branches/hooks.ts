@@ -7,12 +7,12 @@ import { useCompanyStore } from '@/stores/use-company-store';
 import { useBranchStore } from '@/stores/use-branch-store';
 import { useAuthStore } from '@/stores/use-auth-store';
 import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 export function useCompanies() {
   const isAuthed = useAuthStore(s => s.isAuthenticated);
-  const canViewCompanies = useAuthStore(
-    s => s.user?.permissions.includes(PERMISSIONS.SETTINGS.COMPANIES.VIEW) ?? false
-  );
+  const { hasPermission } = usePermission();
+  const canViewCompanies = hasPermission(PERMISSIONS.SETTINGS.COMPANIES.VIEW);
   return useQuery<Company[]>({
     queryKey: ['companies'],
     queryFn: () => branchesApi.listCompanies(),
@@ -23,9 +23,8 @@ export function useCompanies() {
 
 export function useBranches() {
   const isAuthed = useAuthStore(s => s.isAuthenticated);
-  const canViewBranches = useAuthStore(
-    s => s.user?.permissions.includes(PERMISSIONS.SETTINGS.BRANCHES.VIEW) ?? false
-  );
+  const { hasPermission } = usePermission();
+  const canViewBranches = hasPermission(PERMISSIONS.SETTINGS.BRANCHES.VIEW);
   return useQuery<Branch[]>({
     queryKey: ['branches'],
     queryFn: () => branchesApi.list(),

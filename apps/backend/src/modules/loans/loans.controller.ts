@@ -32,6 +32,7 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('loans')
+@ApiBearerAuth()
 @Controller('v1/loans')
 @RequirePermissions('finance:loans:view')
 export class LoansController {

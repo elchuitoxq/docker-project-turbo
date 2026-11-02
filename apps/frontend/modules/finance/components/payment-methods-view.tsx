@@ -31,6 +31,8 @@ import {
   treasuryMethodsApi,
   type PaymentMethodAdmin,
 } from '@/modules/finance/api/treasury-operations';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 /**
  * Administración de métodos de pago (`T-05-01`, `T-05-08`).
@@ -39,6 +41,8 @@ import {
  */
 export function PaymentMethodsView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.TREASURY.CREATE_ACCOUNT);
   const [creating, setCreating] = React.useState(false);
 
   const { data, isLoading } = useQuery({
@@ -67,10 +71,12 @@ export function PaymentMethodsView() {
             Efectivo, transferencia, Pago Móvil, Zelle y divisas, con IGTF y referencia obligatoria
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>
-          <Plus data-icon="inline-start" />
-          Nuevo método
-        </Button>
+        {canManage && (
+          <Button onClick={() => setCreating(true)}>
+            <Plus data-icon="inline-start" />
+            Nuevo método
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -118,6 +124,7 @@ export function PaymentMethodsView() {
                     <TableCell className="text-right">
                       <Switch
                         checked={Boolean(method.isActive)}
+                        disabled={!canManage}
                         onCheckedChange={checked => {
                           if (!method.isActive) {
                             toast.info('Un método inactivo no aparece al cobrar');

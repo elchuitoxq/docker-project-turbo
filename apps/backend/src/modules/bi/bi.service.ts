@@ -9,7 +9,8 @@ import {
   orders,
   partners,
 } from '../../schema';
-import { eq, and, desc, sql, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, sql, gte, inArray, lte } from 'drizzle-orm';
+import { ISSUED_INVOICE_STATUSES } from '../billing/issued-status';
 
 export interface KpiResult {
   totalInvoicesPosted: { count: number; sum: number };
@@ -81,14 +82,18 @@ const MONTH_NAMES = [
 
 @Injectable()
 export class BiService {
-  async getKpis(): Promise<KpiResult> {
+  async getKpis(branchId: string): Promise<KpiResult> {
+    // Montos en moneda funcional: `total` est? en la moneda del documento (regla 5 de `S-08`) y
+    // todo se acota a la sucursal activa (S-00).
     const postedInvoices = await db
       .select({
         count: sql<number>`count(*)`,
-        sum: sql<number>`coalesce(sum(${invoices.total}::numeric), 0)`,
+        sum: sql<number>`coalesce(sum(${invoices.total}::numeric * ${invoices.exchangeRate}::numeric), 0)`,
       })
       .from(invoices)
-      .where(eq(invoices.status, 'POSTED'));
+      .where(
+        and(inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]), eq(invoices.branchId, branchId))
+      );
 
     const postedPayments = await db
       .select({
@@ -96,29 +101,37 @@ export class BiService {
         sum: sql<number>`coalesce(sum(${payments.amountBase}::numeric), 0)`,
       })
       .from(payments)
-      .where(eq(payments.status, 'POSTED'));
+      .where(and(eq(payments.status, 'POSTED'), eq(payments.branchId, branchId)));
 
     const activeEmployees = await db
       .select({
         count: sql<number>`count(*)`,
       })
       .from(employees)
-      .where(eq(employees.status, 'ACTIVE'));
+      .where(and(eq(employees.status, 'ACTIVE'), eq(employees.branchId, branchId)));
 
     const pendingPayroll = await db
       .select({
         count: sql<number>`count(*)`,
       })
       .from(payrollRuns)
-      .where(and(sql`${payrollRuns.status} != 'PAID'`, sql`${payrollRuns.status} != 'CANCELLED'`));
+      .where(
+        and(
+          eq(payrollRuns.branchId, branchId),
+          sql`${payrollRuns.status} != 'PAID'`,
+          sql`${payrollRuns.status} != 'CANCELLED'`
+        )
+      );
 
     const postedCreditNotes = await db
       .select({
         count: sql<number>`count(*)`,
-        sum: sql<number>`coalesce(sum(${creditNotes.total}::numeric), 0)`,
+        sum: sql<number>`coalesce(sum(${creditNotes.total}::numeric * ${creditNotes.exchangeRate}::numeric), 0)`,
       })
       .from(creditNotes)
-      .where(eq(creditNotes.status, 'POSTED'));
+      .where(
+        and(inArray(creditNotes.status, ['POSTED', 'APPLIED']), eq(creditNotes.branchId, branchId))
+      );
 
     return {
       totalInvoicesPosted: {
@@ -142,7 +155,11 @@ export class BiService {
     };
   }
 
-  async getChartData(type: 'sales' | 'payments', year: number): Promise<MonthlyData[]> {
+  async getChartData(
+    type: 'sales' | 'payments',
+    year: number,
+    branchId: string
+  ): Promise<MonthlyData[]> {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
 
@@ -150,13 +167,14 @@ export class BiService {
       const monthlySales = await db
         .select({
           month: sql<number>`extract(month from ${invoices.date})`,
-          total: sql<number>`coalesce(sum(${invoices.total}::numeric), 0)`,
+          total: sql<number>`coalesce(sum(${invoices.total}::numeric * ${invoices.exchangeRate}::numeric), 0)`,
           count: sql<number>`count(*)`,
         })
         .from(invoices)
         .where(
           and(
-            eq(invoices.status, 'POSTED'),
+            inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]),
+            eq(invoices.branchId, branchId),
             gte(invoices.date, startDate),
             lte(invoices.date, endDate)
           )
@@ -176,6 +194,7 @@ export class BiService {
         .where(
           and(
             eq(payments.status, 'POSTED'),
+            eq(payments.branchId, branchId),
             gte(payments.date, startDate),
             lte(payments.date, endDate)
           )
@@ -206,18 +225,20 @@ export class BiService {
     return result;
   }
 
-  async getActivity(): Promise<ActivityResult> {
+  async getActivity(branchId: string): Promise<ActivityResult> {
     const recentInvoicesRaw = await db
       .select({
         id: invoices.id,
         code: invoices.code,
         partnerId: invoices.partnerId,
-        total: invoices.total,
+        total: sql<number>`${invoices.total}::numeric * ${invoices.exchangeRate}::numeric`,
         status: invoices.status,
         date: invoices.date,
       })
       .from(invoices)
-      .where(eq(invoices.status, 'POSTED'))
+      .where(
+        and(inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]), eq(invoices.branchId, branchId))
+      )
       .orderBy(desc(invoices.createdAt))
       .limit(10);
 
@@ -226,12 +247,12 @@ export class BiService {
         id: payments.id,
         code: payments.code,
         partnerId: payments.partnerId,
-        amount: payments.amount,
+        amount: payments.amountBase,
         status: payments.status,
         date: payments.date,
       })
       .from(payments)
-      .where(eq(payments.status, 'POSTED'))
+      .where(and(eq(payments.status, 'POSTED'), eq(payments.branchId, branchId)))
       .orderBy(desc(payments.createdAt))
       .limit(10);
 
@@ -240,11 +261,12 @@ export class BiService {
         id: orders.id,
         code: orders.code,
         partnerId: orders.partnerId,
-        total: orders.total,
+        total: sql<number>`${orders.total}::numeric * ${orders.exchangeRate}::numeric`,
         status: orders.status,
         date: orders.date,
       })
       .from(orders)
+      .where(eq(orders.branchId, branchId))
       .orderBy(desc(orders.createdAt))
       .limit(10);
 

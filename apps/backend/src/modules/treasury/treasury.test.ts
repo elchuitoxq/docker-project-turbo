@@ -31,7 +31,17 @@ const mocks = vi.hoisted(() => {
     const mockWhere = vi
       .fn()
       .mockReturnValue({ orderBy: mockOrderBy, limit: mockLimit, ...iterableResult });
+    // `getBankAccounts` une bancos y monedas: el mock necesita encadenar `leftJoin` sin perder
+    // el `where` que devuelve las filas (`S-16` M-18).
+    const mockLeftJoin: any = vi.fn();
+    mockLeftJoin.mockReturnValue({
+      leftJoin: mockLeftJoin,
+      where: mockWhere,
+      limit: mockLimit,
+      ...iterableResult,
+    });
     const mockFrom = vi.fn().mockReturnValue({
+      leftJoin: mockLeftJoin,
       where: mockWhere,
       orderBy: mockOrderBy,
       limit: mockLimit,
@@ -40,7 +50,7 @@ const mocks = vi.hoisted(() => {
 
     mockSelect.mockReturnValue({ from: mockFrom });
 
-    return { mockFrom, mockWhere, mockOrderBy, mockLimit };
+    return { mockFrom, mockWhere, mockOrderBy, mockLimit, mockLeftJoin };
   }
 
   return { mockSelect, mockInsert, mockUpdate, mockDelete, setupChain };
@@ -65,6 +75,7 @@ vi.mock('../../schema', () => ({
   documentLinks: {},
   invoices: {},
   bankAccounts: {},
+  banks: {},
   paymentMethods: {},
   partners: {},
   creditNoteItems: {},
@@ -268,12 +279,15 @@ describe('TreasuryService', () => {
 
   describe('getBankAccounts', () => {
     it('should return all bank accounts with parsed balances', async () => {
-      mocks.setupChain([mockBankAccount]);
+      // La consulta une bancos y monedas: cada fila llega como `{ account, bankName, currencyCode }`.
+      mocks.setupChain([{ account: mockBankAccount, bankName: 'Banesco', currencyCode: 'USD' }]);
 
       const result = await service.getBankAccounts();
 
       expect(result).toHaveLength(1);
       expect(result[0].currentBalance).toBe(1000);
+      expect(result[0].bankName).toBe('Banesco');
+      expect(result[0].currencyCode).toBe('USD');
     });
   });
 

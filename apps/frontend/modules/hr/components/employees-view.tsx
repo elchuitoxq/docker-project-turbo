@@ -33,7 +33,7 @@ import {
 import { usePermission } from '@/hooks/use-permission';
 import { PERMISSIONS } from '@/lib/permissions';
 import { useEmployees, useDepartments } from '../hooks';
-import { formatDate, formatCurrency } from '@/lib/utils';
+import { formatDate, formatMoney } from '@/lib/utils';
 import type { Employee, EmployeeStatus } from '../api';
 
 const STATUS_LABEL: Record<EmployeeStatus, string> = {
@@ -186,7 +186,7 @@ export function EmployeesView() {
                       </Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-right tabular-nums">
-                      {formatCurrency(Number(e.baseSalary), 'VES')}
+                      {formatMoney(Number(e.baseSalary), 'VES')}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

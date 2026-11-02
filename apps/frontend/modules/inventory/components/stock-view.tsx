@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Package, Warehouse } from 'lucide-react';
+import { AlertTriangle, Warehouse } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,17 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
+  ListCard,
+  ListEmptyRow,
+  ListSkeletonRows,
+  ListTd,
+  ListTh,
   Table,
   TableBody,
-  TableCell,
-  TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@/components/list/list-table';
 import { apiClient } from '@/lib/api/client';
-import { useWarehouses } from '../hooks/use-warehouses';
 
 type StockRow = {
   id: string;
@@ -35,6 +36,10 @@ type StockRow = {
   batchNumber?: string;
   minStock?: string | null;
   belowMinimum: boolean;
+  /** Costo promedio móvil del producto (`S-25`). */
+  averageCost?: string | null;
+  /** Cantidad × costo promedio. */
+  totalValue?: string | null;
 };
 
 /**
@@ -47,7 +52,12 @@ export function StockView() {
   const [warehouseId, setWarehouseId] = React.useState('');
   const [onlyLow, setOnlyLow] = React.useState(false);
 
-  const warehouses = useWarehouses();
+  const warehouses = useQuery({
+    // `inventory:products:view` habilita Stock pero no el catálogo de almacenes: se usa el
+    // endpoint de opciones para que el selector no quede vacío ni responda 403.
+    queryKey: ['inventory', 'warehouse-options'],
+    queryFn: () => apiClient.get<{ id: string; name: string }[]>('/inventory/warehouses/options'),
+  });
 
   const activeWarehouseId = warehouseId || (warehouses.data?.[0]?.id ?? '');
 
@@ -146,70 +156,77 @@ export function StockView() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Package className="size-4" /> Existencias
-          </CardTitle>
-          <CardDescription>
-            Las líneas por lote se muestran separadas; el mínimo se compara por línea
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          {stock.isLoading ? (
-            <div className="flex flex-col gap-2 p-4">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton key={index} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : visible.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">
-              {onlyLow
-                ? 'Ningún producto está por debajo de su mínimo.'
-                : 'Este almacén no tiene existencias registradas.'}
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Lote</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
-                  <TableHead className="text-right">Mínimo</TableHead>
-                  <TableHead>Alerta</TableHead>
+      <ListCard
+        title="Existencias"
+        description="Las líneas por lote se muestran separadas; el mínimo se compara por línea"
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <ListTh>SKU</ListTh>
+              <ListTh>Producto</ListTh>
+              <ListTh hide="sm">Lote</ListTh>
+              <ListTh align="right">Cantidad</ListTh>
+              <ListTh align="right" hide="md">
+                Costo prom.
+              </ListTh>
+              <ListTh align="right" hide="md">
+                Valor
+              </ListTh>
+              <ListTh align="right" hide="md">
+                Mínimo
+              </ListTh>
+              <ListTh>Alerta</ListTh>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {stock.isLoading ? (
+              <ListSkeletonRows cols={8} />
+            ) : visible.length === 0 ? (
+              <ListEmptyRow
+                cols={8}
+                message={
+                  onlyLow ? 'Ningún producto bajo mínimo.' : 'Este almacén no tiene existencias.'
+                }
+                hint={
+                  onlyLow
+                    ? 'Desactiva el filtro para ver todas las líneas del almacén.'
+                    : 'Registra una entrada de inventario para comenzar.'
+                }
+              />
+            ) : (
+              visible.map(row => (
+                <TableRow key={row.id}>
+                  <ListTd mono>{row.productSku ?? '—'}</ListTd>
+                  <ListTd>{row.productName ?? row.productId.slice(0, 8)}</ListTd>
+                  <ListTd muted className="text-xs" hide="sm">
+                    {row.batchNumber ?? '—'}
+                  </ListTd>
+                  <ListTd numeric>{Number(row.quantity ?? 0)}</ListTd>
+                  <ListTd numeric muted hide="md">
+                    {row.averageCost ? Number(row.averageCost) : '—'}
+                  </ListTd>
+                  <ListTd numeric hide="md">
+                    {row.totalValue ? Number(row.totalValue) : '—'}
+                  </ListTd>
+                  <ListTd numeric muted hide="md">
+                    {row.minStock ? Number(row.minStock) : '—'}
+                  </ListTd>
+                  <ListTd>
+                    {row.belowMinimum ? (
+                      <Badge variant="destructive">
+                        <AlertTriangle className="mr-1 size-3" /> Bajo mínimo
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">OK</Badge>
+                    )}
+                  </ListTd>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">{row.productSku ?? '—'}</TableCell>
-                    <TableCell>{row.productName ?? row.productId.slice(0, 8)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {row.batchNumber ?? '—'}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {Number(row.quantity ?? 0)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {row.minStock ? Number(row.minStock) : '—'}
-                    </TableCell>
-                    <TableCell>
-                      {row.belowMinimum ? (
-                        <Badge variant="destructive">
-                          <AlertTriangle className="mr-1 size-3" /> Bajo mínimo
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">OK</Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </ListCard>
     </div>
   );
 }

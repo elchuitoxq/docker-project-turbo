@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, FileBarChart, Lock, LockOpen, Scale } from 'lucide
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,7 @@ import {
 } from '@/modules/accounting/hooks';
 import type { BalanceSheet, IncomeStatement, Period, TrialBalance } from '@/modules/accounting/api';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 
 const MONTH_LABEL = [
   'Enero',
@@ -64,8 +65,8 @@ function today(): string {
 }
 
 export default function PeriodsPage() {
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canClose = permissions.includes(PERMISSIONS.FINANCE.CLOSE.MANAGE);
+  const { hasPermission } = usePermission();
+  const canClose = hasPermission(PERMISSIONS.FINANCE.CLOSE.MANAGE);
 
   const currentYear = new Date().getUTCFullYear();
   const [year, setYear] = useState(currentYear);
@@ -235,25 +236,29 @@ export default function PeriodsPage() {
           <div className="flex flex-wrap items-end gap-3">
             <Field className="w-40">
               <FieldLabel htmlFor="from">Desde</FieldLabel>
-              <Input
+              <DatePicker
                 id="from"
-                type="date"
                 value={from}
-                onChange={event => setFrom(event.target.value)}
+                onChange={setFrom}
+                placeholder="Desde"
+                toDate={to || undefined}
+                clearable
               />
             </Field>
             <Field className="w-40">
               <FieldLabel htmlFor="to">Hasta</FieldLabel>
-              <Input id="to" type="date" value={to} onChange={event => setTo(event.target.value)} />
+              <DatePicker
+                id="to"
+                value={to}
+                onChange={setTo}
+                placeholder="Hasta"
+                fromDate={from || undefined}
+                clearable
+              />
             </Field>
             <Field className="w-44">
               <FieldLabel htmlFor="asOf">Balance al</FieldLabel>
-              <Input
-                id="asOf"
-                type="date"
-                value={asOf}
-                onChange={event => setAsOf(event.target.value)}
-              />
+              <DatePicker id="asOf" value={asOf} onChange={setAsOf} placeholder="Fecha de corte" />
             </Field>
           </div>
 

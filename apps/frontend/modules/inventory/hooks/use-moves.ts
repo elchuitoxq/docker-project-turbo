@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { movesApi, type Move } from '../api/moves';
+import { movesApi, type CreateMovePayload } from '../api/moves';
 
 export const movesKeys = {
   all: ['inventory', 'moves'] as const,
@@ -19,7 +19,7 @@ export function useMoves(filters: Record<string, string | number | undefined> = 
 export function useCreateMove() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Move>) => movesApi.create(data),
+    mutationFn: (data: CreateMovePayload) => movesApi.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: movesKeys.all }),
   });
 }
@@ -29,6 +29,20 @@ export function useApproveMove() {
   return useMutation({
     mutationFn: (id: string) => movesApi.approve(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: movesKeys.all }),
+  });
+}
+
+/** Aprobación en lote (`S-25`): un solo envío para varios borradores. */
+export function useApproveMovesBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => movesApi.approveBatch(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: movesKeys.all });
+      // Aprobar mueve stock y recalcula el costo promedio: el listado de stock queda obsoleto.
+      qc.invalidateQueries({ queryKey: ['inventory', 'stock'] });
+      qc.invalidateQueries({ queryKey: ['products'] });
+    },
   });
 }
 

@@ -34,6 +34,9 @@ export async function seedProdData() {
 async function seedCurrencies() {
   console.log('Seeding currencies...');
 
+  // Moneda funcional VES (decisión D-01 de `S-08`): el dólar es la referencia y por eso es el que
+  // lleva tasa. Antes esta semilla marcaba USD como base y le ponía tasa a VES, lo que deja una fila
+  // de tasa sobre la moneda funcional —justo lo que el gate prohíbe.
   await db
     .insert(currencies)
     .values([
@@ -42,14 +45,14 @@ async function seedCurrencies() {
         code: 'USD',
         name: 'US Dollar',
         symbol: '$',
-        isBase: true,
+        isBase: false,
       },
       {
         id: uuidv7(),
         code: 'VES',
         name: 'Venezuelan Bolivar',
         symbol: 'Bs',
-        isBase: false,
+        isBase: true,
       },
       {
         id: uuidv7(),
@@ -61,7 +64,7 @@ async function seedCurrencies() {
     ])
     .onConflictDoUpdate({
       target: currencies.code,
-      set: { name: currencies.name, symbol: currencies.symbol },
+      set: { name: currencies.name, symbol: currencies.symbol, isBase: currencies.isBase },
     });
 
   const [usd] = await db.select().from(currencies).where(eq(currencies.code, 'USD')).limit(1);
@@ -71,8 +74,8 @@ async function seedCurrencies() {
     await db
       .insert(exchangeRates)
       .values({
-        currencyId: ves.id,
-        rate: '36.50',
+        currencyId: usd.id,
+        rate: '889.58',
         source: 'MANUAL',
       })
       .onConflictDoNothing();

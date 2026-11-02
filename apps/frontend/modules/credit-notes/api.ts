@@ -19,7 +19,13 @@ export type CreditNote = {
   availableAmount: number;
   date: string | null;
   items: Array<{ id: string; productId: string; quantity: number; price: number; total?: number }>;
-  usages: Array<{ id: string; invoiceId: string; amount: number }>;
+  /** Usos del crédito: factura contra la que se aplicó y, en filas antiguas, el pago que lo consumió. */
+  usages: Array<{
+    id: string;
+    invoiceId: string | null;
+    paymentId?: string | null;
+    amount: number;
+  }>;
 };
 
 export type CreateCreditNotePayload = {

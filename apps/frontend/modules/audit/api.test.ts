@@ -13,6 +13,7 @@ vi.mock('@/lib/api/client', () => {
   return {
     apiClient: {
       get: record('GET'),
+      getText: record('GETTEXT'),
       post: record('POST'),
       patch: record('PATCH'),
       put: record('PUT'),
@@ -47,6 +48,27 @@ describe('auditApi', () => {
 
     expect(calls[0]).toEqual({ method: 'GET', path: '/audit/entities' });
   });
+
+  it('manda la búsqueda libre y los filtros nuevos', async () => {
+    await auditApi.list({ q: 'A-90006', module: 'billing', result: 'DENIED' }, 1, 25);
+
+    expect(calls[0].path).toContain('q=A-90006');
+    expect(calls[0].path).toContain('module=billing');
+    expect(calls[0].path).toContain('result=DENIED');
+  });
+
+  it('consulta las facetas del registro', async () => {
+    await auditApi.facets();
+
+    expect(calls[0]).toEqual({ method: 'GET', path: '/audit/facets' });
+  });
+
+  it('exporta con los filtros activos y sin paginado', async () => {
+    await auditApi.exportCsv({ module: 'treasury', q: 'PAY-1' });
+
+    expect(calls[0].method).toBe('GETTEXT');
+    expect(calls[0].path).toBe('/audit/export?module=treasury&q=PAY-1');
+  });
 });
 
 describe('diffRows', () => {
@@ -75,6 +97,12 @@ describe('diffRows', () => {
       { field: 'total', before: '—', after: '500' },
       { field: 'activo', before: '—', after: 'sí' },
     ]);
+  });
+
+  it('traduce los campos en snake_case de la fila cruda', () => {
+    const rows = diffRows({ before: { tax_id: 'J-1' }, after: { tax_id: 'J-2' } });
+
+    expect(rows).toEqual([{ field: 'RIF', before: 'J-1', after: 'J-2' }]);
   });
 
   it('devuelve vacío si no hay cambios o no son un objeto', () => {

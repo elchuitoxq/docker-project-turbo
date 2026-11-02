@@ -40,7 +40,7 @@ import { hrApi, type ConceptCategory, type PayrollItem, type PayrollLine } from 
 import { treasuryApi } from '@/modules/finance/api/treasury';
 import { useQuery } from '@tanstack/react-query';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 
 const CATEGORY_LABEL: Record<ConceptCategory, string> = {
   ASSIGNMENT: 'Asignación',
@@ -79,8 +79,8 @@ function accumulate(lines: PayrollLine[], category: ConceptCategory): number {
 
 export default function PayrollRunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canProcess = permissions.includes(PERMISSIONS.HR.PAYROLL.PROCESS);
+  const { hasPermission } = usePermission();
+  const canProcess = hasPermission(PERMISSIONS.HR.PAYROLL.PROCESS);
 
   const [selected, setSelected] = useState<PayrollItem | null>(null);
   const [payOpen, setPayOpen] = useState(false);

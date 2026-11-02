@@ -2,7 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { faker } from '@faker-js/faker';
 import { testDb } from './database';
-import { createTestBranch, createTestCurrency, createTestPartner } from './factories';
+import {
+  createTestBranch,
+  createTestCurrency,
+  createTestPartner,
+  ensureTestUser,
+} from './factories';
 import {
   bankAccounts,
   bankStatementLines,
@@ -111,9 +116,9 @@ describe('Cierre diario (T-05-03)', () => {
       date: new Date(`${TODAY}T12:00:00.000Z`),
     };
 
-    await treasury.create(paymentDto as never, faker.string.uuid());
+    await treasury.create(paymentDto as never, (await ensureTestUser()).id);
 
-    const closed = await dailyClose.close(branch.id, TODAY, faker.string.uuid(), {
+    const closed = await dailyClose.close(branch.id, TODAY, (await ensureTestUser()).id, {
       notes: 'Cierre de prueba',
     });
 
@@ -121,25 +126,27 @@ describe('Cierre diario (T-05-03)', () => {
     expect(closed.totalIncome).toBeGreaterThanOrEqual(100);
     expect(closed.byCurrency.length).toBeGreaterThan(0);
 
-    await expect(treasury.create(paymentDto as never, faker.string.uuid())).rejects.toThrow(
+    await expect(treasury.create(paymentDto as never, (await ensureTestUser()).id)).rejects.toThrow(
       /está cerrado/
     );
 
-    await expect(dailyClose.close(branch.id, TODAY, faker.string.uuid())).rejects.toThrow(
+    await expect(dailyClose.close(branch.id, TODAY, (await ensureTestUser()).id)).rejects.toThrow(
       /ya está cerrado/
     );
 
     const reopened = await dailyClose.reopen(
       branch.id,
       TODAY,
-      faker.string.uuid(),
+      (await ensureTestUser()).id,
       'Faltó registrar un cobro'
     );
 
     expect(reopened.status).toBe('OPEN');
     expect(reopened.reopenReason).toContain('Faltó');
 
-    await expect(treasury.create(paymentDto as never, faker.string.uuid())).resolves.toBeDefined();
+    await expect(
+      treasury.create(paymentDto as never, (await ensureTestUser()).id)
+    ).resolves.toBeDefined();
   });
 
   it('exige motivo para reabrir', async () => {
@@ -165,7 +172,7 @@ describe('Cierre diario (T-05-03)', () => {
         type: 'INCOME' as never,
         date: new Date(`${TODAY}T09:00:00.000Z`),
       } as never,
-      faker.string.uuid()
+      (await ensureTestUser()).id
     );
 
     const closed = await dailyClose.close(branch.id, TODAY, null, {
@@ -226,7 +233,7 @@ describe('Conciliación bancaria (T-05-04, T-05-05)', () => {
         bankAccountId: account.id,
         date: new Date(`${TODAY}T10:00:00.000Z`),
       } as never,
-      faker.string.uuid()
+      (await ensureTestUser()).id
     );
 
     return { branch, account, payment, currency };
@@ -366,7 +373,7 @@ describe('Estado de cuenta con rango (T-05-06)', () => {
         type: 'INCOME' as never,
         date: new Date(`${TODAY}T10:00:00.000Z`),
       } as never,
-      faker.string.uuid()
+      (await ensureTestUser()).id
     );
 
     const statement = await treasury.getPartnerStatement(partner.id, branch.id, {

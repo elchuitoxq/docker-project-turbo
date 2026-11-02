@@ -194,8 +194,8 @@ describe('CreditNotesService - Business Logic', () => {
     });
   });
 
-  describe('Usage Allocation to Payments', () => {
-    it('should create payment with correct amount', () => {
+  describe('Usage Allocation', () => {
+    it('registra el uso contra la factura, sin inventar un pago', () => {
       const creditNote = {
         id: 'cn-123',
         partnerId: 'partner-123',
@@ -205,22 +205,16 @@ describe('CreditNotesService - Business Logic', () => {
       };
       const applyDto = { amount: 250 };
 
-      const paymentData = {
-        code: 'PAY-2026-0001',
+      // Aplicar un crédito no es un cobro: el uso guarda la factura y ningún pago asociado.
+      const usageData = {
+        creditNoteId: creditNote.id,
         invoiceId: 'invoice-123',
-        partnerId: creditNote.partnerId,
-        branchId: creditNote.branchId,
-        methodId: creditNote.currencyId,
-        status: 'POSTED',
-        type: 'CREDIT_NOTE',
         amount: applyDto.amount.toString(),
-        currencyId: creditNote.currencyId,
-        exchangeRate: creditNote.exchangeRate,
-        date: new Date(),
       };
 
-      expect(paymentData.amount).toBe('250');
-      expect(paymentData.type).toBe('CREDIT_NOTE');
+      expect(usageData.amount).toBe('250');
+      expect(usageData.invoiceId).toBe('invoice-123');
+      expect(usageData).not.toHaveProperty('paymentId');
     });
 
     it('should track remaining available after partial allocation', () => {

@@ -7,6 +7,7 @@ import { ArrowLeft, BadgeCheck, CalendarDays, HandCoins, PiggyBank } from 'lucid
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker, toDayValue } from '@/components/ui/date-picker';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
@@ -39,7 +40,7 @@ import {
   useVacationSummary,
 } from '@/modules/hr/hooks';
 import { PERMISSIONS } from '@/lib/permissions';
-import { useAuthStore } from '@/stores/use-auth-store';
+import { usePermission } from '@/hooks/use-permission';
 
 const SETTLEMENT_CAUSES = [
   { value: 'RENUNCIA', label: 'Renuncia voluntaria' },
@@ -62,9 +63,9 @@ function date(value?: string | null): string {
 
 export default function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const permissions = useAuthStore(state => state.user?.permissions ?? []);
-  const canSeePayroll = permissions.includes(PERMISSIONS.HR.PAYROLL.VIEW);
-  const canProcess = permissions.includes(PERMISSIONS.HR.PAYROLL.PROCESS);
+  const { hasPermission } = usePermission();
+  const canSeePayroll = hasPermission(PERMISSIONS.HR.PAYROLL.VIEW);
+  const canProcess = hasPermission(PERMISSIONS.HR.PAYROLL.PROCESS);
 
   const [vacationOpen, setVacationOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
@@ -380,7 +381,12 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
               </Field>
               <Field>
                 <FieldLabel htmlFor="startDate">Fecha de inicio</FieldLabel>
-                <Input id="startDate" name="startDate" type="date" />
+                <DatePicker
+                  id="startDate"
+                  name="startDate"
+                  key={vacationOpen ? 'open' : 'closed'}
+                  placeholder="Inicio de vacaciones"
+                />
               </Field>
             </FieldGroup>
             <DialogFooter className="mt-6">
@@ -576,12 +582,11 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="terminationDate">Fecha de egreso</FieldLabel>
-                <Input
+                <DatePicker
                   id="terminationDate"
                   name="terminationDate"
-                  type="date"
-                  defaultValue={new Date().toISOString().slice(0, 10)}
-                  required
+                  key={settleOpen ? 'open' : 'closed'}
+                  defaultValue={toDayValue(new Date())}
                 />
               </Field>
               <Field>

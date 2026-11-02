@@ -1,5 +1,12 @@
 import { Controller, Get, Post, Body, Query, Res, UseGuards, Header } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { FiscalBookService, type BookType } from './fiscal/fiscal-book.service';
@@ -15,6 +22,7 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('reports')
+@ApiBearerAuth()
 @Controller('v1/reports/fiscal')
 export class ReportsController {
   constructor(
@@ -25,6 +33,7 @@ export class ReportsController {
   ) {}
 
   @Get('retenciones-txt')
+  @RequirePermissions('finance:retentions:view')
   @ApiOperation({
     summary: 'Get IVA retentions TXT file',
     description: 'Generates a TXT file with IVA retentions in SENIAT format',
@@ -69,6 +78,7 @@ export class ReportsController {
   }
 
   @Get('retenciones-xml')
+  @RequirePermissions('finance:retentions:view')
   @ApiOperation({
     summary: 'Get ISLR retentions XML file',
     description: 'Generates an XML file with ISLR retentions',
@@ -114,6 +124,7 @@ export class ReportsController {
   }
 
   @Get('summary')
+  @RequirePermissions('finance:reports:view')
   @ApiOperation({
     summary: 'Get fiscal summary',
     description: 'Returns a summary of all fiscal documents within the date range',
@@ -155,6 +166,7 @@ export class ReportsController {
   }
 
   @Get('libro-ventas/csv')
+  @RequirePermissions('finance:retentions:view')
   @ApiOperation({
     summary: 'Get Sales Book (Libro de Ventas) CSV',
     description: 'Generates a CSV file with the Sales Book data',
@@ -200,6 +212,7 @@ export class ReportsController {
   }
 
   @Get('libro-compras/csv')
+  @RequirePermissions('finance:retentions:view')
   @ApiOperation({
     summary: 'Get Purchases Book (Libro de Compras) CSV',
     description: 'Generates a CSV file with the Purchases Book data',
@@ -255,7 +268,42 @@ export class ReportsController {
   })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Libro de ventas' })
+  @ApiResponse({
+    status: 200,
+    description: 'Libro de ventas',
+    schema: {
+      example: {
+        type: 'SALES',
+        branchId: '550e8400-e29b-41d4-a716-446655440000',
+        from: '2026-10-01',
+        to: '2026-10-31',
+        rows: [
+          {
+            date: '2026-10-15',
+            code: 'FAC-000123',
+            controlNumber: '00-000123',
+            partnerTaxId: 'J-12345678-9',
+            partnerName: 'Distribuidora Caracas C.A.',
+            documentType: 'INVOICE',
+            total: 1160,
+            exempt: 0,
+            base: 1000,
+            tax: 160,
+            rate: 16,
+          },
+        ],
+        totals: {
+          documents: 1,
+          total: 1160,
+          exempt: 0,
+          base: 1000,
+          tax: 160,
+          byRate: [{ rate: 16, base: 1000, tax: 160 }],
+        },
+        consistent: true,
+      },
+    },
+  })
   async getLibroVentasJson(
     @CurrentBranch() branchId: string,
     @Query('from') from?: string,
@@ -266,10 +314,49 @@ export class ReportsController {
 
   @Get('libro-compras')
   @RequirePermissions('finance:retentions:view')
-  @ApiOperation({ summary: 'Libro de compras con totales por alícuota' })
+  @ApiOperation({
+    summary: 'Libro de compras con totales por alícuota',
+    description:
+      'Asientos de compra de la sucursal en moneda funcional; las notas de crédito restan. Sólo documentos POSTED',
+  })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Libro de compras' })
+  @ApiResponse({
+    status: 200,
+    description: 'Libro de compras',
+    schema: {
+      example: {
+        type: 'PURCHASES',
+        branchId: '550e8400-e29b-41d4-a716-446655440000',
+        from: '2026-10-01',
+        to: '2026-10-31',
+        rows: [
+          {
+            date: '2026-10-20',
+            code: 'COM-000045',
+            controlNumber: '00-000045',
+            partnerTaxId: 'J-98765432-1',
+            partnerName: 'Suministros del Sur C.A.',
+            documentType: 'INVOICE',
+            total: 580,
+            exempt: 0,
+            base: 500,
+            tax: 80,
+            rate: 16,
+          },
+        ],
+        totals: {
+          documents: 1,
+          total: 580,
+          exempt: 0,
+          base: 500,
+          tax: 80,
+          byRate: [{ rate: 16, base: 500, tax: 80 }],
+        },
+        consistent: true,
+      },
+    },
+  })
   async getLibroComprasJson(
     @CurrentBranch() branchId: string,
     @Query('from') from?: string,
@@ -287,7 +374,29 @@ export class ReportsController {
   })
   @ApiQuery({ name: 'from', required: false, example: '2026-10-01' })
   @ApiQuery({ name: 'to', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Hallazgos fiscales' })
+  @ApiResponse({
+    status: 200,
+    description: 'Hallazgos fiscales',
+    schema: {
+      example: {
+        branchId: '550e8400-e29b-41d4-a716-446655440000',
+        from: '2026-10-01',
+        to: '2026-10-31',
+        findings: [
+          {
+            code: 'CONTROL_NUMBER_GAP',
+            severity: 'WARNING',
+            message: 'Hueco en la secuencia de números de control entre FAC-000120 y FAC-000123',
+            entity: 'invoices',
+            entityId: '550e8400-e29b-41d4-a716-446655440000',
+          },
+        ],
+        errors: 0,
+        warnings: 1,
+        canExport: true,
+      },
+    },
+  })
   async getValidation(
     @CurrentBranch() branchId: string,
     @Query('from') from?: string,
@@ -318,7 +427,24 @@ export class ReportsController {
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Archivo generado y registrado' })
+  @ApiResponse({
+    status: 201,
+    description: 'Archivo generado y registrado',
+    schema: {
+      example: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        code: 'EXP-000001',
+        reportType: 'LIBRO_VENTAS',
+        format: 'CSV',
+        sequenceNumber: 1,
+        hash: '9f2c1d8b7a6e5f40312d',
+        sizeBytes: 2048,
+        generatedAt: '2026-10-31T14:30:00.000Z',
+        content: 'Fecha|N° Factura|...',
+        warnings: [],
+      },
+    },
+  })
   @ApiResponse({ status: 409, description: 'La validación tiene errores' })
   async createExport(
     @CurrentBranch() branchId: string,

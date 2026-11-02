@@ -100,3 +100,28 @@
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 }
+
+/* Impresión de la ficha de documento (S-10, T-10-14).
+   Oculta la interfaz de navegación —sidebar, su separador y la barra superior— y deja sólo el
+   documento. Las acciones de la ficha se marcan con data-print="hide". */
+@media print {
+  [data-sidebar='sidebar'],
+  .peer:has([data-sidebar='sidebar']),
+  main > header,
+  [data-print='hide'] {
+    display: none !important;
+  }
+
+  main {
+    box-shadow: none !important;
+  }
+
+  /* El contenedor del AppShell añade p-4/p-6: en papel sólo estorba. */
+  main > div {
+    padding: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+}

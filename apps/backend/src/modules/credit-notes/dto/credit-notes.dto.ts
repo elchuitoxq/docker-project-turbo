@@ -65,12 +65,13 @@ export class CreateCreditNoteDto {
   @IsUUID()
   partnerId: string;
 
-  @ApiProperty({
-    description: 'Branch ID',
+  @ApiPropertyOptional({
+    description: 'Branch ID; si se omite se usa la sucursal activa (`x-branch-id`)',
     example: '550e8400-e29b-41d4-a716-446655440003',
   })
+  @IsOptional()
   @IsUUID()
-  branchId: string;
+  branchId?: string;
 
   @ApiPropertyOptional({
     description: 'Warehouse ID',
@@ -198,11 +199,19 @@ export class CreditNoteUsageResponseDto {
   })
   creditNoteId: string;
 
-  @ApiProperty({
-    description: 'Payment ID',
+  @ApiPropertyOptional({
+    description: 'Pago con el que se consumió el crédito (nulo: la aplicación no es un cobro)',
     example: '550e8400-e29b-41d4-a716-446655440021',
+    nullable: true,
   })
-  paymentId: string;
+  paymentId: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Factura contra la que se aplicó el crédito',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+    nullable: true,
+  })
+  invoiceId: string | null;
 
   @ApiProperty({
     description: 'Amount used',
@@ -365,6 +374,19 @@ export class CreditNoteListResponseDto {
     example: '550e8400-e29b-41d4-a716-446655440000',
   })
   partnerId: string;
+
+  @ApiPropertyOptional({
+    description: 'Tipo de nota: devolución a cliente (`SALE`) o a proveedor (`PURCHASE`)',
+    enum: ['SALE', 'PURCHASE'],
+    example: 'SALE',
+  })
+  type?: string;
+
+  @ApiPropertyOptional({
+    description: 'Factura de origen; la UI lo necesita para aplicar la nota',
+    example: '550e8400-e29b-41d4-a716-446655440002',
+  })
+  invoiceId?: string | null;
 
   @ApiProperty({
     description: 'Status',

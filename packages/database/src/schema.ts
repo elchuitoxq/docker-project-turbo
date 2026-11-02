@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
   date,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 
@@ -27,11 +28,27 @@ export const auditLogs = pgTable(
       .primaryKey()
       .$defaultFn(() => uuidv7()),
     entityTable: text('entity_table').notNull(),
-    entityId: uuid('entity_id').notNull(),
+    /** Nulo en eventos sin entidad propia: inicio de sesión, acceso denegado. */
+    entityId: uuid('entity_id'),
     action: text('action').notNull(),
     changes: jsonb('changes'),
-    branchId: uuid('branch_id'),
-    userId: uuid('user_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Copia del autor en el momento del hecho: sobrevive al borrado o renombrado del usuario. */
+    actorName: text('actor_name'),
+    actorEmail: text('actor_email'),
+    actorRoles: text('actor_roles').array(),
+    /** Agrupación funcional del visor (`billing`, `treasury`, `inventory`, `auth`, …). */
+    module: text('module'),
+    /** Nombre legible de la entidad afectada ("Factura", "Pago"). */
+    entityLabel: text('entity_label'),
+    /** Verbo conjugado del hecho ("Publicó la factura"). */
+    actionLabel: text('action_label'),
+    httpMethod: text('http_method'),
+    route: text('route'),
+    /** `SUCCESS` | `DENIED` | `ERROR`. */
+    result: text('result').default('SUCCESS'),
+    durationMs: integer('duration_ms'),
     ipAddress: text('ip_address'),
     userAgent: text('user_agent'),
     documentCode: text('document_code'),
@@ -48,6 +65,9 @@ export const auditLogs = pgTable(
     ),
     userCreatedIdx: index('audit_logs_user_created_idx').on(t.userId, t.createdAt),
     createdIdx: index('audit_logs_created_idx').on(t.createdAt),
+    moduleCreatedIdx: index('audit_logs_module_created_idx').on(t.module, t.createdAt),
+    documentCreatedIdx: index('audit_logs_document_created_idx').on(t.documentCode, t.createdAt),
+    actorCreatedIdx: index('audit_logs_actor_created_idx').on(t.actorName, t.createdAt),
   })
 );
 export const permissions = pgTable('permissions', {
@@ -142,7 +162,9 @@ export const userAppSettings = pgTable('user_app_settings', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  userId: uuid('user_id').notNull(),
+  userId: uuid('user_id')
+    .references(() => users.id, { onDelete: 'cascade' })
+    .notNull(),
   settings: jsonb('settings').default({}),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -221,12 +243,14 @@ export const exchangeRates = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    currencyId: uuid('currency_id').notNull(),
+    currencyId: uuid('currency_id')
+      .references(() => currencies.id, { onDelete: 'cascade' })
+      .notNull(),
     rate: numeric('rate', { precision: 20, scale: 10 }).notNull(),
     date: timestamp('date').defaultNow(),
     source: text('source').default('MANUAL'),
     /** Usuario que cargó la tasa a mano; nulo cuando viene del job de BCV. */
-    createdBy: uuid('created_by'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     /** Motivo obligatorio en los overrides manuales (M9 de `S-08`). */
     reason: text('reason'),
   },
@@ -247,6 +271,8 @@ export const taxConcepts = pgTable('tax_concepts', {
   }).notNull(),
   baseMin: numeric('base_min', { precision: 20, scale: 2 }).default('0'),
   sustraendo: numeric('sustraendo', { precision: 20, scale: 4 }).default('0'),
+  /** `BS` (monto fijo) o `UT` (unidades tributarias: se convierten con la UT vigente). */
+  sustraendoUnit: text('sustraendo_unit').default('BS'),
   isEnabled: boolean('is_enabled').default(true),
 });
 
@@ -259,6 +285,7 @@ export const partners = pgTable('partners', {
   taxId: text('tax_id').notNull().unique(),
   address: text('address'),
   phone: text('phone'),
+  /** `CUSTOMER`, `VENDOR` o `BOTH` (partner que compra y vende). */
   type: text('type').default('CUSTOMER'),
   taxpayerType: text('taxpayer_type').default('ORDINARY'),
   retentionRate: numeric('retention_rate', { precision: 3, scale: 0 }).default('0'),
@@ -266,7 +293,7 @@ export const partners = pgTable('partners', {
   creditLimit: numeric('credit_limit', { precision: 20, scale: 2 }).default('0'),
   /** Días de crédito por defecto para calcular el vencimiento de una compra (T-03-02). */
   creditDays: integer('credit_days').default(0).notNull(),
-  islrConceptId: uuid('islr_concept_id'),
+  islrConceptId: uuid('islr_concept_id').references(() => taxConcepts.id, { onDelete: 'set null' }),
   /** Baja logica (T-01-17): un maestro con movimientos no se borra, se desactiva. */
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
@@ -279,14 +306,14 @@ export const organizationModules = pgTable('organization_modules', {
     .$defaultFn(() => uuidv7()),
   moduleKey: text('module_key').notNull(),
   isEnabled: boolean('is_enabled').default(false),
-  branchId: uuid('branch_id'),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
 });
 
 export const warehouses = pgTable('warehouses', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  branchId: uuid('branch_id'),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
   name: text('name').notNull(),
   address: text('address'),
   isActive: boolean('is_active').default(true),
@@ -298,7 +325,9 @@ export const productCategories = pgTable('product_categories', {
     .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
   description: text('description'),
-  parentId: uuid('parent_id'),
+  parentId: uuid('parent_id').references((): AnyPgColumn => productCategories.id, {
+    onDelete: 'set null',
+  }),
 });
 
 export const products = pgTable('products', {
@@ -308,7 +337,7 @@ export const products = pgTable('products', {
   sku: text('sku').notNull().unique(),
   name: text('name').notNull(),
   description: text('description'),
-  categoryId: uuid('category_id'),
+  categoryId: uuid('category_id').references(() => productCategories.id, { onDelete: 'set null' }),
   cost: numeric('cost', { precision: 20, scale: 2 }).default('0'),
   price: numeric('price', { precision: 20, scale: 2 }).default('0'),
   isExempt: boolean('is_exempt').default(false),
@@ -316,23 +345,30 @@ export const products = pgTable('products', {
   type: text('type').default('PHYSICAL'),
   minStock: numeric('min_stock', { precision: 20, scale: 2 }).default('0'),
   hasBatches: boolean('has_batches').default(false),
-  currencyId: uuid('currency_id'),
+  currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
-export const productBatches = pgTable('product_batches', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  productId: uuid('product_id').notNull(),
-  batchNumber: text('batch_number').notNull(),
-  expirationDate: timestamp('expiration_date'),
-  cost: numeric('cost', { precision: 20, scale: 2 }).default('0'),
-  isActive: boolean('is_active').default(true),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
+export const productBatches = pgTable(
+  'product_batches',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    productId: uuid('product_id')
+      .references(() => products.id, { onDelete: 'cascade' })
+      .notNull(),
+    batchNumber: text('batch_number').notNull(),
+    expirationDate: timestamp('expiration_date'),
+    cost: numeric('cost', { precision: 20, scale: 2 }).default('0'),
+    isActive: boolean('is_active').default(true),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  // El lote se identifica por número dentro del producto: la recepción lo crea si no existe (`S-25`).
+  t => [uniqueIndex('product_batches_product_number_unq').on(t.productId, t.batchNumber)]
+);
 
 export const stock = pgTable(
   'stock',
@@ -340,9 +376,13 @@ export const stock = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    warehouseId: uuid('warehouse_id').notNull(),
-    productId: uuid('product_id').notNull(),
-    batchId: uuid('batch_id'),
+    warehouseId: uuid('warehouse_id')
+      .references(() => warehouses.id, { onDelete: 'restrict' })
+      .notNull(),
+    productId: uuid('product_id')
+      .references(() => products.id, { onDelete: 'cascade' })
+      .notNull(),
+    batchId: uuid('batch_id').references(() => productBatches.id, { onDelete: 'set null' }),
     quantity: numeric('quantity', { precision: 20, scale: 4 }).default('0'),
     updatedAt: timestamp('updated_at').defaultNow(),
   },
@@ -364,16 +404,28 @@ export const inventoryMoves = pgTable(
     code: text('code').notNull(),
     type: text('type').notNull(),
     status: text('status').notNull().default('APPROVED'),
-    branchId: uuid('branch_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
     source: text('source').notNull().default('SYSTEM'),
-    approvedBy: uuid('approved_by'),
+    approvedBy: uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
     approvedAt: timestamp('approved_at'),
     rejectionReason: text('rejection_reason'),
-    fromWarehouseId: uuid('from_warehouse_id'),
-    toWarehouseId: uuid('to_warehouse_id'),
+    fromWarehouseId: uuid('from_warehouse_id').references(() => warehouses.id, {
+      onDelete: 'set null',
+    }),
+    toWarehouseId: uuid('to_warehouse_id').references(() => warehouses.id, {
+      onDelete: 'set null',
+    }),
     date: timestamp('date').defaultNow(),
     note: text('note'),
-    userId: uuid('user_id'),
+    /** Motivo del ajuste (`S-25`): obligatorio cuando el movimiento corrige un conteo. */
+    reasonCode: text('reason_code'),
+    /** La diferencia superó la tolerancia: no puede aprobarla quien la registró (`S-25`). */
+    requiresSecondApproval: boolean('requires_second_approval').default(false),
+    /** La salida despachó un lote posterior al sugerido por FEFO (`S-26`). */
+    fefoOverride: boolean('fefo_override').default(false),
+    /** Motivo del despacho fuera de FEFO (`S-26`). */
+    fefoOverrideReason: text('fefo_override_reason'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   },
   t => ({
     branchDateIdx: index('inventory_moves_branch_date_idx').on(t.branchId, t.date),
@@ -384,28 +436,80 @@ export const inventoryMoveLines = pgTable('inventory_move_lines', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  moveId: uuid('move_id').notNull(),
-  productId: uuid('product_id').notNull(),
-  batchId: uuid('batch_id'),
+  moveId: uuid('move_id')
+    .references(() => inventoryMoves.id, { onDelete: 'cascade' })
+    .notNull(),
+  productId: uuid('product_id')
+    .references(() => products.id, { onDelete: 'restrict' })
+    .notNull(),
+  batchId: uuid('batch_id').references(() => productBatches.id, { onDelete: 'set null' }),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
   cost: numeric('cost', { precision: 20, scale: 2 }),
 });
+
+/**
+ * Reserva de lote (`S-26`).
+ *
+ * Una salida en borrador promete mercancía física: mientras esté `ACTIVE`, esa cantidad deja de
+ * estar disponible para otra salida. La reserva se libera al aprobar (el descuento ya es real) o al
+ * rechazar el documento. Es lo que evita que dos salidas simultáneas prometan el mismo lote.
+ */
+export const inventoryBatchReservations = pgTable(
+  'inventory_batch_reservations',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    moveId: uuid('move_id')
+      .references(() => inventoryMoves.id, { onDelete: 'cascade' })
+      .notNull(),
+    moveLineId: uuid('move_line_id').references(() => inventoryMoveLines.id, {
+      onDelete: 'cascade',
+    }),
+    warehouseId: uuid('warehouse_id')
+      .references(() => warehouses.id, { onDelete: 'cascade' })
+      .notNull(),
+    productId: uuid('product_id')
+      .references(() => products.id, { onDelete: 'cascade' })
+      .notNull(),
+    batchId: uuid('batch_id')
+      .references(() => productBatches.id, { onDelete: 'restrict' })
+      .notNull(),
+    quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
+    status: text('status').notNull().default('ACTIVE'),
+    createdAt: timestamp('created_at').defaultNow(),
+    releasedAt: timestamp('released_at'),
+  },
+  t => ({
+    activeIdx: index('inventory_batch_reservations_active_idx').on(
+      t.warehouseId,
+      t.productId,
+      t.batchId,
+      t.status
+    ),
+    moveIdx: index('inventory_batch_reservations_move_idx').on(t.moveId),
+  })
+);
 
 export const orders = pgTable('orders', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
-  partnerId: uuid('partner_id').notNull(),
-  branchId: uuid('branch_id').notNull(),
-  warehouseId: uuid('warehouse_id'),
+  partnerId: uuid('partner_id')
+    .references(() => partners.id, { onDelete: 'restrict' })
+    .notNull(),
+  branchId: uuid('branch_id')
+    .references(() => branches.id, { onDelete: 'restrict' })
+    .notNull(),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'restrict' }),
   type: text('type').default('SALE'),
   status: text('status').default('PENDING'),
   total: numeric('total', { precision: 20, scale: 2 }).default('0'),
   exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).default('1'),
-  currencyId: uuid('currency_id'),
+  currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'restrict' }),
   date: timestamp('date').defaultNow(),
-  userId: uuid('user_id'),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -414,9 +518,13 @@ export const orderItems = pgTable('order_items', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  orderId: uuid('order_id').notNull(),
-  productId: uuid('product_id').notNull(),
-  batchId: uuid('batch_id'),
+  orderId: uuid('order_id')
+    .references(() => orders.id, { onDelete: 'cascade' })
+    .notNull(),
+  productId: uuid('product_id')
+    .references(() => products.id, { onDelete: 'restrict' })
+    .notNull(),
+  batchId: uuid('batch_id').references(() => productBatches.id, { onDelete: 'set null' }),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
   price: numeric('price', { precision: 20, scale: 2 }).notNull(),
 });
@@ -426,14 +534,20 @@ export const invoices = pgTable('invoices', {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
-  partnerId: uuid('partner_id').notNull(),
-  branchId: uuid('branch_id').notNull(),
-  currencyId: uuid('currency_id').notNull(),
+  partnerId: uuid('partner_id')
+    .references(() => partners.id, { onDelete: 'restrict' })
+    .notNull(),
+  branchId: uuid('branch_id')
+    .references(() => branches.id, { onDelete: 'restrict' })
+    .notNull(),
+  currencyId: uuid('currency_id')
+    .references(() => currencies.id, { onDelete: 'restrict' })
+    .notNull(),
   exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).notNull(),
   type: text('type').default('SALE'),
   invoiceNumber: text('invoice_number'),
-  userId: uuid('user_id'),
-  orderId: uuid('order_id'),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'restrict' }),
   status: text('status').default('DRAFT'),
   fiscalStatus: text('fiscal_status').default('PENDING'),
   totalBase: numeric('total_base', { precision: 20, scale: 2 }).default('0'),
@@ -447,7 +561,7 @@ export const invoices = pgTable('invoices', {
   supplierInvoiceDate: timestamp('supplier_invoice_date'),
   /** Cache del pagado en moneda funcional; la fuente de verdad son las asignaciones de pago. */
   paidAmount: numeric('paid_amount', { precision: 20, scale: 2 }).default('0').notNull(),
-  warehouseId: uuid('warehouse_id'),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'restrict' }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -456,14 +570,58 @@ export const invoiceItems = pgTable('invoice_items', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  invoiceId: uuid('invoice_id').notNull(),
-  productId: uuid('product_id').notNull(),
+  invoiceId: uuid('invoice_id')
+    .references(() => invoices.id, { onDelete: 'cascade' })
+    .notNull(),
+  productId: uuid('product_id')
+    .references(() => products.id, { onDelete: 'restrict' })
+    .notNull(),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
   price: numeric('price', { precision: 20, scale: 2 }).notNull(),
   cost: numeric('cost', { precision: 20, scale: 2 }),
   taxRate: numeric('tax_rate', { precision: 5, scale: 2 }).default('0'),
   total: numeric('total', { precision: 20, scale: 2 }).notNull(),
 });
+
+/**
+ * Histórico de procesos de un documento comercial (`S-12`).
+ *
+ * Tabla append-only: cada acción de negocio sobre un pedido o una factura deja una fila con su autor
+ * y su fecha. `parent_document_id` guarda el pedido de origen de la factura para que la línea de
+ * tiempo se pueda leer completa desde cualquiera de los dos documentos.
+ */
+export const documentEvents = pgTable(
+  'document_events',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    /** `ORDER` | `INVOICE`. */
+    documentType: text('document_type').notNull(),
+    documentId: uuid('document_id').notNull(),
+    documentCode: text('document_code'),
+    /** Pedido de origen cuando el evento pertenece a una factura nacida de un pedido. */
+    parentDocumentId: uuid('parent_document_id'),
+    /** `ORDER_CREATED`, `ORDER_CONFIRMED`, `INVOICE_POSTED`, … */
+    action: text('action').notNull(),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status'),
+    description: text('description'),
+    metadata: jsonb('metadata'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    documentIdx: index('document_events_document_idx').on(
+      t.documentType,
+      t.documentId,
+      t.createdAt
+    ),
+    parentIdx: index('document_events_parent_idx').on(t.parentDocumentId, t.createdAt),
+    branchCreatedIdx: index('document_events_branch_created_idx').on(t.branchId, t.createdAt),
+  })
+);
 
 export const creditNotes = pgTable('credit_notes', {
   /** `SALE` devolución a cliente, `PURCHASE` devolución a proveedor (T-03-07). */
@@ -472,11 +630,17 @@ export const creditNotes = pgTable('credit_notes', {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
-  invoiceId: uuid('invoice_id'),
-  partnerId: uuid('partner_id').notNull(),
-  branchId: uuid('branch_id').notNull(),
-  warehouseId: uuid('warehouse_id'),
-  currencyId: uuid('currency_id').notNull(),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  partnerId: uuid('partner_id')
+    .references(() => partners.id, { onDelete: 'restrict' })
+    .notNull(),
+  branchId: uuid('branch_id')
+    .references(() => branches.id, { onDelete: 'restrict' })
+    .notNull(),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'restrict' }),
+  currencyId: uuid('currency_id')
+    .references(() => currencies.id, { onDelete: 'restrict' })
+    .notNull(),
   exchangeRate: numeric('exchange_rate', { precision: 20, scale: 6 }).notNull(),
   status: text('status').default('DRAFT'),
   totalBase: numeric('total_base', { precision: 20, scale: 2 }).default('0'),
@@ -484,8 +648,10 @@ export const creditNotes = pgTable('credit_notes', {
   totalIgtf: numeric('total_igtf', { precision: 20, scale: 2 }).default('0'),
   total: numeric('total', { precision: 20, scale: 2 }).default('0'),
   date: timestamp('date').defaultNow(),
-  userId: uuid('user_id'),
-  parentPaymentId: uuid('parent_payment_id'),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  parentPaymentId: uuid('parent_payment_id').references(() => payments.id, {
+    onDelete: 'set null',
+  }),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
@@ -494,22 +660,41 @@ export const creditNoteItems = pgTable('credit_note_items', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  creditNoteId: uuid('credit_note_id').notNull(),
-  productId: uuid('product_id').notNull(),
+  creditNoteId: uuid('credit_note_id')
+    .references(() => creditNotes.id, { onDelete: 'cascade' })
+    .notNull(),
+  productId: uuid('product_id')
+    .references(() => products.id, { onDelete: 'restrict' })
+    .notNull(),
   quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
   price: numeric('price', { precision: 20, scale: 2 }).notNull(),
   total: numeric('total', { precision: 20, scale: 2 }).notNull(),
 });
 
-export const creditNoteUsages = pgTable('credit_note_usages', {
-  id: uuid('id')
-    .primaryKey()
-    .$defaultFn(() => uuidv7()),
-  creditNoteId: uuid('credit_note_id').notNull(),
-  paymentId: uuid('payment_id').notNull(),
-  amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-});
+export const creditNoteUsages = pgTable(
+  'credit_note_usages',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    creditNoteId: uuid('credit_note_id')
+      .references(() => creditNotes.id, { onDelete: 'cascade' })
+      .notNull(),
+    /**
+     * Pago con el que se consumió el crédito. Opcional desde `0035`: aplicar una nota de crédito no
+     * es un cobro y no mueve banco ni tesorería.
+     */
+    paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'cascade' }),
+    /** Factura contra la que se aplicó el crédito: es lo que explica qué saldo bajó. */
+    invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'cascade' }),
+    amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => ({
+    creditNoteIdx: index('credit_note_usages_credit_note_idx').on(t.creditNoteId),
+    invoiceIdx: index('credit_note_usages_invoice_idx').on(t.invoiceId),
+  })
+);
 
 export const paymentMethods = pgTable(
   'payment_methods',
@@ -520,8 +705,8 @@ export const paymentMethods = pgTable(
     name: text('name').notNull(),
     code: text('code').notNull(),
     isDigital: boolean('is_digital').default(false),
-    currencyId: uuid('currency_id'),
-    branchId: uuid('branch_id'),
+    currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'set null' }),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
     /** El IGTF (3 %) se aplica en los pagos con divisa en efectivo. */
     appliesIgtf: boolean('applies_igtf').default(false).notNull(),
     /** Transferencias, Zelle y Pago Móvil no se pueden cobrar sin referencia bancaria. */
@@ -544,9 +729,15 @@ export const bankAccounts = pgTable(
     name: text('name').notNull(),
     accountNumber: text('account_number'),
     type: text('type').notNull(),
-    currencyId: uuid('currency_id').notNull(),
-    branchId: uuid('branch_id'),
-    bankId: uuid('bank_id'),
+    currencyId: uuid('currency_id')
+      .references(() => currencies.id, { onDelete: 'restrict' })
+      .notNull(),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
+    bankId: uuid('bank_id').references(() => banks.id, { onDelete: 'restrict' }),
+    /** Cuenta del plan contable que recibe los movimientos de esta cuenta (`S-19`). */
+    accountingAccountId: uuid('accounting_account_id').references(() => accountingAccounts.id, {
+      onDelete: 'set null',
+    }),
     initialBalance: numeric('initial_balance', { precision: 20, scale: 2 }).default('0').notNull(),
     currentBalance: numeric('current_balance', { precision: 20, scale: 2 }).default('0'),
     isActive: boolean('is_active').default(true),
@@ -578,9 +769,9 @@ export const dailyCloses = pgTable(
     status: text('status').default('OPEN').notNull(),
     totals: jsonb('totals'),
     notes: text('notes'),
-    closedBy: uuid('closed_by'),
+    closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
     closedAt: timestamp('closed_at'),
-    reopenedBy: uuid('reopened_by'),
+    reopenedBy: uuid('reopened_by').references(() => users.id, { onDelete: 'set null' }),
     reopenedAt: timestamp('reopened_at'),
     reopenReason: text('reopen_reason'),
     createdAt: timestamp('created_at').defaultNow(),
@@ -598,12 +789,16 @@ export const bankStatementImports = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    bankAccountId: uuid('bank_account_id').notNull(),
-    branchId: uuid('branch_id').notNull(),
+    bankAccountId: uuid('bank_account_id')
+      .references(() => bankAccounts.id, { onDelete: 'cascade' })
+      .notNull(),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
     fileHash: text('file_hash').notNull(),
     fileName: text('file_name'),
     linesCount: integer('lines_count').default(0).notNull(),
-    importedBy: uuid('imported_by'),
+    importedBy: uuid('imported_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   t => ({
@@ -621,16 +816,22 @@ export const bankStatementLines = pgTable(
     importId: uuid('import_id')
       .notNull()
       .references(() => bankStatementImports.id, { onDelete: 'cascade' }),
-    bankAccountId: uuid('bank_account_id').notNull(),
-    branchId: uuid('branch_id').notNull(),
+    bankAccountId: uuid('bank_account_id')
+      .references(() => bankAccounts.id, { onDelete: 'cascade' })
+      .notNull(),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
     date: date('date').notNull(),
     amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
     direction: text('direction').default('IN').notNull(),
     reference: text('reference'),
     description: text('description'),
-    matchedPaymentId: uuid('matched_payment_id'),
+    matchedPaymentId: uuid('matched_payment_id').references((): AnyPgColumn => payments.id, {
+      onDelete: 'set null',
+    }),
     matchedAt: timestamp('matched_at'),
-    matchedBy: uuid('matched_by'),
+    matchedBy: uuid('matched_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   t => ({
@@ -653,10 +854,14 @@ export const pettyCashFunds = pgTable(
       .notNull()
       .references(() => branches.id, { onDelete: 'restrict' }),
     name: text('name').notNull(),
-    currencyId: uuid('currency_id').notNull(),
+    currencyId: uuid('currency_id')
+      .references(() => currencies.id, { onDelete: 'restrict' })
+      .notNull(),
     amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
     balance: numeric('balance', { precision: 20, scale: 2 }).default('0').notNull(),
-    responsibleUserId: uuid('responsible_user_id'),
+    responsibleUserId: uuid('responsible_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
     status: text('status').default('OPEN').notNull(),
     closedAt: timestamp('closed_at'),
     createdAt: timestamp('created_at').defaultNow(),
@@ -682,7 +887,7 @@ export const pettyCashMovements = pgTable(
     amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
     description: text('description'),
     receiptNumber: text('receipt_number'),
-    userId: uuid('user_id'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   t => ({
@@ -697,22 +902,33 @@ export const payments = pgTable(
       .primaryKey()
       .$defaultFn(() => uuidv7()),
     code: text('code').notNull().unique(),
-    invoiceId: uuid('invoice_id'),
+    invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
     /** Nulo en pagos de nómina: el beneficiario es un empleado, no un partner. */
-    partnerId: uuid('partner_id'),
-    branchId: uuid('branch_id').notNull(),
-    methodId: uuid('method_id').notNull(),
+    partnerId: uuid('partner_id').references(() => partners.id, { onDelete: 'restrict' }),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
+    methodId: uuid('method_id')
+      .references(() => paymentMethods.id, { onDelete: 'restrict' })
+      .notNull(),
     status: text('status').default('POSTED'),
     type: text('type').default('INCOME'),
     amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
-    currencyId: uuid('currency_id').notNull(),
+    currencyId: uuid('currency_id')
+      .references(() => currencies.id, { onDelete: 'restrict' })
+      .notNull(),
     exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).notNull(),
     /** Monto en moneda funcional (VES): amount x exchangeRate (M2 de `S-08`). */
     amountBase: numeric('amount_base', { precision: 20, scale: 2 }).notNull().default('0'),
-    bankAccountId: uuid('bank_account_id'),
+    bankAccountId: uuid('bank_account_id').references(() => bankAccounts.id, {
+      onDelete: 'set null',
+    }),
     /** Línea del extracto con la que se concilió este pago (`T-05-05`). */
-    bankStatementLineId: uuid('bank_statement_line_id'),
-    payrollRunId: uuid('payroll_run_id'),
+    bankStatementLineId: uuid('bank_statement_line_id').references(
+      (): AnyPgColumn => bankStatementLines.id,
+      { onDelete: 'set null' }
+    ),
+    payrollRunId: uuid('payroll_run_id').references(() => payrollRuns.id, { onDelete: 'set null' }),
     /** `IN` cobro, `OUT` pago. `type` se mantiene por compatibilidad (T-03-06). */
     direction: text('direction').default('IN').notNull(),
     /** Retención que se descuenta del pago al proveedor. */
@@ -722,14 +938,21 @@ export const payments = pgTable(
     reference: text('reference'),
     metadata: jsonb('metadata'),
     date: timestamp('date').defaultNow(),
-    userId: uuid('user_id'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
-  // Un run de nómina se paga una sola vez: la base lo garantiza además del servicio (RN-24).
   t => ({
+    // Un run de nómina se paga una sola vez: la base lo garantiza además del servicio (RN-24).
     payrollRunUnq: uniqueIndex('payments_payroll_run_unq')
       .on(t.payrollRunId)
       .where(sql`${t.payrollRunId} is not null`),
+    // La referencia bancaria es la prueba de que el dinero entró: una misma transferencia no puede
+    // justificar dos cobros, ni en la misma factura ni en otra. El servicio guarda la referencia
+    // normalizada (mayúsculas, sin espacios sobrantes) y un pago anulado la libera porque el dinero
+    // no llegó a la cuenta.
+    referenceUnq: uniqueIndex('payments_reference_unq')
+      .on(t.reference)
+      .where(sql`${t.reference} is not null and ${t.status} <> 'VOID'`),
   })
 );
 
@@ -737,19 +960,40 @@ export const paymentAllocations = pgTable('payment_allocations', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  paymentId: uuid('payment_id').notNull(),
-  invoiceId: uuid('invoice_id').notNull(),
+  paymentId: uuid('payment_id')
+    .references(() => payments.id, { onDelete: 'cascade' })
+    .notNull(),
+  invoiceId: uuid('invoice_id')
+    .references(() => invoices.id, { onDelete: 'restrict' })
+    .notNull(),
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
   /** Importe aplicado en moneda funcional (M8 de `S-08`). */
   amountBase: numeric('amount_base', { precision: 20, scale: 2 }).default('0'),
+  /**
+   * Importe imputado **en la moneda de la factura**: es lo que baja el saldo (`S-18`).
+   *
+   * Cuando pago y factura comparten moneda es igual a `amount` (a la par). Cuando no, es el valor
+   * del pago convertido a la moneda del documento con la tasa del día del pago.
+   */
+  invoiceAmount: numeric('invoice_amount', { precision: 20, scale: 2 }).notNull(),
+  /** Tasa del pago usada en la imputación. */
+  exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }),
+  /** Resultado cambiario: `amount_base − invoice_amount × tasa_factura`. */
+  exchangeDifferenceBase: numeric('exchange_difference_base', { precision: 20, scale: 2 })
+    .default('0')
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
 export const paymentMethodAccounts = pgTable(
   'payment_method_accounts',
   {
-    methodId: uuid('method_id').notNull(),
-    bankAccountId: uuid('bank_account_id').notNull(),
+    methodId: uuid('method_id')
+      .references(() => paymentMethods.id, { onDelete: 'cascade' })
+      .notNull(),
+    bankAccountId: uuid('bank_account_id')
+      .references(() => bankAccounts.id, { onDelete: 'cascade' })
+      .notNull(),
   },
   t => ({
     pk: primaryKey({ columns: [t.methodId, t.bankAccountId] }),
@@ -763,24 +1007,32 @@ export const taxRetentions = pgTable(
       .primaryKey()
       .$defaultFn(() => uuidv7()),
     code: text('code').notNull(),
-    partnerId: uuid('partner_id').notNull(),
-    branchId: uuid('branch_id').notNull(),
+    partnerId: uuid('partner_id')
+      .references(() => partners.id, { onDelete: 'restrict' })
+      .notNull(),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
     period: text('period').notNull(),
     type: text('type').notNull(),
     totalBase: numeric('total_base', { precision: 20, scale: 2 }).notNull(),
     totalTax: numeric('total_tax', { precision: 20, scale: 2 }).default('0'),
     totalRetained: numeric('total_retained', { precision: 20, scale: 2 }).notNull(),
     /** Moneda y tasa del comprobante de retencion (M2 de `S-08`). */
-    currencyId: uuid('currency_id'),
+    currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'restrict' }),
     exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }),
     totalRetainedBase: numeric('total_retained_base', { precision: 20, scale: 2 }),
     xmlContent: text('xml_content'),
     /** Factura de compra que origin? el comprobante (T-03-04). */
-    invoiceId: uuid('invoice_id'),
+    invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'restrict' }),
     /** Número de comprobante correlativo por sucursal y año (T-06-01). */
     voucherNumber: text('voucher_number'),
+    /** Porcentaje aplicado al comprobante, para que el voucher se explique solo (`S-21`). */
+    appliedRate: numeric('applied_rate', { precision: 20, scale: 2 }),
+    /** Origen de la regla aplicada: `CONCEPT`, `PARTNER` o `SETTINGS` (`S-21`). */
+    ruleSource: text('rule_source'),
     date: timestamp('date').defaultNow(),
-    userId: uuid('user_id'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   // H-80: el correlativo es por sucursal, asi que la unicidad de `code` no puede ser global.
@@ -826,13 +1078,15 @@ export const taxRetentionLines = pgTable('tax_retention_lines', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  retentionId: uuid('retention_id').notNull(),
-  invoiceId: uuid('invoice_id'),
-  paymentId: uuid('payment_id'),
+  retentionId: uuid('retention_id')
+    .references(() => taxRetentions.id, { onDelete: 'cascade' })
+    .notNull(),
+  invoiceId: uuid('invoice_id').references(() => invoices.id, { onDelete: 'set null' }),
+  paymentId: uuid('payment_id').references(() => payments.id, { onDelete: 'set null' }),
   baseAmount: numeric('base_amount', { precision: 20, scale: 2 }).notNull(),
   taxAmount: numeric('tax_amount', { precision: 20, scale: 2 }).default('0'),
   retainedAmount: numeric('retained_amount', { precision: 20, scale: 2 }).notNull(),
-  conceptId: uuid('concept_id'),
+  conceptId: uuid('concept_id').references(() => taxConcepts.id, { onDelete: 'set null' }),
 });
 
 export const documentLinks = pgTable('document_links', {
@@ -845,7 +1099,7 @@ export const documentLinks = pgTable('document_links', {
   targetTable: text('target_table').notNull(),
   type: text('type').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
-  userId: uuid('user_id'),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
 });
 
 export const banks = pgTable('banks', {
@@ -863,8 +1117,12 @@ export const departments = pgTable('departments', {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   name: text('name').notNull(),
-  parentId: uuid('parent_id'),
-  branchId: uuid('branch_id').notNull(),
+  parentId: uuid('parent_id').references((): AnyPgColumn => departments.id, {
+    onDelete: 'set null',
+  }),
+  branchId: uuid('branch_id')
+    .references(() => branches.id, { onDelete: 'restrict' })
+    .notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -874,7 +1132,7 @@ export const jobPositions = pgTable('job_positions', {
     .$defaultFn(() => uuidv7()),
   name: text('name').notNull().unique(),
   description: text('description'),
-  currencyId: uuid('currency_id'),
+  currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'set null' }),
   baseSalaryMin: numeric('base_salary_min', { precision: 20, scale: 2 }).default('0'),
   baseSalaryMax: numeric('base_salary_max', { precision: 20, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -889,17 +1147,19 @@ export const employees = pgTable('employees', {
   identityCard: text('identity_card').notNull().unique(),
   email: text('email'),
   phone: text('phone'),
-  positionId: uuid('position_id'),
-  departmentId: uuid('department_id'),
-  branchId: uuid('branch_id'),
+  positionId: uuid('position_id').references(() => jobPositions.id, { onDelete: 'set null' }),
+  departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
   hireDate: timestamp('hire_date').defaultNow(),
   terminationDate: timestamp('termination_date'),
   terminationReason: text('termination_reason'),
-  salaryCurrencyId: uuid('salary_currency_id'),
+  salaryCurrencyId: uuid('salary_currency_id').references(() => currencies.id, {
+    onDelete: 'set null',
+  }),
   baseSalary: numeric('base_salary', { precision: 20, scale: 2 }).notNull(),
   payFrequency: text('pay_frequency').default('BIWEEKLY'),
   paymentMethod: text('payment_method').default('BANK_TRANSFER'),
-  bankId: uuid('bank_id'),
+  bankId: uuid('bank_id').references(() => banks.id, { onDelete: 'set null' }),
   bankName: text('bank_name'),
   accountNumber: text('account_number'),
   accountType: text('account_type').default('CHECKING'),
@@ -911,7 +1171,9 @@ export const employeeContracts = pgTable('employee_contracts', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
   type: text('type').notNull(),
   startDate: timestamp('start_date').notNull(),
   endDate: timestamp('end_date'),
@@ -927,7 +1189,9 @@ export const employeeBenefits = pgTable('employee_benefits', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
   year: integer('year').notNull(),
   month: integer('month').notNull(),
   monthlySalary: numeric('monthly_salary', { precision: 20, scale: 2 }).notNull(),
@@ -947,7 +1211,9 @@ export const employeeVacations = pgTable('employee_vacations', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
   year: integer('year').notNull(),
   totalDays: integer('total_days').notNull(),
   daysTaken: integer('days_taken').default(0),
@@ -969,8 +1235,10 @@ export const employeeSettlements = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    employeeId: uuid('employee_id').notNull(),
-    branchId: uuid('branch_id'),
+    employeeId: uuid('employee_id')
+      .references(() => employees.id, { onDelete: 'cascade' })
+      .notNull(),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
     terminationDate: timestamp('termination_date').notNull(),
     cause: text('cause').notNull(),
     years: integer('years').notNull(),
@@ -995,7 +1263,7 @@ export const employeeSettlements = pgTable(
     totalAmount: numeric('total_amount', { precision: 20, scale: 2 }).notNull(),
     status: text('status').default('CALCULATED'),
     notes: text('notes'),
-    createdBy: uuid('created_by'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
     paidAt: timestamp('paid_at'),
   },
@@ -1009,7 +1277,9 @@ export const employeeProfitSharing = pgTable('employee_profit_sharing', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
   year: integer('year').notNull(),
   daysToPay: integer('days_to_pay').notNull(),
   amount: numeric('amount', { precision: 20, scale: 2 }).notNull(),
@@ -1024,16 +1294,20 @@ export const payrollRuns = pgTable('payroll_runs', {
     .primaryKey()
     .$defaultFn(() => uuidv7()),
   code: text('code').notNull().unique(),
-  branchId: uuid('branch_id').notNull(),
+  branchId: uuid('branch_id')
+    .references(() => branches.id, { onDelete: 'restrict' })
+    .notNull(),
   frequency: text('frequency').notNull(),
-  currencyId: uuid('currency_id').notNull(),
+  currencyId: uuid('currency_id')
+    .references(() => currencies.id, { onDelete: 'restrict' })
+    .notNull(),
   startDate: timestamp('start_date').notNull(),
   endDate: timestamp('end_date').notNull(),
   totalAmount: numeric('total_amount', { precision: 20, scale: 2 }).default('0'),
   status: text('status').default('DRAFT'),
   /** `P-29` (RN-21): la anulación no borra nada; deja quién, cuándo y por qué. */
   voidedAt: timestamp('voided_at'),
-  voidedBy: uuid('voided_by'),
+  voidedBy: uuid('voided_by').references(() => users.id, { onDelete: 'set null' }),
   voidReason: text('void_reason'),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -1042,8 +1316,12 @@ export const payrollItems = pgTable('payroll_items', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  runId: uuid('run_id').notNull(),
-  employeeId: uuid('employee_id').notNull(),
+  runId: uuid('run_id')
+    .references(() => payrollRuns.id, { onDelete: 'cascade' })
+    .notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'restrict' })
+    .notNull(),
   baseAmount: numeric('base_amount', { precision: 20, scale: 2 }).notNull(),
   bonuses: numeric('bonuses', { precision: 20, scale: 2 }).default('0'),
   deductions: numeric('deductions', { precision: 20, scale: 2 }).default('0'),
@@ -1054,7 +1332,9 @@ export const payrollItemLines = pgTable('payroll_item_lines', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  itemId: uuid('item_id').notNull(),
+  itemId: uuid('item_id')
+    .references(() => payrollItems.id, { onDelete: 'cascade' })
+    .notNull(),
   conceptCode: text('concept_code').notNull(),
   conceptName: text('concept_name').notNull(),
   category: text('category').notNull(),
@@ -1073,7 +1353,7 @@ export const payrollSettings = pgTable(
     companyId: uuid('company_id')
       .notNull()
       .references(() => companies.id, { onDelete: 'restrict' }),
-    branchId: uuid('branch_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
     label: text('label').notNull(),
     value: numeric('value', { precision: 20, scale: 4 }).notNull(),
@@ -1108,7 +1388,7 @@ export const payrollPeriodSettings = pgTable(
     label: text('label').notNull(),
     value: numeric('value', { precision: 20, scale: 4 }).notNull(),
     type: text('type').notNull(),
-    branchId: uuid('branch_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
     effectiveFrom: timestamp('effective_from').notNull(),
     createdAt: timestamp('created_at').defaultNow(),
   },
@@ -1139,7 +1419,7 @@ export const payrollConceptTypes = pgTable(
      */
     reducesIncomeTaxBase: boolean('reduces_income_tax_base').notNull().default(false),
     isSystem: boolean('is_system').default(false),
-    branchId: uuid('branch_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   t => ({
@@ -1151,13 +1431,19 @@ export const payrollIncidents = pgTable('payroll_incidents', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
-  conceptId: uuid('concept_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
+  conceptId: uuid('concept_id')
+    .references(() => payrollConceptTypes.id, { onDelete: 'restrict' })
+    .notNull(),
   date: timestamp('date').notNull(),
   quantity: numeric('quantity', { precision: 10, scale: 2 }).default('1'),
   amount: numeric('amount', { precision: 20, scale: 2 }),
   status: text('status').default('PENDING'),
-  processedInRunId: uuid('processed_in_run_id'),
+  processedInRunId: uuid('processed_in_run_id').references(() => payrollRuns.id, {
+    onDelete: 'set null',
+  }),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -1166,10 +1452,12 @@ export const employeeSalaryHistory = pgTable('employee_salary_history', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
   previousSalary: numeric('previous_salary', { precision: 20, scale: 2 }).notNull(),
   newSalary: numeric('new_salary', { precision: 20, scale: 2 }).notNull(),
-  currencyId: uuid('currency_id'),
+  currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'set null' }),
   reason: text('reason'),
   effectiveDate: timestamp('effective_date').notNull(),
   createdAt: timestamp('created_at').defaultNow(),
@@ -1179,11 +1467,15 @@ export const employeeBankAccounts = pgTable('employee_bank_accounts', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  employeeId: uuid('employee_id').notNull(),
-  bankId: uuid('bank_id').notNull(),
+  employeeId: uuid('employee_id')
+    .references(() => employees.id, { onDelete: 'cascade' })
+    .notNull(),
+  bankId: uuid('bank_id')
+    .references(() => banks.id, { onDelete: 'restrict' })
+    .notNull(),
   accountNumber: text('account_number').notNull(),
   accountType: text('account_type').default('CHECKING'),
-  currencyId: uuid('currency_id'),
+  currencyId: uuid('currency_id').references(() => currencies.id, { onDelete: 'set null' }),
   isPrimary: boolean('is_primary').default(false),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
@@ -1199,8 +1491,10 @@ export const accountingAccounts = pgTable(
     name: text('name').notNull(),
     /** `ASSET` | `LIABILITY` | `EQUITY` | `REVENUE` | `EXPENSE` | `COST` | `ORDER` (H-73). */
     type: text('type').notNull(),
-    branchId: uuid('branch_id'),
-    parentId: uuid('parent_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
+    parentId: uuid('parent_id').references((): AnyPgColumn => accountingAccounts.id, {
+      onDelete: 'set null',
+    }),
     /** Una cuenta imputable acepta líneas de asiento; al tener hijas deja de serlo (T-04-01). */
     isPostable: boolean('is_postable').default(true).notNull(),
     isActive: boolean('is_active').default(true),
@@ -1217,18 +1511,20 @@ export const accountingEntries = pgTable(
     date: timestamp('date').notNull(),
     description: text('description').notNull(),
     reference: text('reference'),
-    branchId: uuid('branch_id'),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'restrict' }),
     status: text('status').default('POSTED'),
     /** Documento que originó el asiento (`INVOICE`, `PAYMENT`, `PAYROLL`…) e idempotencia (T-04-03). */
     sourceType: text('source_type'),
     sourceId: uuid('source_id'),
     /** Moneda funcional del libro (VES) y tasa del documento origen (M1/M2 de `S-08`). */
-    baseCurrencyId: uuid('base_currency_id'),
+    baseCurrencyId: uuid('base_currency_id').references(() => currencies.id, {
+      onDelete: 'set null',
+    }),
     exchangeRate: numeric('exchange_rate', { precision: 20, scale: 10 }).default('1'),
     postedAt: timestamp('posted_at'),
-    postedBy: uuid('posted_by'),
+    postedBy: uuid('posted_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
-    userId: uuid('user_id'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   },
   table => [
     uniqueIndex('accounting_entries_source_unq')
@@ -1252,9 +1548,9 @@ export const accountingPeriods = pgTable(
     /** `OPEN` | `CLOSED`. Un asiento en un período cerrado se rechaza con `409` (T-04-04). */
     status: text('status').default('OPEN').notNull(),
     closedAt: timestamp('closed_at'),
-    closedBy: uuid('closed_by'),
+    closedBy: uuid('closed_by').references(() => users.id, { onDelete: 'set null' }),
     reopenedAt: timestamp('reopened_at'),
-    reopenedBy: uuid('reopened_by'),
+    reopenedBy: uuid('reopened_by').references(() => users.id, { onDelete: 'set null' }),
     reopenReason: text('reopen_reason'),
     createdAt: timestamp('created_at').defaultNow(),
   },
@@ -1271,14 +1567,20 @@ export const accountingEntryLines = pgTable('accounting_entry_lines', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  entryId: uuid('entry_id').notNull(),
-  accountId: uuid('account_id').notNull(),
+  entryId: uuid('entry_id')
+    .references(() => accountingEntries.id, { onDelete: 'cascade' })
+    .notNull(),
+  accountId: uuid('account_id')
+    .references(() => accountingAccounts.id, { onDelete: 'restrict' })
+    .notNull(),
   /** Importes en moneda funcional. */
   debit: numeric('debit', { precision: 20, scale: 2 }).default('0'),
   credit: numeric('credit', { precision: 20, scale: 2 }).default('0'),
   /** Importe y moneda originales cuando el documento no estaba en moneda funcional. */
   originalAmount: numeric('original_amount', { precision: 20, scale: 2 }),
-  originalCurrencyId: uuid('original_currency_id'),
+  originalCurrencyId: uuid('original_currency_id').references(() => currencies.id, {
+    onDelete: 'set null',
+  }),
   description: text('description'),
 });
 
@@ -1294,7 +1596,9 @@ export const fiscalSequences = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    branchId: uuid('branch_id').notNull(),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
     /** `RETENTION_IVA`, `RETENTION_ISLR`, `INVOICE`, `CREDIT_NOTE`… */
     documentType: text('document_type').notNull(),
     year: integer('year').notNull(),
@@ -1317,7 +1621,9 @@ export const fiscalExports = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    branchId: uuid('branch_id').notNull(),
+    branchId: uuid('branch_id')
+      .references(() => branches.id, { onDelete: 'restrict' })
+      .notNull(),
     /** `LIBRO_VENTAS`, `LIBRO_COMPRAS`, `RETENCIONES_IVA`, `RETENCIONES_ISLR` */
     reportType: text('report_type').notNull(),
     /** `CSV`, `TXT`, `XML` */
@@ -1327,7 +1633,7 @@ export const fiscalExports = pgTable(
     sequenceNumber: integer('sequence_number'),
     hash: text('hash').notNull(),
     sizeBytes: integer('size_bytes'),
-    userId: uuid('user_id'),
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow(),
   },
   table => [index('fiscal_exports_branch_created_idx').on(table.branchId, table.createdAt)]
@@ -1337,14 +1643,20 @@ export const accountingMaps = pgTable('accounting_maps', {
   id: uuid('id')
     .primaryKey()
     .$defaultFn(() => uuidv7()),
-  branchId: uuid('branch_id'),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
   module: text('module').notNull(),
   transactionType: text('transaction_type'),
-  categoryId: uuid('category_id'),
-  productId: uuid('product_id'),
-  paymentMethodId: uuid('payment_method_id'),
-  debitAccountId: uuid('debit_account_id'),
-  creditAccountId: uuid('credit_account_id'),
+  categoryId: uuid('category_id').references(() => productCategories.id, { onDelete: 'set null' }),
+  productId: uuid('product_id').references(() => products.id, { onDelete: 'set null' }),
+  paymentMethodId: uuid('payment_method_id').references(() => paymentMethods.id, {
+    onDelete: 'set null',
+  }),
+  debitAccountId: uuid('debit_account_id').references(() => accountingAccounts.id, {
+    onDelete: 'set null',
+  }),
+  creditAccountId: uuid('credit_account_id').references(() => accountingAccounts.id, {
+    onDelete: 'set null',
+  }),
   isActive: boolean('is_active').default(true),
   createdAt: timestamp('created_at').defaultNow(),
 });
@@ -1372,6 +1684,27 @@ export const incomeTaxBrackets = pgTable(
   t => [index('income_tax_brackets_effective_idx').on(t.effectiveFrom, t.fromUt)]
 );
 
+/**
+ * Valor de la unidad tributaria (UT) por vigencia (`S-22`).
+ *
+ * La ley expresa los sustraendos del ISLR en UT, así que el monto en bolívares depende del valor
+ * vigente a la fecha del documento. Se guarda por `effectiveFrom` para no reescribir el pasado cuando
+ * salga un reajuste.
+ */
+export const taxUnits = pgTable(
+  'tax_units',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv7()),
+    value: numeric('value', { precision: 20, scale: 2 }).notNull(),
+    effectiveFrom: timestamp('effective_from').notNull(),
+    source: text('source'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  t => [uniqueIndex('tax_units_effective_unq').on(t.effectiveFrom)]
+);
+
 export const loans = pgTable(
   'loans',
   {
@@ -1379,8 +1712,10 @@ export const loans = pgTable(
       .primaryKey()
       .$defaultFn(() => uuidv7()),
     code: text('code').notNull().unique(),
-    partnerId: uuid('partner_id').notNull(),
-    branchId: uuid('branch_id'),
+    partnerId: uuid('partner_id')
+      .references(() => partners.id, { onDelete: 'restrict' })
+      .notNull(),
+    branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
     status: text('status').default('ACTIVE'),
     startDate: timestamp('start_date').defaultNow(),
     dueDate: timestamp('due_date'),
@@ -1399,8 +1734,12 @@ export const loanItems = pgTable(
     id: uuid('id')
       .primaryKey()
       .$defaultFn(() => uuidv7()),
-    loanId: uuid('loan_id').notNull(),
-    productId: uuid('product_id').notNull(),
+    loanId: uuid('loan_id')
+      .references(() => loans.id, { onDelete: 'cascade' })
+      .notNull(),
+    productId: uuid('product_id')
+      .references(() => products.id, { onDelete: 'restrict' })
+      .notNull(),
     quantity: numeric('quantity', { precision: 20, scale: 4 }).notNull(),
     serialNumber: text('serial_number'),
     condition: text('condition').default('GOOD'),
@@ -1535,6 +1874,7 @@ export const productBatchesRelations = relations(productBatches, ({ one, many })
   product: one(products, { fields: [productBatches.productId], references: [products.id] }),
   stock: many(stock),
   inventoryMoveLines: many(inventoryMoveLines),
+  reservations: many(inventoryBatchReservations),
 }));
 
 export const stockRelations = relations(stock, ({ one }) => ({
@@ -1557,9 +1897,10 @@ export const inventoryMovesRelations = relations(inventoryMoves, ({ one, many })
   approvedByUser: one(users, { fields: [inventoryMoves.approvedBy], references: [users.id] }),
   user: one(users, { fields: [inventoryMoves.userId], references: [users.id] }),
   lines: many(inventoryMoveLines),
+  reservations: many(inventoryBatchReservations),
 }));
 
-export const inventoryMoveLinesRelations = relations(inventoryMoveLines, ({ one }) => ({
+export const inventoryMoveLinesRelations = relations(inventoryMoveLines, ({ one, many }) => ({
   move: one(inventoryMoves, {
     fields: [inventoryMoveLines.moveId],
     references: [inventoryMoves.id],
@@ -1569,7 +1910,34 @@ export const inventoryMoveLinesRelations = relations(inventoryMoveLines, ({ one 
     fields: [inventoryMoveLines.batchId],
     references: [productBatches.id],
   }),
+  reservations: many(inventoryBatchReservations),
 }));
+
+export const inventoryBatchReservationsRelations = relations(
+  inventoryBatchReservations,
+  ({ one }) => ({
+    move: one(inventoryMoves, {
+      fields: [inventoryBatchReservations.moveId],
+      references: [inventoryMoves.id],
+    }),
+    moveLine: one(inventoryMoveLines, {
+      fields: [inventoryBatchReservations.moveLineId],
+      references: [inventoryMoveLines.id],
+    }),
+    warehouse: one(warehouses, {
+      fields: [inventoryBatchReservations.warehouseId],
+      references: [warehouses.id],
+    }),
+    product: one(products, {
+      fields: [inventoryBatchReservations.productId],
+      references: [products.id],
+    }),
+    batch: one(productBatches, {
+      fields: [inventoryBatchReservations.batchId],
+      references: [productBatches.id],
+    }),
+  })
+);
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   partner: one(partners, { fields: [orders.partnerId], references: [partners.id] }),

@@ -20,10 +20,12 @@
   sucursales de `users_branches`.
 - El JWT incluye roles y permisos. La respuesta de login incluye permisos y
   sucursales para la UI.
-- Los controladores de Users, Roles y Branches validan JWT y permisos de la
-  sesión en cada solicitud administrativa. Partners, Orders y Billing siguen
-  teniendo superficies sin esa autorización; no asumir que un permiso mostrado
-  en la UI protege esos endpoints.
+- Los guards son globales (`JwtAuthGuard → PermissionsGuard → BranchContextGuard`):
+  toda ruta declara su permiso en el controlador y una petición sin el grant
+  devuelve 403 antes de validar el cuerpo. Quedan abiertas por diseño
+  `POST /auth/*`, `GET /auth/me`, `GET /health`, `GET /v1/health/rates`,
+  `GET /users/me/profile` y la lectura de `/settings/currencies` (maestros
+  necesarios antes de elegir sucursal).
 
 ## Contexto de sucursal (obligatorio desde 2026-10-26)
 
@@ -40,8 +42,8 @@ y `apps/backend/src/common/decorators/current-branch.decorator.ts`.
   - `400` — falta la cabecera y el usuario tiene varias sucursales, o el valor no es UUID.
   - `403` — la sucursal no está asignada al usuario, o el usuario no tiene sucursales.
   - `404` — el recurso existe pero pertenece a otra sucursal (no se filtra su existencia).
-- Exentos (`@SkipBranch()`): `GET /v1/auth/me`, `/v1/health`, catálogo de
-  empresas/sucursales y `/v1/settings/currencies` (necesarios antes de elegir sucursal).
+- Exentos (`@SkipBranch()`): `GET /v1/auth/me`, `/v1/health`, `GET /v1/health/rates`,
+  catálogo de empresas/sucursales y `/v1/settings/currencies` (necesarios antes de elegir sucursal).
 - `core:branch:all` (sólo `SUPER_ADMIN`) habilita el modo consolidado sobre
   cualquier sucursal existente.
 - `GET /v1/auth/me` devuelve además `defaultBranchId`, con la que la UI debe arrancar.
@@ -55,25 +57,36 @@ correo. La pantalla está en `/forgot-password` y desde ahí se llega al formula
 
 `POST /v1/auth/reset-password` (`@Public`, 3 intentos/min) recibe `{ token, newPassword }`; consume el
 token y borra cualquier otro pendiente del usuario. Un token usado, vencido o inexistente responde
-`401`.- Toda escritura sobre dinero o stock deja fila en `audit_logs` con `branch_id`,
-usuario, IP y el cuerpo saneado (ver `AuditWriteInterceptor`).
+`401`.
+
+- Toda escritura sobre dinero o stock deja fila en `audit_logs` con `branch_id`, la foto del autor
+  (nombre, correo y roles), IP, ruta, resultado y el **antes/después real** de la fila (ver
+  `AuditWriteInterceptor` y `AuditService.record`).
+- `POST /v1/auth/login` deja fila con `action = 'LOGIN'` si entra y `'LOGIN_FAILED'` (`result =
+'DENIED'`) si falla; los `403` de permisos quedan como `'DENIED'` desde `PermissionsGuard`.
 
 ## Partners
 
 Implementación: `apps/backend/src/modules/partners/`.
 
-| Método | Ruta                 | Query/body                              | Respuesta real                                                                                       |
-| ------ | -------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| GET    | `/v1/partners`       | `search` opcional (nombre, email o RIF) | Arreglo `PartnerResponseDto[]`                                                                       |
-| GET    | `/v1/partners/stats` | —                                       | Conteo agrupado por tipo                                                                             |
-| GET    | `/v1/partners/:id`   | —                                       | Un partner; 404 si no existe                                                                         |
-| POST   | `/v1/partners`       | `CreatePartnerDto`                      | Partner creado; tipos `CUSTOMER` o `VENDOR`                                                          |
-| PATCH  | `/v1/partners/:id`   | `UpdatePartnerDto`                      | Partner actualizado                                                                                  |
-| DELETE | `/v1/partners/:id`   | —                                       | `{ message }`; actualmente solo pone `isSpecialTaxpayer` en `false`, no elimina/desactiva el partner |
+| Método | Ruta                 | Query/body                                                | Respuesta real                                                                                       |
+| ------ | -------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| GET    | `/v1/partners`       | `search` opcional (nombre, email o RIF) y `type` opcional | Arreglo `PartnerResponseDto[]`                                                                       |
+| GET    | `/v1/partners/stats` | —                                                         | Conteo agrupado por tipo                                                                             |
+| GET    | `/v1/partners/:id`   | —                                                         | Un partner; 404 si no existe                                                                         |
+| POST   | `/v1/partners`       | `CreatePartnerDto`                                        | Partner creado; tipos `CUSTOMER`, `VENDOR` o `BOTH`                                                  |
+| PATCH  | `/v1/partners/:id`   | `UpdatePartnerDto`                                        | Partner actualizado                                                                                  |
+| DELETE | `/v1/partners/:id`   | —                                                         | `{ message }`; actualmente solo pone `isSpecialTaxpayer` en `false`, no elimina/desactiva el partner |
 
-El listado no implementa paginación ni filtro por tipo en backend. El cliente web
-adapta el arreglo: envía `search` y pagina/filtra el resultado localmente. El
-frontend usa los tipos backend `CUSTOMER` y `VENDOR`.
+El listado acepta `search` y `type`; con `paginated=true` responde
+`{ data, total, page, limit }` en servidor. Sin ese parámetro devuelve el arreglo
+completo y el cliente web pagina/filtra localmente. El frontend usa los tipos
+backend `CUSTOMER`, `VENDOR` y `BOTH`.
+
+Filtro por rol: `type=CUSTOMER` y `type=VENDOR` incluyen a los partners `BOTH`
+porque pueden comprar y vender; `type=BOTH` solo devuelve a los partners que
+cumplen ambos roles. Las estadísticas cuentan un partner `BOTH` como cliente y
+como proveedor, mientras que `total` cuenta cada partner una sola vez.
 
 La ruta de borrado es una brecha: el servicio responde “deactivated” pero el
 esquema de `partners` no tiene un campo de estado y el código solo modifica
@@ -513,7 +526,11 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 - Una factura con pagos aplicados no se anula: responde `409` y obliga a anular el pago o emitir una
   nota de crédito (regla 5 de `S-03`).
 - **Notas de crédito de compra**: `credit_notes.type = 'PURCHASE'` y la respuesta incluye `type`.
-  Descuentan el saldo del proveedor mientras estén `POSTED`.
+  Descuentan el saldo del proveedor mientras estén `POSTED` o `APPLIED`.
+- **Anular una factura emitida** (`finance:invoices:void`, ADMIN): `400` si ya está anulada, `409` si
+  tiene pagos aplicados, notas de crédito vigentes o retenciones usadas en un pago, y `409` si la
+  fecha cae en un período contable cerrado. Las retenciones emitidas que no respaldan ningún pago se
+  eliminan con la factura y quedan listadas en `metadata.retentionsRemoved` del evento.
 
 ## Tesorería y cobranzas (desde 2026-10-27)
 
@@ -544,6 +561,11 @@ que no vuelva a desalinearse (fue el defecto que arrastró `modules/hr/api.ts` h
 - **Métodos de pago**: `GET /methods` devuelve sólo los activos (es lo que ve un cajero);
   `GET /methods/all` incluye los desactivados para administrarlos. Las banderas son `appliesIgtf`
   (IGTF 3 % en divisa), `requiresReference` e `isCash` (el efectivo entra en el cuadre de caja).
+- **Referencia de la transacción**: `reference` se normaliza (mayúsculas, sin espacios sobrantes) y
+  **no puede repetirse entre pagos vigentes**, ni en la misma factura ni en facturas distintas ni en
+  otra sucursal: una misma transferencia no puede justificar dos cobros. Un duplicado responde `409`
+  indicando el pago que ya la usa. Un método con `requiresReference: true` exige el campo (`400`).
+  Anular un pago libera su referencia porque el dinero no llegó a la cuenta.
 - **Cuentas bancarias**: `initialBalance` es el saldo de apertura y `currentBalance` lo mueven los
   pagos. Una cuenta inactiva no se ofrece al cobrar. `PATCH` no toca `currentBalance`.
 - **Cierre diario**: se identifica por `fecha + sucursal` (índice único). Un día **sin fila está
@@ -571,23 +593,43 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
 
 ## Auditoría, panel y navegación (desde 2026-10-27)
 
-`T-07-01`, `T-07-04`, `T-07-05`, `T-07-07`.
+`T-07-01`, `T-07-04`, `T-07-05`, `T-07-07`. Ampliado el 2026-11-02 (auditoría legible y buscable).
 
-| Método | Ruta                                                                                     | Permiso               |
-| ------ | ---------------------------------------------------------------------------------------- | --------------------- |
-| `GET`  | `/v1/audit?entityTable&entityId&action&documentCode&userId&from&to&page&limit&paginated` | `settings:users:view` |
-| `GET`  | `/v1/audit/entities`                                                                     | `settings:users:view` |
-| `GET`  | `/v1/audit/:entityTable/:entityId`                                                       | `settings:users:view` |
-| `GET`  | `/v1/bi/kpis`                                                                            | `bi:view`             |
-| `GET`  | `/v1/bi/chart?type=sales\|payments&year`                                                 | `bi:view`             |
-| `GET`  | `/v1/bi/activity`                                                                        | `bi:view`             |
+| Método | Ruta                                                                                                     | Permiso                 |
+| ------ | -------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `GET`  | `/v1/audit?q&module&result&entityTable&entityId&action&documentCode&userId&from&to&page&limit&paginated` | `settings:audit:view`   |
+| `GET`  | `/v1/audit/entities`                                                                                     | `settings:audit:view`   |
+| `GET`  | `/v1/audit/facets`                                                                                       | `settings:audit:view`   |
+| `GET`  | `/v1/audit/export?q&module&result&action&documentCode&entityTable&userId&from&to`                        | `settings:audit:export` |
+| `GET`  | `/v1/audit/:entityTable/:entityId`                                                                       | `settings:audit:view`   |
+| `GET`  | `/v1/bi/kpis`                                                                                            | `bi:view`               |
+| `GET`  | `/v1/bi/chart?type=sales\|payments&year`                                                                 | `bi:view`               |
+| `GET`  | `/v1/bi/activity`                                                                                        | `bi:view`               |
 
 - **Auditoría paginada es aditiva**: con `paginated=true` devuelve `{ data, total, page, limit }`; sin
   el flag mantiene el arreglo plano del contrato anterior. `limit` se acota a 200.
 - `total` se cuenta con el **mismo filtro** que la página; `documentCode` es búsqueda parcial.
+- **`q` es búsqueda libre** sobre descripción, documento, nombre/correo del autor, acción y tabla; es
+  el atajo del visor (una sola caja para llegar desde el código o desde la persona).
+- **Cada fila identifica al autor**: `actorName`, `actorEmail` y `actorRoles` son la foto del usuario
+  en el momento del hecho (no dependen del `user_id`, que se anula si el usuario se borra).
+- **`changes` guarda el antes y el después reales** `{ before, after, changedFields }`, leídos de la
+  tabla antes y después de la escritura; la UI lo muestra como `campo: antes → después` y oculta los
+  campos que no cambiaron. Un `PATCH` que no modifica nada no genera fila.
+- **Se auditan altas y fallos**: las altas (sin UUID en la URL) toman el `id` de la respuesta; los
+  errores quedan con `result = 'ERROR'` y los `403` de permisos con `result = 'DENIED'`.
+- `module` (`billing`, `treasury`, `inventory`, `operations`, `hr`, `accounting`, `settings`, `auth`)
+  agrupa el filtro; `entityLabel`/`actionLabel` son las etiquetas legibles ("factura", "Publicó").
 - `GET /audit/entities` devuelve las tablas auditadas presentes en el registro, para poblar el filtro.
-- El campo `changes` guarda el par `{ before, after }`; la UI lo muestra como `campo: antes → después`
-  y oculta los campos que no cambiaron.
+- `GET /audit/facets` devuelve usuarios, módulos, acciones, tablas y resultados **con su conteo**, para
+  que los filtros muestren sólo lo que existe.
+- `GET /audit/export` responde `text/csv` (máximo 10.000 filas) con los mismos filtros; la exportación
+  queda registrada en la propia bitácora (`action = 'EXPORT'`).
+- **Los agregados de BI van en moneda funcional** (`payments.amount_base`): sumar dólares con bolívares
+  no significa nada (H-96).
+- `/bi/chart` devuelve los 12 meses del año pedido, con ceros donde no hubo movimiento.
+- El panel y sus KPIs respetan la sucursal activa porque el cliente envía `x-branch-id` en cada
+  llamada; los endpoints de BI aún agregan por sucursal sólo donde el servicio lo aplica ⚠️.
 - **Los agregados de BI van en moneda funcional** (`payments.amount_base`): sumar dólares con bolívares
   no significa nada (H-96).
 - `/bi/chart` devuelve los 12 meses del año pedido, con ceros donde no hubo movimiento.
@@ -622,8 +664,21 @@ content }` con líneas `fecha,monto,referencia,descripción` (`,` o `;`, comilla
 
 - **Notas de crédito**: ciclo `DRAFT → POSTED → APPLIED`, con `VOIDED` como salida. Sólo se aplican
   contra una factura las que están `POSTED`; `apply` devuelve `{ id, invoiceId, amount,
-availableAmount }` y rechaza si `amount` supera el disponible de la nota o el saldo de la factura.
-  El `type` (`SALE`/`PURCHASE`) define contra qué lado del libro impacta.
+availableAmount }` y rechaza si `amount` supera el disponible de la nota o el saldo de la factura,
+  o si nota y factura no comparten moneda. El `type` (`SALE`/`PURCHASE`) define contra qué lado del
+  libro impacta.
+- **Aplicar no es cobrar**: `apply` registra `credit_note_usages (credit_note_id, invoice_id, amount)`
+  y **no** crea un pago (antes insertaba uno con `method_id = currency_id` y rompía por FK). El saldo
+  baja por dos vías, sin doble conteo: una nota con factura de origen acredita su total al emitirse, y
+  una nota sin factura de origen acredita lo aplicado. Una nota sigue acreditando en `APPLIED`.
+- **Emitir una devolución de cliente genera la entrada de inventario**: `POST /:id/post` sobre una
+  nota `SALE` con ítems exige `warehouseId` (400 si falta) y crea un movimiento `ENTRADA` en
+  `EN_TRAMITE` (`source = 'CREDIT_NOTE'`) vinculado con `document_links`. El stock no cambia hasta que
+  el almacén lo aprueba. Si el almacén ya lo aprobó, anular la nota emite una `SALIDA` compensatoria
+  también en borrador; si seguía en borrador, se rechaza.
+- **Anular una nota aplicada está permitido**: libera sus usos y devuelve el saldo, y es el paso
+  previo obligatorio para anular la factura. Anular una factura con notas vigentes (`POSTED`/`APPLIED`)
+  responde `409`.
 - **Préstamos: es préstamo de artículos, no de dinero.** `loans` + `loan_items` guarda producto, serie
   y condición; por eso `pay` registra la **devolución** y no genera movimiento de tesorería ni asiento
   contable. Ciclo `PENDING → ACTIVE → PAID` (más `REJECTED`/`CANCELLED`).

@@ -24,6 +24,7 @@ import { SupplierRetentionService } from './purchasing/supplier-retention.servic
 import {
   CreateInvoiceDto,
   UpdateInvoiceDto,
+  VoidInvoiceDto,
   InvoiceResponseDto,
   InvoiceStatsDto,
   InvoiceStatus,
@@ -36,6 +37,7 @@ import { CurrentBranch } from '../../common/decorators/current-branch.decorator'
 import { RequirePermissions } from '../../common/decorators/require-permissions.decorator';
 
 @ApiTags('billing')
+@ApiBearerAuth()
 @Controller('v1/billing/invoices')
 @RequirePermissions('finance:view')
 export class BillingController {
@@ -103,12 +105,16 @@ export class BillingController {
     description: 'Invoice statistics',
     type: InvoiceStatsDto,
   })
-  async getStats(@CurrentBranch() branchId: string): Promise<InvoiceStatsDto> {
-    return this.billingService.getStats(branchId);
+  async getStats(
+    @CurrentBranch() branchId: string,
+    @Query('type') type?: string
+  ): Promise<InvoiceStatsDto> {
+    return this.billingService.getStats(branchId, type);
   }
 
   // Cuentas por pagar (T-03-05)
 
+  @RequirePermissions('finance:payables:view')
   @Get('payables')
   @ApiOperation({
     summary: 'Cuentas por pagar por factura',
@@ -121,7 +127,36 @@ export class BillingController {
     enum: ['PENDING', 'PARTIAL', 'PAID', 'OVERDUE'],
   })
   @ApiQuery({ name: 'asOf', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Facturas por pagar con su saldo' })
+  @ApiResponse({
+    status: 200,
+    description: 'Facturas por pagar con su saldo',
+    schema: {
+      example: [
+        {
+          invoiceId: '550e8400-e29b-41d4-a716-446655440000',
+          code: 'COM-000045',
+          supplierInvoiceNumber: '00012345',
+          partnerId: '550e8400-e29b-41d4-a716-446655440001',
+          partnerName: 'Suministros del Sur C.A.',
+          partnerTaxId: 'J-98765432-1',
+          issueDate: '2026-10-20',
+          dueDate: '2026-11-19',
+          currencyId: '550e8400-e29b-41d4-a716-446655440002',
+          currencyCode: 'VES',
+          total: 580,
+          paid: 200,
+          creditNotes: 0,
+          retained: 80,
+          balance: 300,
+          exchangeRate: 1,
+          totalBase: 580,
+          balanceBase: 300,
+          status: 'PARTIAL',
+          daysOverdue: 0,
+        },
+      ],
+    },
+  })
   async findPayables(
     @CurrentBranch() branchId: string,
     @Query('partnerId') partnerId?: string,
@@ -131,13 +166,41 @@ export class BillingController {
     return this.payables.list(branchId, { partnerId, status, asOf });
   }
 
+  @RequirePermissions('finance:payables:view')
   @Get('payables/aging')
   @ApiOperation({
     summary: 'Antigüedad de saldos (aging)',
     description: 'Buckets: por vencer, 1-30, 31-60, 61-90 y más de 90 días',
   })
   @ApiQuery({ name: 'asOf', required: false, example: '2026-10-31' })
-  @ApiResponse({ status: 200, description: 'Antigüedad por bucket y por proveedor' })
+  @ApiResponse({
+    status: 200,
+    description: 'Antigüedad por bucket y por proveedor',
+    schema: {
+      example: {
+        branchId: '550e8400-e29b-41d4-a716-446655440000',
+        asOf: '2026-10-31',
+        buckets: [
+          { bucket: 'CURRENT', label: 'Por vencer', total: 1200, invoices: 3 },
+          { bucket: 'D1_30', label: '1-30 días', total: 500, invoices: 1 },
+          { bucket: 'D31_60', label: '31-60 días', total: 0, invoices: 0 },
+          { bucket: 'D61_90', label: '61-90 días', total: 0, invoices: 0 },
+          { bucket: 'D90_PLUS', label: 'Más de 90 días', total: 250, invoices: 1 },
+        ],
+        baseCurrencyCode: 'VES',
+        byPartner: [
+          {
+            partnerId: '550e8400-e29b-41d4-a716-446655440001',
+            partnerName: 'Suministros del Sur C.A.',
+            partnerTaxId: 'J-98765432-1',
+            total: 1950,
+            overdue: 750,
+          },
+        ],
+        totals: { balance: 1950, overdue: 750 },
+      },
+    },
+  })
   async findPayablesAging(@CurrentBranch() branchId: string, @Query('asOf') asOf?: string) {
     return this.payables.aging(branchId, asOf);
   }
@@ -145,8 +208,25 @@ export class BillingController {
   // Parámetros de retención al proveedor (T-03-03)
 
   @Get('supplier-retention-settings')
-  @ApiOperation({ summary: 'Parámetros de retención al proveedor de la empresa' })
-  @ApiResponse({ status: 200, description: 'Parámetros vigentes' })
+  @ApiOperation({
+    summary: 'Parámetros de retención al proveedor de la empresa',
+    description:
+      'Tasas de IVA (ordinario y especial), ISLR, sustraendo y umbral configurados para la empresa de la sucursal',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Parámetros vigentes',
+    schema: {
+      example: {
+        companyId: '550e8400-e29b-41d4-a716-446655440000',
+        ivaRetentionRate: 75,
+        ivaRetentionRateSpecial: 100,
+        islrRate: 5,
+        islrSustraendo: 0,
+        islrThreshold: 1000,
+      },
+    },
+  })
   async getRetentionSettings(@CurrentBranch() branchId: string) {
     return this.retentions.getSettings(await this.retentions.companyOfBranch(branchId));
   }
@@ -157,7 +237,20 @@ export class BillingController {
     summary: 'Actualizar parámetros de retención',
     description: 'IVA (ordinario y especial), ISLR y su umbral. Cambian por decreto: son parámetro',
   })
-  @ApiResponse({ status: 200, description: 'Parámetros actualizados' })
+  @ApiResponse({
+    status: 200,
+    description: 'Parámetros actualizados',
+    schema: {
+      example: {
+        companyId: '550e8400-e29b-41d4-a716-446655440000',
+        ivaRetentionRate: 75,
+        ivaRetentionRateSpecial: 100,
+        islrRate: 5,
+        islrSustraendo: 0,
+        islrThreshold: 1000,
+      },
+    },
+  })
   async updateRetentionSettings(
     @CurrentBranch() branchId: string,
     @Body()
@@ -190,7 +283,7 @@ export class BillingController {
     @Param('id') id: string,
     @CurrentBranch() branchId: string
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.findOne(id, branchId);
+    return this.billingService.findOneWithHistory(id, branchId);
   }
 
   @RequirePermissions('finance:invoices:create')
@@ -240,9 +333,10 @@ export class BillingController {
   async update(
     @Param('id') id: string,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.update(id, updateInvoiceDto, branchId);
+    return this.billingService.update(id, updateInvoiceDto, branchId, user.id);
   }
 
   @RequirePermissions('finance:invoices:post')
@@ -267,9 +361,10 @@ export class BillingController {
   })
   async post(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.post(id, branchId);
+    return this.billingService.post(id, branchId, user.id);
   }
 
   @RequirePermissions('finance:invoices:void')
@@ -292,11 +387,14 @@ export class BillingController {
     status: 404,
     description: 'Invoice not found',
   })
+  @ApiBody({ type: VoidInvoiceDto })
   async void(
     @Param('id') id: string,
-    @CurrentBranch() branchId: string
+    @Body() body: VoidInvoiceDto,
+    @CurrentBranch() branchId: string,
+    @CurrentUser() user: CurrentUserData
   ): Promise<InvoiceResponseDto> {
-    return this.billingService.void(id, branchId);
+    return this.billingService.void(id, branchId, user.id, body?.reason);
   }
 
   @Get(':id/fiscal-json')

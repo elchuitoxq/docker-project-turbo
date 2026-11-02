@@ -32,6 +32,8 @@ import {
 import { useIncidents, useApproveIncident, useRejectIncident } from '../hooks';
 import { formatDate } from '@/lib/utils';
 import type { Incident, IncidentType } from '../api';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 const TYPE_LABEL: Record<IncidentType, string> = {
   ABSENCE: 'Inasistencia',
@@ -66,6 +68,7 @@ const STATUS_VARIANT = {
 } as const;
 
 export function IncidentsView() {
+  const { hasPermission } = usePermission();
   const [type, setType] = React.useState<IncidentType | 'ALL'>('ALL');
   const [status, setStatus] = React.useState<string>('PENDING');
   const { data, isLoading } = useIncidents({
@@ -194,36 +197,37 @@ export function IncidentsView() {
                       <Badge variant={STATUS_VARIANT[i.status]}>{STATUS_LABEL[i.status]}</Badge>
                     </TableCell>
                     <TableCell>
-                      {i.status === 'PENDING' && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                approve.mutate(i.id, {
-                                  onSuccess: () => toast.success('Novedad aprobada'),
-                                })
-                              }
-                            >
-                              <Check /> Aprobar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                reject.mutate(i.id, {
-                                  onSuccess: () => toast.success('Novedad rechazada'),
-                                })
-                              }
-                              className="text-destructive"
-                            >
-                              <X /> Rechazar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      {i.status === 'PENDING' &&
+                        hasPermission(PERMISSIONS.HR.INCIDENTS.APPROVE) && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  approve.mutate(i.id, {
+                                    onSuccess: () => toast.success('Novedad aprobada'),
+                                  })
+                                }
+                              >
+                                <Check /> Aprobar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  reject.mutate(i.id, {
+                                    onSuccess: () => toast.success('Novedad rechazada'),
+                                  })
+                                }
+                                className="text-destructive"
+                              >
+                                <X /> Rechazar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                     </TableCell>
                   </TableRow>
                 ))}

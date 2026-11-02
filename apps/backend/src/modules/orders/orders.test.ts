@@ -489,36 +489,107 @@ describe('OrdersService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when updating exchangeRate for non-draft order', async () => {
+    it('should throw BadRequestException when updating exchangeRate and the invoice was already posted', async () => {
       const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
-      vi.mocked(db).select.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
-              [Symbol.toStringTag]: 'Promise',
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
             }),
           }),
-        }),
-      } as any);
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([{ id: 'invoice-1' }]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any);
 
       await expect(service.update(mockOrder.id, { exchangeRate: 2.0 })).rejects.toThrow(
         BadRequestException
       );
     });
 
-    it('should throw BadRequestException when updating currencyId for non-draft order', async () => {
+    it('should allow updating the exchangeRate for a confirmed order without a posted invoice', async () => {
       const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
-      vi.mocked(db).select.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
-              [Symbol.toStringTag]: 'Promise',
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
             }),
+          }),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) =>
+                  Promise.resolve([{ ...confirmedOrder, exchangeRate: '2' }]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any);
+
+      vi.mocked(db).update.mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            then: (resolve: any) => Promise.resolve(undefined).then(resolve),
+            [Symbol.toStringTag]: 'Promise',
           }),
         }),
       } as any);
+
+      await service.update(mockOrder.id, { exchangeRate: 2.0 });
+
+      expect(db.update).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when updating currencyId and the invoice was already posted', async () => {
+      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any)
+        .mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([{ id: 'invoice-1' }]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any);
 
       await expect(service.update(mockOrder.id, { currencyId: 'new-currency-id' })).rejects.toThrow(
         BadRequestException
@@ -810,43 +881,6 @@ describe('OrdersService', () => {
   });
 
   describe('invoice', () => {
-    it('should invoice a confirmed order', async () => {
-      const confirmedOrder = { ...mockOrder, status: OrderStatus.CONFIRMED };
-      vi.mocked(db).select.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([confirmedOrder]).then(resolve),
-              [Symbol.toStringTag]: 'Promise',
-            }),
-          }),
-        }),
-      } as any);
-
-      const result = await service.invoice(mockOrder.id);
-
-      expect(result.message).toBe('Invoice functionality not yet implemented');
-      expect(result.orderId).toBe(mockOrder.id);
-    });
-
-    it('should invoice a processing order', async () => {
-      const processingOrder = { ...mockOrder, status: OrderStatus.PROCESSING };
-      vi.mocked(db).select.mockReturnValueOnce({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([processingOrder]).then(resolve),
-              [Symbol.toStringTag]: 'Promise',
-            }),
-          }),
-        }),
-      } as any);
-
-      const result = await service.invoice(mockOrder.id);
-
-      expect(result.message).toBe('Invoice functionality not yet implemented');
-    });
-
     it('should throw NotFoundException when invoicing non-existent order', async () => {
       vi.mocked(db).select.mockReturnValueOnce({
         from: vi.fn().mockReturnValue({
@@ -863,32 +897,59 @@ describe('OrdersService', () => {
     });
 
     it('should throw BadRequestException when invoicing draft order', async () => {
-      vi.mocked(db).select.mockReturnValueOnce({
+      // 1ª consulta: el pedido; 2ª: si ya tiene factura (ninguna) antes de rechazar por estado.
+      const emptyInvoices = {
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([mockOrder]).then(resolve),
+              then: (resolve: any) => Promise.resolve([]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
         }),
-      } as any);
+      } as any;
+
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([mockOrder]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any)
+        .mockReturnValueOnce(emptyInvoices);
 
       await expect(service.invoice(mockOrder.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when invoicing cancelled order', async () => {
       const cancelledOrder = { ...mockOrder, status: OrderStatus.CANCELLED };
-      vi.mocked(db).select.mockReturnValueOnce({
+      const emptyInvoices = {
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockReturnValue({
             limit: vi.fn().mockReturnValue({
-              then: (resolve: any) => Promise.resolve([cancelledOrder]).then(resolve),
+              then: (resolve: any) => Promise.resolve([]).then(resolve),
               [Symbol.toStringTag]: 'Promise',
             }),
           }),
         }),
-      } as any);
+      } as any;
+
+      vi.mocked(db)
+        .select.mockReturnValueOnce({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockReturnValue({
+                then: (resolve: any) => Promise.resolve([cancelledOrder]).then(resolve),
+                [Symbol.toStringTag]: 'Promise',
+              }),
+            }),
+          }),
+        } as any)
+        .mockReturnValueOnce(emptyInvoices);
 
       await expect(service.invoice(mockOrder.id)).rejects.toThrow(BadRequestException);
     });

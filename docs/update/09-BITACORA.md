@@ -2372,3 +2372,27 @@ Se reprodujo el job tal como está escrito, contra un Postgres desechable en `lo
 
 Falta verlo correr **en GitHub Actions** (`e2e` es bloqueante). Requiere empujar el commit: el
 workflow se dispara en `push` a `main`, en pull request o a mano con `workflow_dispatch`.
+
+### BT-063 · 2026-10-31 · La guía del producto explica qué puede hacer cada rol (S-24)
+
+**Lo que había**
+
+El usuario sólo descubría sus permisos probando. Cuando una acción no aparecía, no había forma de
+distinguir entre «me falta un permiso», «el documento está en otro estado» y «ese proceso no existe».
+
+**Lo que se hizo**
+
+Cinco guías interactivas (Inventario, Operaciones, Finanzas, RRHH y Configuración) construidas sobre
+un registry tipado que referencia los permisos reales de `lib/permissions.ts`: 38 submódulos con
+permiso de entrada, acciones, paso a paso, reglas, errores frecuentes y advertencias de acciones
+irreversibles.
+
+La interactividad no es decorativa: un simulador de permisos y una matriz rol × submódulo recalculan
+en vivo qué queda habilitado, con estados **Completo**, **Parcial** y **Sin acceso**. El progreso de
+lectura se guarda por módulo con `useSyncExternalStore`, sin renders en cascada.
+
+**Verificación**
+
+`typecheck`, `eslint` y `next build` limpios; 30 pruebas entre resolución de acceso, catálogo de
+permisos, búsqueda, progreso y el render interactivo (bloqueo, habilitación desde el simulador,
+marcado de revisado y filtro por búsqueda).

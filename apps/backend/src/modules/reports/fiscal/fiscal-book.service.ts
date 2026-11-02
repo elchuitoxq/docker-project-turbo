@@ -3,6 +3,7 @@ import { and, eq, gte, lte, asc, inArray } from 'drizzle-orm';
 import { db } from '../../../database';
 import { MoneyService } from '../../../common/money/money.service';
 import { creditNotes, invoiceItems, invoices, partners } from '../../../schema';
+import { ISSUED_INVOICE_STATUSES } from '../../billing/issued-status';
 
 export type BookType = 'SALES' | 'PURCHASES';
 
@@ -53,7 +54,8 @@ export type FiscalBook = {
  *    tasa congelada (M3).
  * 3. **Ignoraba las notas de crédito**, que por regla restan.
  *
- * Sólo documentos `POSTED` (regla 1 de `S-06`).
+ * Sólo documentos emitidos: `POSTED`, `PARTIAL` y `PAID` (regla 1 de `S-06`). Cobrar una parte no
+ * saca la venta del libro; `DRAFT` y `VOID` sí quedan fuera.
  */
 @Injectable()
 export class FiscalBookService {
@@ -188,7 +190,7 @@ export class FiscalBookService {
   private async salesRows(branchId: string, from?: string, to?: string): Promise<FiscalBookRow[]> {
     const invoiceConditions = [
       eq(invoices.branchId, branchId),
-      eq(invoices.status, 'POSTED'),
+      inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]),
       eq(invoices.type, 'SALE'),
       ...this.dateConditions(from, to, 'invoice'),
     ];
@@ -201,7 +203,7 @@ export class FiscalBookService {
 
     const creditNoteConditions = [
       eq(creditNotes.branchId, branchId),
-      eq(creditNotes.status, 'POSTED'),
+      inArray(creditNotes.status, ['POSTED', 'APPLIED']),
       ...this.dateConditions(from, to, 'creditNote'),
     ];
 
@@ -226,7 +228,7 @@ export class FiscalBookService {
   ): Promise<FiscalBookRow[]> {
     const conditions = [
       eq(invoices.branchId, branchId),
-      eq(invoices.status, 'POSTED'),
+      inArray(invoices.status, [...ISSUED_INVOICE_STATUSES]),
       eq(invoices.type, 'PURCHASE'),
       ...this.dateConditions(from, to, 'invoice'),
     ];

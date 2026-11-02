@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api/client';
+import type { InvoiceDocumentDetail } from '@/modules/documents/types';
 
 export type InvoiceStatus = 'DRAFT' | 'POSTED' | 'VOID';
 export type InvoiceType = 'SALE' | 'PURCHASE' | 'CREDIT_NOTE' | 'DEBIT_NOTE';
@@ -33,7 +34,8 @@ export type Invoice = {
   currencyCode?: string;
   exchangeRate?: string;
   notes?: string;
-  issueDate: string;
+  /** El backend devuelve la fecha de emisión en `date` (columna `invoices.date`). */
+  date: string;
   dueDate: string | null;
   items?: InvoiceItem[];
   createdAt?: string;
@@ -61,25 +63,58 @@ function buildQuery(filters: InvoiceFilters = {}): string {
   return qs ? `?${qs}` : '';
 }
 
+/** Cuerpo de `POST /v1/billing/invoices`: el folio y el código los asigna el backend. */
+export type CreateInvoicePayload = {
+  partnerId: string;
+  warehouseId?: string;
+  currencyId?: string;
+  type?: 'SALE' | 'PURCHASE';
+  exchangeRate?: number;
+  dueDate?: string;
+  supplierInvoiceNumber?: string;
+  supplierInvoiceDate?: string;
+  items: { productId: string; quantity: number; price: number; taxRate?: number }[];
+};
+
+/** Cuerpo de `PATCH /v1/billing/invoices/:id` (sólo borradores). */
+export type UpdateInvoicePayload = {
+  partnerId?: string;
+  dueDate?: string;
+  /** Tasa de la factura: `base = monto × exchangeRate`. */
+  exchangeRate?: number;
+  items?: {
+    productId: string;
+    quantity: number;
+    price: number;
+    taxRate?: number;
+    /** Moneda de `price`; si se omite, se asume la del documento. */
+    priceCurrencyId?: string;
+  }[];
+};
+
 export const invoicesApi = {
   list: (filters?: InvoiceFilters) =>
     apiClient.get<{ data: Invoice[]; total: number; page: number; limit: number }>(
       `/billing/invoices${buildQuery({ ...filters, paginated: 'true' })}`
     ),
   get: (id: string) => apiClient.get<Invoice>(`/billing/invoices/${id}`),
+  getDetail: (id: string) => apiClient.get<InvoiceDocumentDetail>(`/billing/invoices/${id}`),
   getFiscalJson: (id: string) =>
     apiClient.get<Record<string, unknown>>(`/billing/invoices/${id}/fiscal-json`),
-  create: (data: Partial<Invoice>) => apiClient.post<Invoice>('/billing/invoices', data),
-  update: (id: string, data: Partial<Invoice>) =>
+  create: (data: CreateInvoicePayload) =>
+    apiClient.post<{ id: string; code: string }>('/billing/invoices', data),
+  update: (id: string, data: UpdateInvoicePayload) =>
     apiClient.patch<Invoice>(`/billing/invoices/${id}`, data),
   post: (id: string) => apiClient.post<Invoice>(`/billing/invoices/${id}/post`, {}),
   void: (id: string, reason: string) =>
     apiClient.post<Invoice>(`/billing/invoices/${id}/void`, { reason }),
-  stats: () =>
+  stats: (type?: 'SALE' | 'PURCHASE') =>
     apiClient.get<{
-      draft: number;
-      posted: number;
-      void: number;
-      totalPosted: string;
-    }>('/billing/invoices/stats'),
+      totalCount: number;
+      totalAmount: number;
+      draftCount: number;
+      postedCount: number;
+      paidCount: number;
+      voidCount: number;
+    }>(type ? `/billing/invoices/stats?type=${type}` : '/billing/invoices/stats'),
 };

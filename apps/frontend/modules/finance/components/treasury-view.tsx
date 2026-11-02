@@ -2,16 +2,7 @@
 
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Landmark,
-  Wallet,
-  ArrowDown,
-  ArrowUp,
-  Plus,
-  Search,
-  MoreHorizontal,
-  X,
-} from 'lucide-react';
+import { Landmark, Wallet, ArrowDown, ArrowUp, Search, MoreHorizontal, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -42,7 +33,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { treasuryApi, type Payment } from '../api/treasury';
 import { useVoidInvoice } from '../hooks/use-invoices';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatMoney, formatDual, formatDate } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
+import { findRate, useLatestRates } from '@/lib/rates';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 const STATUS_LABEL = {
   PENDING: 'Pendiente',
@@ -58,6 +53,8 @@ const STATUS_VARIANT = {
 
 export function TreasuryView() {
   const t = useTranslations('common');
+  const { hasPermission } = usePermission();
+  const { baseCode, codeOf } = useCurrencyIndex();
   const [search, setSearch] = React.useState('');
   const [type, setType] = React.useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
   const [status, setStatus] = React.useState<string>('ALL');
@@ -76,13 +73,29 @@ export function TreasuryView() {
   });
   const voidPay = useVoidInvoice();
 
-  const totalBalance = (accounts ?? []).reduce((acc, a) => acc + Number(a.balance ?? 0), 0);
+  // Saldos de cuentas en monedas distintas no se pueden sumar en bruto: cada cuenta se convierte a
+  // moneda funcional con la tasa vigente antes de totalizar (S-08 regla 5). Sin tasa, la cuenta se
+  // excluye del total en vez de sumar un número equivocado.
+  const { data: rates } = useLatestRates();
+  const rateOf = (currencyId: string): number | null => {
+    const code = codeOf(currencyId);
+    if (code === baseCode) return 1;
+    return findRate(rates, code)?.rate ?? null;
+  };
+  const totalBalance = (accounts ?? []).reduce((acc, a) => {
+    const rate = rateOf(a.currencyId);
+    if (rate === null) return acc;
+    return acc + Number(a.currentBalance ?? 0) * rate;
+  }, 0);
+  const accountsWithoutRate = (accounts ?? []).filter(a => rateOf(a.currencyId) === null).length;
+  // Los saldos y los totales de tesorería se muestran en moneda funcional: el backend ya los
+  // expresa así (pagado/pagado base) y sumar monedas distintas sin convertir es incorrecto.
   const totalInflow = (payments?.data ?? [])
     .filter(p => p.type === 'INCOME' && p.status === 'POSTED')
-    .reduce((acc, p) => acc + Number(p.amount), 0);
+    .reduce((acc, p) => acc + Number(p.amountBase ?? p.amount), 0);
   const totalOutflow = (payments?.data ?? [])
     .filter(p => p.type === 'EXPENSE' && p.status === 'POSTED')
-    .reduce((acc, p) => acc + Number(p.amount), 0);
+    .reduce((acc, p) => acc + Number(p.amountBase ?? p.amount), 0);
 
   const filtered = (payments?.data ?? []).filter(
     p =>
@@ -103,8 +116,15 @@ export function TreasuryView() {
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Saldo total</p>
-              <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalBalance)}</p>
+              <p className="text-xs text-muted-foreground">Saldo total ({baseCode})</p>
+              <p className="text-2xl font-bold tabular-nums">
+                {formatMoney(totalBalance, baseCode)}
+              </p>
+              {accountsWithoutRate > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {accountsWithoutRate} cuenta(s) sin tasa vigente
+                </p>
+              )}
             </div>
             <Wallet className="size-5 text-primary" />
           </CardContent>
@@ -112,9 +132,9 @@ export function TreasuryView() {
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Ingresos</p>
+              <p className="text-xs text-muted-foreground">Ingresos ({baseCode})</p>
               <p className="text-2xl font-bold tabular-nums text-emerald-600">
-                {formatCurrency(totalInflow)}
+                {formatMoney(totalInflow, baseCode)}
               </p>
             </div>
             <ArrowDown className="size-5 text-emerald-600" />
@@ -123,9 +143,9 @@ export function TreasuryView() {
         <Card>
           <CardContent className="flex items-center justify-between p-4">
             <div>
-              <p className="text-xs text-muted-foreground">Egresos</p>
+              <p className="text-xs text-muted-foreground">Egresos ({baseCode})</p>
               <p className="text-2xl font-bold tabular-nums text-destructive">
-                {formatCurrency(totalOutflow)}
+                {formatMoney(totalOutflow, baseCode)}
               </p>
             </div>
             <ArrowUp className="size-5 text-destructive" />
@@ -145,9 +165,9 @@ export function TreasuryView() {
               <p className="text-sm font-medium">{a.bankName}</p>
               <p className="font-mono text-xs text-muted-foreground">{a.accountNumber}</p>
               <div className="mt-2 flex items-center justify-between">
-                <Badge variant="outline">{a.currencyCode}</Badge>
+                <Badge variant="outline">{codeOf(a.currencyId)}</Badge>
                 <span className="font-semibold tabular-nums">
-                  {formatCurrency(Number(a.balance ?? 0))}
+                  {formatMoney(Number(a.currentBalance ?? 0), codeOf(a.currencyId))}
                 </span>
               </div>
             </div>
@@ -190,9 +210,6 @@ export function TreasuryView() {
                 ))}
               </SelectContent>
             </Select>
-            <Button>
-              <Plus /> Nuevo pago
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -250,7 +267,7 @@ export function TreasuryView() {
                       }`}
                     >
                       {p.type === 'INCOME' ? '+' : '-'}
-                      {formatCurrency(Number(p.amount), p.currencyCode === 'VES' ? 'VES' : 'USD')}
+                      {formatDual(Number(p.amount), codeOf(p.currencyId), Number(p.exchangeRate))}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -260,24 +277,25 @@ export function TreasuryView() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {p.status !== 'VOID' && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                if (window.confirm(`¿Anular el pago ${p.code}?`)) {
-                                  voidPay.mutate(
-                                    { id: p.id, reason: 'Anulado desde tesorería' },
-                                    {
-                                      onSuccess: () => toast.success('Pago anulado'),
-                                      onError: () => toast.error('Error al anular'),
-                                    }
-                                  );
-                                }
-                              }}
-                              className="text-destructive"
-                            >
-                              <X /> Anular
-                            </DropdownMenuItem>
-                          )}
+                          {p.status !== 'VOID' &&
+                            hasPermission(PERMISSIONS.FINANCE.PAYMENTS.VOID) && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  if (window.confirm(`¿Anular el pago ${p.code}?`)) {
+                                    voidPay.mutate(
+                                      { id: p.id, reason: 'Anulado desde tesorería' },
+                                      {
+                                        onSuccess: () => toast.success('Pago anulado'),
+                                        onError: () => toast.error('Error al anular'),
+                                      }
+                                    );
+                                  }
+                                }}
+                                className="text-destructive"
+                              >
+                                <X /> Anular
+                              </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

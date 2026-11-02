@@ -44,6 +44,7 @@ export class TaxConceptsService {
         retentionPercentage: createTaxConceptDto.retentionPercentage.toString(),
         baseMin: createTaxConceptDto.baseMin?.toString() || '0',
         sustraendo: createTaxConceptDto.sustraendo?.toString() || '0',
+        sustraendoUnit: createTaxConceptDto.sustraendoUnit ?? 'BS',
         isEnabled: createTaxConceptDto.isEnabled !== false,
       })
       .returning();
@@ -86,6 +87,9 @@ export class TaxConceptsService {
     if (updateTaxConceptDto.sustraendo !== undefined) {
       updateData.sustraendo = updateTaxConceptDto.sustraendo.toString();
     }
+    if (updateTaxConceptDto.sustraendoUnit !== undefined) {
+      updateData.sustraendoUnit = updateTaxConceptDto.sustraendoUnit;
+    }
     if (updateTaxConceptDto.isEnabled !== undefined) {
       updateData.isEnabled = updateTaxConceptDto.isEnabled;
     }
@@ -117,6 +121,7 @@ export class TaxConceptsService {
       retentionPercentage: Number(concept.retentionPercentage),
       baseMin: concept.baseMin ? Number(concept.baseMin) : 0,
       sustraendo: concept.sustraendo ? Number(concept.sustraendo) : 0,
+      sustraendoUnit: (concept.sustraendoUnit ?? 'BS') as 'BS' | 'UT',
       isEnabled: concept.isEnabled || false,
     };
   }

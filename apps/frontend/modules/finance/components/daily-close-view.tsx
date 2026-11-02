@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   Dialog,
   DialogContent,
@@ -28,8 +29,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { dailyCloseApi, type DailyClose } from '../api/daily-close';
-import { apiClient } from '@/lib/api/client';
-import { formatCurrency, formatDay } from '@/lib/utils';
+import { formatMoney, formatDay } from '@/lib/utils';
+import { useCurrencyIndex } from '@/lib/currency';
+import { PERMISSIONS } from '@/lib/permissions';
+import { usePermission } from '@/hooks/use-permission';
 
 type Currency = { id: string; code: string; isBase?: boolean };
 
@@ -45,6 +48,8 @@ function today(): string {
  */
 export function DailyCloseView() {
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermission();
+  const canManage = hasPermission(PERMISSIONS.FINANCE.TREASURY.CREATE_ACCOUNT);
   const [date, setDate] = React.useState(today());
   const [closing, setClosing] = React.useState(false);
   const [reopening, setReopening] = React.useState(false);
@@ -72,24 +77,20 @@ export function DailyCloseView() {
         <div className="flex items-end gap-2">
           <Field className="w-45">
             <FieldLabel htmlFor="close-date">Fecha</FieldLabel>
-            <Input
-              id="close-date"
-              type="date"
-              value={date}
-              onChange={event => setDate(event.target.value)}
-            />
+            <DatePicker id="close-date" value={date} onChange={setDate} placeholder="Fecha" />
           </Field>
-          {data?.status === 'CLOSED' ? (
-            <Button variant="outline" onClick={() => setReopening(true)}>
-              <LockOpen data-icon="inline-start" />
-              Reabrir
-            </Button>
-          ) : (
-            <Button onClick={() => setClosing(true)} disabled={!data}>
-              <Lock data-icon="inline-start" />
-              Cerrar día
-            </Button>
-          )}
+          {canManage &&
+            (data?.status === 'CLOSED' ? (
+              <Button variant="outline" onClick={() => setReopening(true)}>
+                <LockOpen data-icon="inline-start" />
+                Reabrir
+              </Button>
+            ) : (
+              <Button onClick={() => setClosing(true)} disabled={!data}>
+                <Lock data-icon="inline-start" />
+                Cerrar día
+              </Button>
+            ))}
         </div>
       </div>
 
@@ -129,13 +130,8 @@ export function DailyCloseView() {
 }
 
 function CloseSummary({ close }: { close: DailyClose }) {
-  // Los agregados vienen en moneda funcional; el desglose por moneda trae su importe original.
-  const currencies = useQuery({
-    queryKey: ['currencies'],
-    queryFn: () => apiClient.get<Currency[]>('/settings/currencies'),
-  });
-  const baseCode =
-    currencies.data?.find(currency => currency.isBase)?.code === 'VES' ? 'VES' : 'USD';
+  // Los agregados vienen en moneda funcional; el desglose por moneda trae su código propio.
+  const { baseCode } = useCurrencyIndex();
 
   return (
     <div className="flex flex-col gap-4">
@@ -143,23 +139,19 @@ function CloseSummary({ close }: { close: DailyClose }) {
         <Card>
           <CardHeader>
             <CardDescription>Ingresos ({baseCode})</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatCurrency(close.totalIncome, baseCode)}
-            </CardTitle>
+            <CardTitle className="text-2xl">{formatMoney(close.totalIncome, baseCode)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Egresos ({baseCode})</CardDescription>
-            <CardTitle className="text-2xl">
-              {formatCurrency(close.totalExpense, baseCode)}
-            </CardTitle>
+            <CardTitle className="text-2xl">{formatMoney(close.totalExpense, baseCode)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader>
             <CardDescription>Neto ({baseCode})</CardDescription>
-            <CardTitle className="text-2xl">{formatCurrency(close.netBalance, baseCode)}</CardTitle>
+            <CardTitle className="text-2xl">{formatMoney(close.netBalance, baseCode)}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -184,8 +176,8 @@ function CloseSummary({ close }: { close: DailyClose }) {
           <CardHeader>
             <CardTitle className="text-base">Cuadre de caja</CardTitle>
             <CardDescription>
-              Apertura {formatCurrency(close.openingCash ?? 0)} · esperado{' '}
-              {formatCurrency(close.expectedCash ?? 0)}
+              Apertura {formatMoney(close.openingCash ?? 0, baseCode)} · esperado{' '}
+              {formatMoney(close.expectedCash ?? 0, baseCode)}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-6">
@@ -194,7 +186,7 @@ function CloseSummary({ close }: { close: DailyClose }) {
               <p className="text-lg font-medium">
                 {close.cashCount === null || close.cashCount === undefined
                   ? '—'
-                  : formatCurrency(close.cashCount)}
+                  : formatMoney(close.cashCount, baseCode)}
               </p>
             </div>
             <div>
@@ -206,7 +198,7 @@ function CloseSummary({ close }: { close: DailyClose }) {
               >
                 {close.difference === null || close.difference === undefined
                   ? '—'
-                  : formatCurrency(close.difference)}
+                  : formatMoney(close.difference, baseCode)}
               </p>
             </div>
             {(close.difference ?? 0) !== 0 && (
@@ -245,10 +237,10 @@ function CloseSummary({ close }: { close: DailyClose }) {
                     <TableRow key={row.methodName}>
                       <TableCell>{row.methodName}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.income, baseCode)}
+                        {formatMoney(row.income, baseCode)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.expense, baseCode)}
+                        {formatMoney(row.expense, baseCode)}
                       </TableCell>
                     </TableRow>
                   ))
@@ -283,10 +275,10 @@ function CloseSummary({ close }: { close: DailyClose }) {
                     <TableRow key={row.currencyCode}>
                       <TableCell>{row.currencyCode}</TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.income, row.currencyCode === 'VES' ? 'VES' : 'USD')}
+                        {formatMoney(row.income, row.currencyCode)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatCurrency(row.expense, row.currencyCode === 'VES' ? 'VES' : 'USD')}
+                        {formatMoney(row.expense, row.currencyCode)}
                       </TableCell>
                     </TableRow>
                   ))
@@ -317,6 +309,7 @@ function CloseDialog({
 }) {
   const [notes, setNotes] = React.useState('');
   const [openingCash, setOpeningCash] = React.useState('0');
+  const { baseCode } = useCurrencyIndex();
   const [cashCount, setCashCount] = React.useState('');
 
   const mutation = useMutation({
@@ -340,8 +333,9 @@ function CloseDialog({
         <DialogHeader>
           <DialogTitle>Cerrar {formatDay(date)}</DialogTitle>
           <DialogDescription>
-            Ingresos {formatCurrency(close.totalIncome)} · egresos{' '}
-            {formatCurrency(close.totalExpense)}. Al cerrar, la fecha no admite más movimientos.
+            Ingresos {formatMoney(close.totalIncome, baseCode)} · egresos{' '}
+            {formatMoney(close.totalExpense, baseCode)}. Al cerrar, la fecha no admite más
+            movimientos.
           </DialogDescription>
         </DialogHeader>
 

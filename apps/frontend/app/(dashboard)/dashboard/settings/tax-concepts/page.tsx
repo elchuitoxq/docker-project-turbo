@@ -1,10 +1,5 @@
-import { ModuleStub } from '@/components/layout/module-stub';
-export default function Page() {
-  return (
-    <ModuleStub
-      title="Conceptos de impuestos"
-      description="ISLR, IVA, IGTF y otros conceptos fiscales"
-      endpoint="GET /settings/tax-concepts"
-    />
-  );
+import { TaxConceptsView } from '@/modules/settings/tax-concepts/components/tax-concepts-view';
+
+export default function TaxConceptsPage() {
+  return <TaxConceptsView />;
 }
